@@ -35,6 +35,11 @@ DESIGNDOCS_SRC="$TEST_TMPDIR/designdocs"
 mkdir "$DESIGNDOCS_SRC"
 cp -rL "$(dirname "$DESIGNDOCS_RUNFILES")/." "$DESIGNDOCS_SRC/"
 
+# Unset RUNFILES_DIR to simulate the bazel run (sh_binary) environment, where the
+# runfiles library may use the manifest path and leave RUNFILES_DIR unbound.
+# Any code in site_builder.bash that references $RUNFILES_DIR directly will fail
+# here exactly as it would fail in the deploy job.
+unset RUNFILES_DIR
 build_docs_site
 
 SITE="$SITE_DIR"

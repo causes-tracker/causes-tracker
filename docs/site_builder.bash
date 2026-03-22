@@ -32,8 +32,18 @@ build_docs_site() {
   # Zensical locates its theme assets via __file__ at runtime, but the Bazel
   # runfiles layout differs from a regular pip install, so it silently skips
   # the copy.  Copy them manually.
+  #
+  # ZENSICAL is an rlocation path that may be a symlink into the caller's
+  # runfiles tree.  Resolve the symlink to reach the actual compiled binary,
+  # which always has a .runfiles directory adjacent to it containing all of
+  # the Python packages.  This avoids relying on RUNFILES_DIR, which the test
+  # runner sets but bazel run (sh_binary) may not.
   local assets
-  assets=$(find "$RUNFILES_DIR" -path "*/zensical/templates/assets" -type d | head -1)
+  assets=$(find "$(readlink -f "${ZENSICAL}").runfiles" -path "*/zensical/templates/assets" -type d | head -1)
+  if [[ -z "$assets" ]]; then
+    echo >&2 "ERROR: zensical theme assets not found in $(readlink -f "${ZENSICAL}").runfiles"
+    return 1
+  fi
   cp -rL "$assets" "$build_root/site/assets"
 
   SITE_DIR="$build_root/site"

@@ -11,6 +11,13 @@ bazel_dep(name = "rules_python", version = "1.9.0")
 bazel_dep(name = "rules_shell", version = "0.6.1")
 bazel_dep(name = "aspect_rules_js", version = "3.0.3")
 
+# Proto support.
+bazel_dep(name = "rules_proto", version = "7.1.0")
+bazel_dep(name = "protobuf", version = "34.1")
+
+# Linting and formatting (proto via buf lint; extended to other languages as they land).
+bazel_dep(name = "aspect_rules_lint", version = "2.3.0")
+
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
 python.toolchain(python_version = "3.12")
 

@@ -4,6 +4,9 @@ common --enable_bzlmod
 # Show output on failure
 build --verbose_failures
 
+# Required for buf lint via rules_lint: protoc must include source location info.
+build --experimental_proto_descriptor_sets_include_source_info
+
 # Local disk cache (shared across workspaces on the same machine)
 build --disk_cache=~/.cache/bazel-disk-cache
 

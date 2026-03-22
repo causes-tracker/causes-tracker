@@ -19,28 +19,25 @@ else
   exit 1
 fi
 
+# shellcheck source=site_builder.bash
+source "$(rlocation _main/docs/site_builder.bash)"
+
 ZENSICAL=$(rlocation _main/docs/zensical)
 MKDOCS_YML=$(rlocation _main/docs/mkdocs.yml)
-ZENSICAL_ASSETS=$(find "$RUNFILES_DIR" -path "*/zensical/templates/assets" -type d | head -1)
 
 # Resolve the runfiles designdocs directory. Runfiles use a double-symlink chain
 # (runfiles → execroot → source); Zensical silently finds 0 pages through
 # double-symlinks, so copy files with -L to dereference all symlinks.
 DESIGNDOCS_RUNFILES=$(rlocation _main/designdocs/README.md)
-DESIGNDOCS_DIR=$(dirname "$DESIGNDOCS_RUNFILES")
 
-# Zensical requires the config to sit at the project root with relative paths.
-# Set up a minimal project tree in TEST_TMPDIR with real (dereferenced) doc files.
-mkdir "$TEST_TMPDIR/designdocs"
-cp -rL "$DESIGNDOCS_DIR/." "$TEST_TMPDIR/designdocs/"
-sed -e '/^docs_dir:/d' -e '/^site_dir:/d' "$MKDOCS_YML" > "$TEST_TMPDIR/mkdocs.yml"
-echo "docs_dir: designdocs" >> "$TEST_TMPDIR/mkdocs.yml"
+# Stage docs into TEST_TMPDIR; the shared build helper then builds from there.
+DESIGNDOCS_SRC="$TEST_TMPDIR/designdocs"
+mkdir "$DESIGNDOCS_SRC"
+cp -rL "$(dirname "$DESIGNDOCS_RUNFILES")/." "$DESIGNDOCS_SRC/"
 
-cd "$TEST_TMPDIR"
-"$ZENSICAL" build
-cp -rL "$ZENSICAL_ASSETS" "$TEST_TMPDIR/site/assets"
+build_docs_site
 
-SITE="$TEST_TMPDIR/site"
+SITE="$SITE_DIR"
 FAIL=0
 
 # Every page in the nav must produce an index.html with non-trivial content.

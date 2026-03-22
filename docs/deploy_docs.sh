@@ -19,11 +19,17 @@ else
   exit 1
 fi
 
+# shellcheck source=site_builder.bash
+source "$(rlocation _main/docs/site_builder.bash)"
+
 ZENSICAL=$(rlocation _main/docs/zensical)
 GHP_IMPORT=$(rlocation _main/docs/ghp_import)
+MKDOCS_YML=$(rlocation _main/docs/mkdocs.yml)
 
-# Use the actual workspace docs/ so git is available for the gh-pages push.
-cd "${BUILD_WORKSPACE_DIRECTORY}/docs"
+DESIGNDOCS_SRC="${BUILD_WORKSPACE_DIRECTORY}/designdocs"
 
-"$ZENSICAL" build
-"$GHP_IMPORT" --force --push site
+build_docs_site
+
+# ghp-import needs git credentials from the workspace.
+cd "${BUILD_WORKSPACE_DIRECTORY}"
+"$GHP_IMPORT" --force --push "$SITE_DIR"

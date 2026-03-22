@@ -7,5 +7,6 @@ nav:
   - Manifesto: Manifesto.md
   - Design Choices: Design-Choices.md
   - Decisions: Decisions.md
+  - Schema: Schema.md
   - Contributing: Contributing.md
   - Raw Discussion: Raw-Discussion.md

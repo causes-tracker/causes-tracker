@@ -50,6 +50,7 @@ declare -A EXPECTED_PAGES=(
   ["Manifesto/index.html"]="Manifesto"
   ["Design-Choices/index.html"]="Design"
   ["Decisions/index.html"]="Decision"
+  ["Schema/index.html"]="Schema"
   ["Contributing/index.html"]="Contributing"
   ["Raw-Discussion/index.html"]="Discussion"
 )

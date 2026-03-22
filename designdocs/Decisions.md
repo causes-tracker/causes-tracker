@@ -78,12 +78,12 @@ Local-only mode needs consideration.
 
 **Context:** The team has day jobs and no interest in competing commercially with Atlassian, GitHub, Linear, etc.
 
-**Decision:** Apache 2.0 or MIT licence.
-Final choice between them is not yet made but both are acceptable.
-Contributions must be dual-licensed under both to allow downstream users to choose.
+**Decision:** Apache 2.0.
+Apache 2.0 is preferred over MIT because it includes an explicit patent grant, which protects contributors and users from patent claims on the covered code.
 
 **Consequences:** No commercial restrictions.
 Anyone can fork and self-host.
+The patent grant is a meaningful protection as the project grows.
 
 ---
 

@@ -14,10 +14,13 @@ The team had extensive experience with Launchpad's centralised model and its lim
 
 **Decision:** Support both distributed and replicated operation.
 Not all data sets need to be replicated everywhere (e.g. crash reports may be too voluminous), but the architecture must accommodate local repositories that sync with a remote.
+Replication is pull-based: instances initiate outbound connections to fetch from upstreams.
+This means instances do not need to be publicly reachable; any instance behind NAT can replicate from a public upstream.
 
 **Consequences:** Increased implementation complexity.
 Conflict resolution and eventual consistency must be designed in from the start.
 Enables offline-first operation and private deployments without a separate codebase.
+Pull-based replication also enables GitHub integration: a Causes instance can pull issue and PR data from GitHub's API and represent it in the Signs/Symptoms/Plans model.
 
 ---
 
@@ -50,7 +53,7 @@ Any dependency on an external hosted service (e.g. a specific SMTP relay, a clou
 The reference implementation must be deployable with no external service dependencies beyond standard protocols (HTTP, SMTP).
 
 **Consequences:** Excludes some convenient hosted services.
-Pushes toward standard protocols (WebSub, Atom, SMTP) over proprietary APIs.
+Pushes toward standard protocols (Atom, SMTP, webhooks) over proprietary APIs.
 
 ---
 
@@ -95,25 +98,45 @@ The team discussed whether upstream/downstream relationships (e.g. a distro trac
 True federation (pushing selected data upstream) is supported but not the primary model.
 Downstream chooses what to push upstream; upstream can pull everything if desired.
 
+**GitHub integration is required for incremental adoption.**
+Projects will not migrate from GitHub unless Causes can pull from GitHub's issue and PR data and represent it in the Signs/Symptoms/Plans model.
+The pull-based replication model (ADR-001) applies here too: a Causes instance pulls from the GitHub API rather than requiring GitHub to push to it.
+
 **Consequences:** Simpler than full federation.
 Downstream operators have control.
 Does not preclude ActivityPub-style federation in the future.
+GitHub is the de-facto centre of gravity for open source; treating it as a first-class upstream source is necessary for adoption.
 
 ---
 
-## ADR-007: Push notifications via WebSub (formerly PubSubHubbub)
+## ADR-007: Push notifications — gRPC streaming
 
-**Status:** Accepted — _review recommended_
+**Status:** Supersedes the original WebSub decision
 
-**Context:** The original design used PubSubHubbub (PSHB) for server-to-server push and websockets for browser clients, via a stateless proxy daemon.
+**Context:** The original design used PubSubHubbub (PSHB, later WebSub) for server-to-server push, motivated by sublinear fan-out at large subscriber counts.
+Realistic instance counts make sublinear scaling unnecessary.
+A subsequent revision replaced WebSub with webhooks and SSE, but webhooks require the receiver to have a public URL — incompatible with the all-behind-NAT deployment goal (ADR-010).
+Since all connections in the system are client-initiated outbound, gRPC streaming is the natural fit: the client opens a stream to the server and receives a push of events over it.
 
-**Decision:** Use WebSub (the W3C standardisation of PSHB, Recommendation 2018) for server-to-server content push.
-Use websockets for browser clients.
-A stateless proxy daemon subscribes to WebSub feeds and delivers events to connected browser clients.
+**Decision:** Use gRPC streaming for all server-push between non-browser parties.
 
-**Consequences:** WebSub is a W3C standard but has limited adoption outside the IndieWeb community.
-Review whether Server-Sent Events (SSE) better fits the browser-client use case (simpler, unidirectional); ADR-009 has since adopted SSE for browser updates.
-Webhooks are now more widely understood than WebSub for server-to-server push and may be a more pragmatic choice.
+- **CLI → instance:** gRPC server streaming for real-time event delivery; unary gRPC for commands.
+- **BFF → instance:** gRPC server streaming for events the BFF fans out to browser clients; unary gRPC for API calls.
+- **Federated instances:** gRPC bidi streaming; the downstream instance opens the connection to upstream and both parties can push changes.
+  This is the natural expression of the pull-based replication model (ADR-001).
+- **Microservices → instance:** gRPC unary or server streaming depending on the operation.
+- **Browser → BFF → instance:** The BFF converts the gRPC event stream from the instance into SSE for the browser.
+  SSE is the only non-gRPC protocol in the system, confined to the BFF↔browser edge.
+
+Webhooks are removed from the core model.
+They may be offered as an optional outbound integration mechanism for external tools that cannot speak gRPC, but are not load-bearing.
+
+**Consequences:** One protocol (gRPC) for all non-browser communication; all types defined in proto.
+No webhook delivery infrastructure (retry queues, signature verification, endpoint management).
+All connections are client-initiated outbound.
+Components that are intentionally public-facing still need a reachable endpoint: an upstream instance accepting federation connections, and a BFF serving internet users.
+Private downstream-only instances (company mirrors, local dev) need no public endpoint at all.
+The BFF is the single SSE conversion point; all other streaming is typed gRPC.
 
 ---
 
@@ -136,6 +159,7 @@ The `.gitignore` in this repo suggests Haskell/Cabal was considered at some poin
 - **TypeScript/Node** (large ecosystem, full-stack possibility)
 
 **Criteria:** Easy for contributors to onboard, produces easily-deployed binaries or containers, has mature web framework and test ecosystem.
+The architecture must support components in different languages communicating over the shared proto API (ADR-009); the initial language choice must not prevent per-component rewrites in faster languages later.
 
 ---
 
@@ -149,30 +173,60 @@ Because components may be implemented in different languages (see ADR-008), the 
 
 **Decision:** Define the API in `.proto` files.
 Generate an OpenAPI spec as a published artifact via `protoc-gen-openapi` for third-party integrations and documentation.
-Use Server-Sent Events (SSE) for real-time browser updates — SSE is native in all browsers, requires no client library, and has built-in reconnect; it is the right tool for this concern regardless of the RPC framework.
 The choice of server-side RPC framework (Connect, grpc-gateway, tonic, etc.) is left to ADR-008 once the backend language is known.
 
+**Client types and their protocols (see also ADR-007):**
+
+- **BFF → instance:** The only path for human browser sessions (see ADR-010).
+  gRPC for API calls and server streaming for events; the BFF converts the event stream to SSE for browsers.
+  The BFF and instance may be bundled in one binary but are structurally distinct layers.
+- **CLI → instance:** gRPC with API tokens obtained via OIDC Device Flow (see ADR-010).
+  gRPC server streaming for real-time event delivery (e.g. watching a live analysis job).
+- **Microservice → instance** (GitHub connector, analysis tasks, etc.): gRPC with API tokens.
+  These services initiate outbound connections; neither party needs to be publicly reachable.
+- **MCP server → instance:** gRPC with pre-configured API tokens.
+  A local MCP server adapts the instance's API for LLM tool use; gRPC streaming delivers live change events.
+- **Federated instance ↔ instance:** gRPC bidi streaming; downstream initiates, both sides push.
+
 **Consequences:** Component boundaries defined by proto services make per-component language rewrites possible without changing callers.
-Browser streaming is handled by SSE, sidestepping gRPC/Connect streaming complexity in the browser.
+SSE handles all real-time push to connected clients regardless of client type.
 OpenAPI is a generated artifact, not the source of truth.
 If a specific RPC framework proves problematic, proto definitions remain valid and the framework can be swapped.
 
 ---
 
-## ADR-010: Security model — OPEN
+## ADR-010: Security model
 
-**Status:** Open — must be resolved before any public deployment
+**Status:** Partially decided — transport and auth flows settled; authorisation model open
 
 **Context:** The original docs have no mention of authentication, authorisation, or security hardening.
 For a system that can hold private bug data (e.g. security vulnerabilities), this is a critical gap.
+Instances may be behind NAT with no public URL, which rules out OIDC redirect-based flows unless a BFF with a public URL mediates them.
 
-**Decision:** _Not yet made._
-Areas to define:
+**Decision:**
 
-- Authentication: OAuth 2.0 / OIDC for browser users; API tokens for CLI and service-to-service
-- Authorisation: role-based (user / developer / project admin) with per-repository ACLs
-- Transport: HTTPS mandatory for any networked deployment
-- Security disclosure workflow: private plans/symptoms visible only to authorised parties until disclosed
+**Transport:** HTTPS mandatory for any networked deployment.
+
+**Human authentication — OIDC Device Flow by default:** The user is directed to a public IdP URL (e.g. `github.com/login/device`); the BFF or instance polls for the token.
+No redirect to the BFF or instance is needed, so this works whether or not either is publicly reachable.
+Device flow is the default for both browser sessions (via BFF) and CLI.
+Redirect-based OIDC social login is an optional enhancement for deployments with a public URL, not a baseline requirement.
+
+**Browser access — BFF only:** Browsers do not connect directly to the instance.
+A Backend-for-Frontend (BFF) layer sits between the browser and the instance.
+The BFF may be bundled in the same binary as the instance but is a structurally distinct layer.
+The BFF holds a service-account API token for the instance; the browser authenticates with the BFF via device flow.
+The BFF itself may also be behind NAT — no public URL is assumed at any layer by default.
+
+**Service-to-service authentication — API tokens:** Microservices, the MCP server, and the BFF authenticate to the instance with pre-issued API tokens.
+No human flow involved.
+
+**Authorisation:** _Not yet decided._
+Areas to define: role-based model (user / developer / project admin), per-repository ACLs, and a private disclosure workflow for security vulnerabilities (private plans/symptoms visible only to authorised parties until disclosed).
+
+**Consequences:** The BFF requirement means there is no "minimal" deployment that exposes the instance API directly to browsers.
+The BFF and instance can be the same binary to keep deployment simple; the structural separation is what matters for security reasoning.
+Device flow covers both CLI and any future non-browser client that needs human authentication.
 
 ---
 

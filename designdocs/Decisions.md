@@ -309,12 +309,73 @@ _Open: exact permission matrix, API-level enforcement, and the role definition A
 
 **Federation trust and remote identity:**
 Trust between instances is established explicitly by an administrator; there is no automatic trust.
-Proposed mechanism: the admin of the downstream instance adds the upstream's public endpoint and verifies an out-of-band fingerprint (trust-on-first-use with admin confirmation).
-After trust is established, the upstream issues a federation API token to the downstream.
-Remote identities (users from another instance) are represented as opaque federated references: `(instance_url, local_id)` pairs.
+
+_Instance identity:_
+Each instance has a stable `instance_id` (UUID v4) generated at first bootstrap and written to its configuration.
+The `instance_id` is independent of the contact URL — if an instance moves domains its identity is unchanged.
+Each instance's local trust registry maps `instance_id → contact_url` for each trusted peer.
+
+_Trust establishment:_
+The admin adds the upstream's contact URL.
+The downstream connects over TLS; PKI establishes the upstream's server identity — no out-of-band fingerprint step is required.
+The downstream then initiates the device authorization flow against the upstream to register as a federated service account (see "The instance as a mini authorization server").
+An admin on the upstream approves via CLI or web UI; the upstream issues a service session token and returns its `instance_id`.
+Subsequent federation API calls are authenticated by this service account; the authenticated channel is the trust anchor for all content received from that upstream.
+
+_Federation authorisation:_
+All connections are initiated outbound by the connecting instance, but the receiving instance maintains a service account record for each remote instance even though it never connects back.
+This record is the hook for authorisation: roles on the service account control what the remote instance may do.
+Proposed permission axes: subscription scope (which projects may be replicated), publication permission (may the remote instance push resources here), and publication scope (which projects may receive pushed resources).
+Roles are assigned by an admin when approving the device flow registration, and can be updated at any time without re-establishing the connection.
+A downstream with publication permission pushes resources over the same outbound connection it uses for subscription; the upstream does not need to initiate any connection to receive pushed content.
+
+_Worked example — private company instance and public open-source instance:_
+The company operates a private instance; the open-source project operates a public instance.
+The company registers a service account on the public instance with subscription permission (to receive community signs and symptoms) and publication permission scoped to the project's plan namespace.
+The company creates plans internally, linking them to public symptoms; plans originate on the private instance and their journals are authoritative there.
+When ready to share, the company pushes selected plans to the public instance.
+Community members discuss the published plans on the public instance; those comments are new resources originating on the public instance.
+The company's instance polls the public instance for new journal entries on its published resources, receiving community discussion back without the public instance needing to initiate any connection.
+
+_Remote identities:_
+Users from another instance are represented as `(instance_id, local_user_id)` pairs.
 Only a display name is stored locally; email addresses and other personal data are not replicated across instance boundaries.
 If the remote instance is unreachable, previously stored display names remain available; further resolution fails gracefully.
-_Open: key rotation after compromise, revocation of federation trust, trust transitivity policy._
+
+_Provenance:_
+Every federated resource carries a provenance record:
+- `origin_instance_id`: the `instance_id` of the instance where the resource was created.
+- `origin_id`: the resource's local identifier on the origin instance.
+- `received_from`: the `instance_id` of the direct upstream that delivered this copy.
+- `relay_hops`: ordered list of `instance_id`s between origin and `received_from` (empty when `received_from == origin_instance_id`).
+
+`(origin_instance_id, origin_id)` is the globally stable identifier for a resource, independent of relay path.
+If the same resource arrives via multiple paths, it is stored once and deduplicated on this key; all observed `received_from` values are retained so revoking one relay does not discard the resource.
+Provenance fields are informational — trust flows from the authenticated service account of `received_from`, not from the provenance record itself.
+
+_Resource journal:_
+Every resource (sign, symptom, plan, and related entities) has an append-only journal of versions.
+Each journal entry records:
+- `version`: monotone per-resource sequence number, set by the origin instance.
+- `at`: timestamp.
+- `by`: federated identity `(instance_id, local_user_id)` of the author.
+- `op`: one of `create | update | delete | undelete`.
+- `snapshot`: full resource state at this version.
+- `provenance`: as above.
+
+Deletes are logical — a `delete` entry is appended; content is not physically removed.
+Edits are only authored on the origin instance; downstream instances are read replicas.
+_Provisional: once a resource is published to an external instance, there may be value in allowing authorised contributors on that instance to propose journal entries (e.g. community members improving a published bug report).
+This would require a protocol for the external instance to submit proposed entries to the origin for acceptance or rejection.
+Deferred pending implementation experience._
+The journal is the replication unit: a downstream requests entries with `version > N`, enabling incremental catch-up without a full re-sync.
+The journal also supports abuse handling: previous versions of edited or deleted content remain recoverable by instance admins.
+The journal gives a precise meaning to "deletion across federation boundaries": a downstream that has replicated a resource retains its journal entries even after the origin issues a `delete` entry.
+
+In the UI, instances are displayed by hostname only (e.g. `causes.example.org`), with the scheme and path stripped.
+No additional slug or display name field is required; the hostname is sufficiently human-readable for admin views and attribution labels.
+
+_Open: key rotation after upstream compromise, revocation of federation trust._
 
 **Private disclosure workflow:**
 Signs, symptoms, and plans may be marked embargoed at creation time by any authenticated user, or promoted to embargoed by a security-team member after the fact.
@@ -333,7 +394,7 @@ Embargo lifecycle:
 
 Default embargo period: 90 days, configurable per project.
 Extensions require an explicit action by a maintainer or security-team lead; silent expiry is not permitted.
-_Open: CVE assignment integration, coordinated multi-project disclosure._
+_Open: coordinated multi-project disclosure. Deferred: CVE assignment integration._
 
 **Personal data handling:**
 Causes stores display names, email addresses (from IdP tokens), user-generated content, and audit logs.

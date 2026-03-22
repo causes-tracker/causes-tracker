@@ -197,36 +197,197 @@ If a specific RPC framework proves problematic, proto definitions remain valid a
 
 ## ADR-010: Security model
 
-**Status:** Partially decided — transport and auth flows settled; authorisation model open
+**Status:** Partially decided — transport, authentication, and several sub-areas sketched; authorisation model and several implementation details open
 
 **Context:** The original docs have no mention of authentication, authorisation, or security hardening.
-For a system that can hold private bug data (e.g. security vulnerabilities), this is a critical gap.
-Instances may be behind NAT with no public URL, which rules out OIDC redirect-based flows unless a BFF with a public URL mediates them.
+Causes handles sensitive data (security vulnerability disclosures, private plans) so the security model is load-bearing, not an afterthought.
+Instances may be behind NAT; different instances will not share a private CA, ruling out SPIFFE/SPIRE-style workload identity for cross-instance machine authentication.
+The federated, distributed nature of the system creates unusual requirements around identity, trust, and data sovereignty.
 
-**Decision:**
+---
+
+**Decided:**
 
 **Transport:** HTTPS mandatory for any networked deployment.
+When the BFF and instance run in the same binary, the gRPC between them is in-process (no TLS needed).
+When they are separate processes on the same host, loopback is acceptable without TLS.
+When they are on separate hosts, TLS is required.
 
 **Human authentication — OIDC Device Flow by default:** The user is directed to a public IdP URL (e.g. `github.com/login/device`); the BFF or instance polls for the token.
 No redirect to the BFF or instance is needed, so this works whether or not either is publicly reachable.
 Device flow is the default for both browser sessions (via BFF) and CLI.
 Redirect-based OIDC social login is an optional enhancement for deployments with a public URL, not a baseline requirement.
 
+When device flow completes the IdP returns an ID token to the *instance* (not to the user's client).
+The instance extracts the stable `(iss, sub)` pair from the ID token — not the email address, which can change and must not be used as a primary identifier.
+The instance maps `(iss, sub)` to a local user record, creating one on first login for open instances (admin-approval mode is available for closed instances).
+The instance then issues its own opaque session token to the client; the IdP token is held internally and never transmitted to the client.
+The instance's token is subject to the HMAC replay protection described below and to its own revocation list.
+Revocation at the IdP (e.g. a user revoking a GitHub OAuth grant) does not automatically cascade to the instance session; the instance's own revocation is the control plane.
+A user may link multiple social identities (different IdPs) to a single local account via an explicit admin or user action; the `(iss, sub)` index supports this naturally.
+
 **Browser access — BFF only:** Browsers do not connect directly to the instance.
-A Backend-for-Frontend (BFF) layer sits between the browser and the instance.
 The BFF may be bundled in the same binary as the instance but is a structurally distinct layer.
 The BFF holds a service-account API token for the instance; the browser authenticates with the BFF via device flow.
-The BFF itself may also be behind NAT — no public URL is assumed at any layer by default.
+Neither the BFF nor the instance is assumed to have a public URL.
 
 **Service-to-service authentication — API tokens:** Microservices, the MCP server, and the BFF authenticate to the instance with pre-issued API tokens.
-No human flow involved.
+No SPIFFE/SPIRE: different Causes instances will not share a private CA, making shared PKI infrastructure impractical at the $10/month target.
 
-**Authorisation:** _Not yet decided._
-Areas to define: role-based model (user / developer / project admin), per-repository ACLs, and a private disclosure workflow for security vulnerabilities (private plans/symptoms visible only to authorised parties until disclosed).
+Token auth is hardened as follows:
 
-**Consequences:** The BFF requirement means there is no "minimal" deployment that exposes the instance API directly to browsers.
-The BFF and instance can be the same binary to keep deployment simple; the structural separation is what matters for security reasoning.
-Device flow covers both CLI and any future non-browser client that needs human authentication.
+- **Scoping:** tokens are issued with explicit permission scopes (e.g. read-only, write, admin); the server rejects operations outside a token's scope.
+- **Expiry:** tokens have a configurable expiry; long-lived tokens require an explicit admin decision and are logged as such.
+- **Opaque values:** tokens are opaque random strings, not self-describing JWTs. Claims are resolved server-side on each request, so a revoked token cannot be verified offline.
+- **Revocation:** the server maintains a revocation list checked on every request. Revoked tokens are rejected immediately, not at expiry.
+- **Rotation:** a new token can be issued before the old one expires; a configurable overlap window allows zero-downtime rotation.
+
+**Replay protection at the gRPC layer:**
+Bearer tokens alone are vulnerable to replay: a captured request can be retransmitted.
+Timestamp metadata alone is insufficient: an attacker who captures a request can replace the timestamp with a fresh one, since nothing binds the timestamp to the token.
+The solution is HMAC request signing so that the timestamp and request ID cannot be altered without invalidating the signature.
+
+Each API token has an associated signing secret (a symmetric key stored server-side alongside the token; never transmitted).
+
+For every authenticated gRPC call the client interceptor computes:
+
+```
+HMAC-SHA256(signing_secret, request-id || timestamp)
+```
+
+and sends three metadata fields (RFC 6648 deprecated `x-` prefixes; these use an application namespace instead):
+
+- `causes-request-id` — a UUID generated per call.
+- `causes-timestamp` — current Unix time in seconds.
+- `causes-signature` — the hex-encoded HMAC.
+
+The server interceptor, applied to all authenticated endpoints:
+
+1. Looks up the token, retrieves its signing secret.
+2. Recomputes the HMAC over the received request-id and timestamp; rejects if the signature does not match.
+3. Rejects if the timestamp is outside a configurable window of the server's clock (default ±30 seconds).
+4. Rejects if the request-id has been seen within the same window (short-lived ring buffer of recent IDs).
+
+Because both fields are covered by the HMAC, an attacker cannot modify either without knowing the signing secret.
+The window limits the replay surface even for unmodified captures.
+
+For streaming RPCs the stream handshake is signed as above; individual messages within an established stream carry a per-stream sequence number.
+The server rejects duplicate or out-of-order sequence numbers within a stream.
+
+**The instance as a mini authorization server:**
+The instance implements a subset of OAuth 2.0 (RFC 6749) including the device authorization grant (RFC 8628), token introspection (RFC 7662), and token revocation (RFC 7009).
+It acts as an authorization server for all clients — both human users (who authenticate against external IdPs and receive an instance-issued token) and services (which authenticate directly against the instance).
+This means every token in the system — human or service — is issued and managed by the instance using the same mechanisms.
+
+**Service account sessions:** Services (connectors, the BFF, background tasks) authenticate to the instance with service session tokens issued via the instance's own device authorization endpoint.
+No token copying is required; services self-register by initiating a device flow and an admin approves via CLI or web UI.
+
+Provisioning flow:
+1. The service starts and calls the instance's device authorization endpoint, presenting a service name and description.
+2. The instance returns a `user_code` and `verification_uri` pointing to the instance's own approval interface.
+3. The service logs these to stdout (e.g. `Visit http://instance/device and enter code XXXX-YYYY to authorise this service`).
+4. An admin with CLI or web frontend access approves the pending request (`causes auth approve XXXX-YYYY` or equivalent web UI action).
+5. The service polls the instance token endpoint until approval; the instance issues a service session token.
+6. The service stores the token; subsequent restarts reuse it without human intervention.
+
+Service sessions are distinguished from user sessions by a `session_type` field set at creation and immutable thereafter.
+Different policies apply: service sessions have longer or no expiry by default, carry no browser-cookie attributes, and are not subject to user-facing re-authentication prompts.
+Service sessions carry: service name, description, and the identity of the admin who approved them.
+The audit log records the session type alongside the identity for every action.
+Service sessions can be revoked by any instance admin; the service re-provisions automatically on its next startup by repeating the device flow.
+
+---
+
+**Sketched — detail required before implementation:**
+
+**Authorisation model:** Role-based with per-project ACLs.
+Proposed default roles: anonymous (read public data only), authenticated user, developer (can create plans), project maintainer, security-team member (sees embargoed content), instance admin.
+Instance admins can define custom roles with specific permission sets.
+Role assignment: instance admin for global roles; project maintainer for project-scoped roles.
+No privilege escalation: a maintainer can grant up to but not exceeding their own permission level.
+_Open: exact permission matrix, API-level enforcement, and the role definition API._
+
+**Federation trust and remote identity:**
+Trust between instances is established explicitly by an administrator; there is no automatic trust.
+Proposed mechanism: the admin of the downstream instance adds the upstream's public endpoint and verifies an out-of-band fingerprint (trust-on-first-use with admin confirmation).
+After trust is established, the upstream issues a federation API token to the downstream.
+Remote identities (users from another instance) are represented as opaque federated references: `(instance_url, local_id)` pairs.
+Only a display name is stored locally; email addresses and other personal data are not replicated across instance boundaries.
+If the remote instance is unreachable, previously stored display names remain available; further resolution fails gracefully.
+_Open: key rotation after compromise, revocation of federation trust, trust transitivity policy._
+
+**Private disclosure workflow:**
+Signs, symptoms, and plans may be marked embargoed at creation time by any authenticated user, or promoted to embargoed by a security-team member after the fact.
+
+Embargoed content:
+- Is not federated to any downstream instance, regardless of federation configuration.
+- Is not visible to users without the security-team or project-maintainer role.
+- Does not appear in search results, feeds, notifications, or public API responses.
+
+Embargo lifecycle:
+1. Reporter marks content embargoed (or a security-team member does so after the fact).
+2. Security team triages and investigates; embargoed plans are created linked to the embargoed symptom.
+3. Fix is developed. The plan may reference a private branch or external patch tracker.
+4. A project maintainer or security-team lead lifts the embargo. All affected content becomes visible simultaneously.
+5. Federation of the previously embargoed content proceeds normally after disclosure.
+
+Default embargo period: 90 days, configurable per project.
+Extensions require an explicit action by a maintainer or security-team lead; silent expiry is not permitted.
+_Open: CVE assignment integration, coordinated multi-project disclosure._
+
+**GDPR and personal data:**
+Causes stores personal data including display names, email addresses (from IdP tokens), user-generated content, and audit logs.
+The GitHub connector imports data from GitHub's API that may include email addresses and real names; these are subject to the same handling rules as locally-entered data.
+
+Key principles:
+- **Minimisation:** email addresses are stored for authentication; they must not be exposed in the general API.
+- **Right of erasure:** a user can request account deletion. Personal data is removed; content is deleted or reassigned to an anonymous placeholder. Content already federated to downstream instances cannot be guaranteed erased there — this must be documented to operators in the privacy policy template.
+- **Portability:** users can export their own content.
+- **Consent:** the privacy policy must be presented at sign-up.
+
+_Open: audit log retention policy, data residency controls for federated deployments._
+
+**Resistance to information harvesting:**
+Email addresses must not be visible to unauthenticated users.
+Authenticated users see email addresses only where explicitly required (e.g. admin user management), never in bug comments or general API responses.
+The API returns opaque user identifiers in all public-facing responses; email resolution occurs only server-side.
+In federated contexts, remote instances receive only the opaque federated identifier and display name of local users.
+Authentication endpoints must be rate-limited to resist enumeration.
+Failed authentication returns the same error regardless of whether the account exists.
+
+**New instance bootstrap:**
+First startup generates a one-time setup token, prints it to stdout, and expires it after first use or after a configurable timeout.
+This token is used to create the initial instance admin account.
+Secure defaults: fresh instances start with anonymous access disabled, no open federation, and no connectors configured.
+The instance refuses to start with an invalid or incomplete security configuration.
+
+**Configuration recovery:**
+If the admin loses access: an emergency recovery token is generated at install time, stored separately from the database (e.g. written to a file at first boot), and usable once to regain admin access.
+Its use always generates an audit log entry.
+Non-secret configuration must be exportable for documentation and DR planning.
+Secret files are excluded from configuration exports by path convention; operators back them up separately with appropriate access controls.
+
+**Disaster recovery:**
+Periodic database backup and point-in-time restore must be supported out of the box.
+Default RPO: 24 hours for small deployments (daily backup).
+Default RTO: time to restore from backup on equivalent hardware — no HA requirement at the $10/month scale.
+Federated data may be partially recoverable from upstream instances after a restore; the system must document which data is local-only (higher DR risk) versus federated (potentially recoverable from upstream).
+Operators running larger deployments can implement HA at the database layer without application changes.
+
+**Connector credential management:**
+Connectors hold external credentials (e.g. a GitHub App private key or personal access token) and a service session token for the instance.
+All secrets are stored as plaintext in documented file paths with restricted permissions (readable only by the process user).
+This is deliberate: Causes does not implement its own encryption at rest.
+Operators who require stronger secret management (k8s Secrets, Vault, encrypted filesystems) can provide secrets via files — the same interface works with all of them.
+Credential rotation: admins can update credential files and signal the connector to reload without service interruption.
+Connectors must request only the minimum permissions needed from the external service.
+GitHub connector specifically: GitHub App is preferred over personal access tokens (scoped permissions, no user-account dependency, rotation via private key rather than user secret).
+All connector API calls are logged with the connector's identity.
+
+**Consequences:** The BFF requirement means there is no deployment mode that exposes the instance API directly to browsers.
+The BFF and instance can run in the same binary to keep deployment simple; the structural separation matters for security reasoning.
+Device flow as the universal default means social login is an enhancement, not a dependency.
+The embargo model requires the federation layer to inspect content sensitivity before replicating — federation cannot be a simple log replay.
 
 ---
 

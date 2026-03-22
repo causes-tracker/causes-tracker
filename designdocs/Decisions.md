@@ -189,7 +189,7 @@ The choice of server-side RPC framework (Connect, grpc-gateway, tonic, etc.) is 
 - **Federated instance ↔ instance:** gRPC bidi streaming; downstream initiates, both sides push.
 
 **Consequences:** Component boundaries defined by proto services make per-component language rewrites possible without changing callers.
-SSE handles all real-time push to connected clients regardless of client type.
+gRPC streaming handles all real-time push to non-browser clients; SSE is confined to the BFF→browser edge only (see ADR-007).
 OpenAPI is a generated artifact, not the source of truth.
 If a specific RPC framework proves problematic, proto definitions remain valid and the framework can be swapped.
 

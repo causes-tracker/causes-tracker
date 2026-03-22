@@ -27,8 +27,9 @@ GHP_IMPORT=$(rlocation _main/docs/ghp_import)
 MKDOCS_YML=$(rlocation _main/docs/mkdocs.yml)
 
 DESIGNDOCS_SRC="${BUILD_WORKSPACE_DIRECTORY}/designdocs"
+PROTO_DOCS=$(rlocation _main/proto/proto_docs.md)
 
-build_docs_site
+PROTO_DOCS="$PROTO_DOCS" build_docs_site
 
 # ghp-import needs git credentials from the workspace.
 cd "${BUILD_WORKSPACE_DIRECTORY}"

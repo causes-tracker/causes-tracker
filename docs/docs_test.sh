@@ -30,7 +30,12 @@ MKDOCS_YML=$(rlocation _main/docs/mkdocs.yml)
 # double-symlinks, so copy files with -L to dereference all symlinks.
 DESIGNDOCS_RUNFILES=$(rlocation _main/designdocs/README.md)
 
-# Stage docs into TEST_TMPDIR; the shared build helper then builds from there.
+# Resolve the generated proto reference docs.
+PROTO_DOCS=$(rlocation _main/proto/proto_docs.md)
+
+# Stage designdocs into TEST_TMPDIR.
+# Generated files (Proto-Reference.md) are passed via PROTO_DOCS and injected
+# by build_docs_site, so serve_docs and deploy_docs go through the same path.
 DESIGNDOCS_SRC="$TEST_TMPDIR/designdocs"
 mkdir "$DESIGNDOCS_SRC"
 cp -rL "$(dirname "$DESIGNDOCS_RUNFILES")/." "$DESIGNDOCS_SRC/"
@@ -40,7 +45,9 @@ cp -rL "$(dirname "$DESIGNDOCS_RUNFILES")/." "$DESIGNDOCS_SRC/"
 # Any code in site_builder.bash that references $RUNFILES_DIR directly will fail
 # here exactly as it would fail in the deploy job.
 unset RUNFILES_DIR
-build_docs_site
+# Pass PROTO_DOCS so build_docs_site injects Proto-Reference.md.
+# This mirrors the call sites in serve_docs.sh and deploy_docs.sh.
+PROTO_DOCS="$PROTO_DOCS" build_docs_site
 
 SITE="$SITE_DIR"
 FAIL=0
@@ -52,6 +59,7 @@ declare -A EXPECTED_PAGES=(
   ["Manifesto/index.html"]="Manifesto"
   ["Design-Choices/index.html"]="Design"
   ["Decisions/index.html"]="Decision"
+  ["Proto-Reference/index.html"]="Protocol Documentation"
   ["Contributing/index.html"]="Contributing"
   ["Raw-Discussion/index.html"]="Discussion"
 )

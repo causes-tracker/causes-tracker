@@ -1,0 +1,29 @@
+// Project is the organisational unit that owns Signs, Symptoms, and Plans.
+syntax = "proto3";
+
+package causes.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// Project is the top-level container for a tracked codebase.
+// Signs, Symptoms, and Plans each belong to exactly one Project.
+// Projects belong to one Instance and are not themselves federated;
+// federation operates at the resource level.
+message Project {
+  enum Visibility {
+    VISIBILITY_UNSPECIFIED = 0;
+    // VISIBILITY_PUBLIC allows anonymous users to read Signs, Symptoms, and Plans.
+    VISIBILITY_PUBLIC = 1;
+    // VISIBILITY_PRIVATE restricts access to authenticated users.
+    VISIBILITY_PRIVATE = 2;
+  }
+
+  string id = 1;
+  string name = 2;
+  // description is Markdown.
+  string description = 3;
+  Visibility visibility = 4;
+  // embargoed_by_default causes new Signs, Symptoms, and Plans to start embargoed.
+  bool embargoed_by_default = 5;
+  google.protobuf.Timestamp created_at = 6;
+}

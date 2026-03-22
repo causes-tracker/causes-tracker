@@ -1,0 +1,194 @@
+// Common types shared across the causes.v1 API.
+syntax = "proto3";
+
+package causes.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// ---------------------------------------------------------------------------
+// Typed identifier wrappers
+//
+// Every identifier field uses a named wrapper message rather than plain string.
+// Reasons:
+//   1. The type name documents the constraint (non-empty, UUID, etc.).
+//   2. Language bindings can enforce the constraint: a field typed SignId cannot
+//      accidentally receive a PlanId at compile time.
+//   3. Even when the underlying encoding is the same, distinct types prevent
+//      cross-domain confusion (e.g. passing a project ID where a sign ID is
+//      expected).
+//
+// All identifier values must be non-empty strings drawn from the URL-safe
+// alphabet: ASCII letters (A-Z, a-z), digits (0-9), hyphens (-), and
+// underscores (_).  No other characters are permitted.  This constraint
+// ensures that an ID can appear literally in a URL path segment without
+// percent-encoding.  Language-specific generated code enforces this at
+// construction time.
+// ---------------------------------------------------------------------------
+
+// InstanceId is a UUID v4 identifying a Causes instance.
+// Generated at first bootstrap; never reused.
+// value: URL-safe UUID v4 (e.g. "550e8400-e29b-41d4-a716-446655440000").
+message InstanceId {
+  string value = 1;
+}
+
+// ProjectId is the local identifier of a Project on this instance.
+// value: URL-safe, non-empty (e.g. a UUID v4 or a short slug).
+message ProjectId {
+  string value = 1;
+}
+
+// SignId is the local identifier of a Sign on this instance.
+// value: URL-safe, non-empty (e.g. a UUID v4).
+message SignId {
+  string value = 1;
+}
+
+// SymptomId is the local identifier of a Symptom on this instance.
+// value: URL-safe, non-empty (e.g. a UUID v4).
+message SymptomId {
+  string value = 1;
+}
+
+// PlanId is the local identifier of a Plan on this instance.
+// value: URL-safe, non-empty (e.g. a UUID v4).
+message PlanId {
+  string value = 1;
+}
+
+// CommentId is the local identifier of a Comment on this instance.
+// value: URL-safe, non-empty (e.g. a UUID v4).
+message CommentId {
+  string value = 1;
+}
+
+// AnnotationId is the local identifier of an Annotation on this instance.
+// value: URL-safe, non-empty (e.g. a UUID v4).
+message AnnotationId {
+  string value = 1;
+}
+
+// LinkId is the local identifier of a link object (PlanSignLink,
+// PlanSymptomLink, or PlanDependency) on this instance.
+// value: URL-safe, non-empty (e.g. a UUID v4).
+message LinkId {
+  string value = 1;
+}
+
+// UserId is the local identifier of a User on this instance.
+// value: URL-safe, non-empty (e.g. a UUID v4).
+message UserId {
+  string value = 1;
+}
+
+// ServiceAccountId is the local identifier of a ServiceAccount on this instance.
+// value: URL-safe, non-empty (e.g. a UUID v4).
+message ServiceAccountId {
+  string value = 1;
+}
+
+// Markdown wraps a string whose content is interpreted as Markdown.
+// Using a named wrapper distinguishes Markdown fields from plain-text strings
+// so renderers and validators can select the correct code path without
+// inspecting field names.
+message Markdown {
+  string value = 1;
+}
+
+// ---------------------------------------------------------------------------
+// Federation types
+// ---------------------------------------------------------------------------
+
+// FederatedIdentity identifies a user or service account across instances.
+// Used wherever an author or actor must be attributed regardless of origin.
+// local_id is either a UserId or ServiceAccountId on the named instance;
+// proto3 cannot express this union directly, so the type is recorded by the
+// context in which FederatedIdentity appears.
+message FederatedIdentity {
+  InstanceId instance_id = 1;
+  // local_id is the User or ServiceAccount id on that instance.
+  // Non-empty; (instance_id, local_id) is globally unique.
+  string local_id = 2;
+}
+
+// ResourceOrigin identifies where a resource was originally created.
+// Absent (message not set) for resources created on this instance.
+// Once set at creation, origin is immutable across all journal entries.
+// (instance_id, id) is the globally stable identity of a federated resource,
+// independent of relay path; used for deduplication when the same resource
+// arrives via multiple inbound paths.
+message ResourceOrigin {
+  // instance_id is the Causes instance that created this resource.
+  InstanceId instance_id = 1;
+  // id is the resource's local identifier on the origin instance.
+  // Stored as a plain string because at this level the resource type —
+  // and therefore the appropriate typed ID message — is not known.
+  string id = 2;
+}
+
+// ReplicationPath records the transit path for a specific journal entry.
+// This is per-entry information (it can differ if the same entry arrives via
+// multiple relay paths); it belongs on JournalEntry, not on the resource snapshot.
+// Separating ReplicationPath from ResourceOrigin avoids the ambiguity that would
+// arise if both the resource snapshot and its enclosing JournalEntry carried a
+// combined "provenance" field with overlapping semantics.
+message ReplicationPath {
+  // received_from is the instance_id of the direct upstream that delivered this entry.
+  InstanceId received_from = 1;
+  // relay_hops lists instance_ids between the origin and received_from, in order.
+  // Empty when received_from == origin instance_id.
+  repeated InstanceId relay_hops = 2;
+}
+
+// ResourceMeta contains fields present on every top-level resource.
+// Embed as field 1 of every Sign, Symptom, Plan, Comment, Annotation, and
+// link type rather than repeating these definitions.
+//
+// project_id is the local project on this instance under which the resource
+// is filed.  It is not part of the stable resource identity (see ResourceOrigin).
+// Project mapping is the responsibility of the connection originator: when
+// pushing, the originator translates its project_id to the destination's before
+// serialising; when pulling, it translates the source's project_id to its own
+// before storing.  The snapshot therefore always arrives with the correct local
+// project_id; no rewriting on ingest is required.  See ADR-012.
+message ResourceMeta {
+  string id = 1;
+  ProjectId project_id = 2;
+  google.protobuf.Timestamp created_at = 3;
+  google.protobuf.Timestamp updated_at = 4;
+  // embargoed suppresses federation and public visibility (see ADR-010).
+  bool embargoed = 5;
+  // origin is absent for resources created on this instance.
+  ResourceOrigin origin = 6;
+}
+
+// JournalEntry records one version of a resource.
+// Every Sign, Symptom, Plan, Comment, Annotation, and link type has an
+// append-only journal.  The journal is the unit of replication: downstreams
+// request entries with version > N to catch up incrementally.
+message JournalEntry {
+  enum Op {
+    OP_UNSPECIFIED = 0;
+    OP_CREATE = 1;
+    OP_UPDATE = 2;
+    // Deletes are logical: a DELETE entry is appended; data is not removed.
+    OP_DELETE = 3;
+    OP_UNDELETE = 4;
+  }
+
+  // version is a monotone per-resource sequence number assigned by the origin instance.
+  uint64 version = 1;
+  google.protobuf.Timestamp at = 2;
+  // by identifies the author of this change.
+  FederatedIdentity by = 3;
+  Op op = 4;
+  // snapshot is the full serialised resource state at this version.
+  // The snapshot does not carry replication information; that belongs on
+  // replication_path below.
+  bytes snapshot = 5;
+  // replication_path records the transit path for this entry.
+  // Absent for locally-authored entries; present on every federated copy.
+  // This is per-entry information — it can differ across entries for the same
+  // resource if entries arrived via different relay paths.
+  ReplicationPath replication_path = 6;
+}

@@ -1,0 +1,61 @@
+// Relationship links between top-level resources.
+//
+// Links are stored as independent intermediate objects rather than as
+// repeated ID fields on the parent resource for two reasons:
+//
+//   1. A downstream instance can create a local link between resources without
+//      requiring write access to either linked resource.  For example, a
+//      downstream can link a local Sign to a Plan without sending a change to
+//      wherever that Plan originates.  Whether downstream instances can also
+//      propose edits to the Plan itself is an open design question (see ADR-010
+//      provisional note on cross-instance edit proposals); the link object is
+//      correct regardless of how that question resolves.
+//
+//   2. Embargo propagation: if either linked resource is embargoed, the link
+//      itself must be embargoed (the server enforces this invariant).
+//      Storing links separately makes embargo checks tractable — the link can
+//      be hidden without revealing which embargoed resource it referenced.
+//
+syntax = "proto3";
+
+package causes.v1;
+
+import "google/protobuf/timestamp.proto";
+import "causes/v1/common.proto";
+
+// PlanSignLink records that a Plan addresses a Sign (many-to-many).
+message PlanSignLink {
+  LinkId id = 1;
+  PlanId plan_id = 2;
+  SignId sign_id = 3;
+  // embargoed must be true whenever either linked resource is embargoed.
+  // The server enforces this invariant on creation and whenever the embargo
+  // status of either linked resource changes.
+  bool embargoed = 4;
+  FederatedIdentity created_by = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+
+// PlanSymptomLink records that a Plan addresses a Symptom (many-to-many).
+message PlanSymptomLink {
+  LinkId id = 1;
+  PlanId plan_id = 2;
+  SymptomId symptom_id = 3;
+  // embargoed must be true whenever either linked resource is embargoed.
+  bool embargoed = 4;
+  FederatedIdentity created_by = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+
+// PlanDependency records that one Plan must complete before another can proceed.
+message PlanDependency {
+  LinkId id = 1;
+  // plan_id is the dependent Plan (the one that waits).
+  PlanId plan_id = 2;
+  // requires_plan_id is the prerequisite Plan.
+  PlanId requires_plan_id = 3;
+  // embargoed must be true whenever either linked Plan is embargoed.
+  bool embargoed = 4;
+  FederatedIdentity created_by = 5;
+  google.protobuf.Timestamp created_at = 6;
+}

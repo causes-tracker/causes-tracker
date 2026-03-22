@@ -1,0 +1,68 @@
+// Identity types: User, ServiceAccount, and FederationPeer.
+syntax = "proto3";
+
+package causes.v1;
+
+import "google/protobuf/timestamp.proto";
+import "causes/v1/common.proto";
+
+// User is a person with an account on this instance.
+// Email addresses are stored for authentication but never exposed in general
+// API responses; only explicit admin views may access them.
+message User {
+  UserId id = 1;
+  string display_name = 2;
+  // email is stored for authentication only; not returned in public API responses.
+  string email = 3;
+  // auth_provider identifies the IdP used at registration (e.g. "github.com").
+  string auth_provider = 4;
+  google.protobuf.Timestamp created_at = 5;
+}
+
+// RoleAssignment grants a role to a user, optionally scoped to a project.
+// project_id is absent for instance-level roles.
+message RoleAssignment {
+  UserId user_id = 1;
+  ProjectId project_id = 2;
+  string role = 3;
+}
+
+// ServiceAccountKind classifies the type of non-human principal.
+enum ServiceAccountKind {
+  SERVICE_ACCOUNT_KIND_UNSPECIFIED = 0;
+  // SERVICE_ACCOUNT_KIND_BFF is the Backend-for-Frontend that serves the web UI.
+  SERVICE_ACCOUNT_KIND_BFF = 1;
+  // SERVICE_ACCOUNT_KIND_CONNECTOR is an external data source connector.
+  SERVICE_ACCOUNT_KIND_CONNECTOR = 2;
+  // SERVICE_ACCOUNT_KIND_FEDERATION represents a remote federated instance.
+  SERVICE_ACCOUNT_KIND_FEDERATION = 3;
+}
+
+// ServiceAccount is a non-human principal: the BFF, a connector, or a
+// federated peer instance. Service session tokens are issued against a
+// ServiceAccount and inherit its role assignments.
+message ServiceAccount {
+  ServiceAccountId id = 1;
+  // display_name identifies the account (e.g. "bff", "github-connector", "causes.example.org").
+  string display_name = 2;
+  ServiceAccountKind kind = 3;
+  // remote_instance_id is set when kind == SERVICE_ACCOUNT_KIND_FEDERATION.
+  InstanceId remote_instance_id = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp last_used_at = 6;
+}
+
+// FederationPeer records a trust relationship with a remote instance.
+// The inbound_account_id ServiceAccount holds the permission grants that
+// govern what the remote instance may do here.
+// In the UI, contact_url is displayed as hostname only (e.g. "causes.example.org").
+message FederationPeer {
+  // instance_id is the stable UUID of the remote instance, independent of its URL.
+  InstanceId instance_id = 1;
+  string contact_url = 2;
+  // outbound_account_id is the ServiceAccount used when this instance connects out.
+  ServiceAccountId outbound_account_id = 3;
+  // inbound_account_id is the ServiceAccount representing the remote's inbound connection.
+  ServiceAccountId inbound_account_id = 4;
+  google.protobuf.Timestamp established_at = 5;
+}

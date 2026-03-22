@@ -1,0 +1,32 @@
+// Symptom represents a human-reported experience of a problem.
+syntax = "proto3";
+
+package causes.v1;
+
+import "causes/v1/common.proto";
+
+// Symptom is a human-reported experience of a problem, equivalent to a bug
+// report in traditional trackers.  It carries discussion via Comments and
+// workaround information.  Signs (machine evidence) are linked to Symptoms
+// indirectly via Plans; Symptoms do not directly reference Signs.
+message Symptom {
+  enum Status {
+    STATUS_UNSPECIFIED = 0;
+    STATUS_OPEN = 1;
+    STATUS_IN_PROGRESS = 2;
+    STATUS_RESOLVED = 3;
+    STATUS_WONTFIX = 4;
+    STATUS_DUPLICATE = 5;
+  }
+
+  ResourceMeta meta = 1;
+
+  string title = 2;
+  // description includes reproduction steps and workarounds.
+  Markdown description = 3;
+  FederatedIdentity reporter = 4;
+  Status status = 5;
+  // duplicate_of is set when status == STATUS_DUPLICATE.
+  SymptomId duplicate_of = 6;
+  repeated string affected_versions = 7;
+}

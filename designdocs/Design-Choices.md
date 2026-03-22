@@ -33,14 +33,21 @@ See [ADR-002](Decisions.md#adr-002-signs-symptoms-plans-separation).
 
 ## Web UI layer
 
-A modern JavaScript front-end consuming the REST/JSON API.
+Browsers connect to a Backend-for-Frontend (BFF), not directly to the instance API.
+The BFF manages browser sessions and proxies requests to the instance using a service-account API token.
+The BFF and instance may run in the same binary but are structurally separate layers.
+Neither the BFF nor the instance is assumed to have a public URL — both may be behind NAT.
+Human authentication uses OIDC Device Flow by default; redirect-based social login is an optional enhancement for public deployments.
+See [ADR-010](Decisions.md#adr-010-security-model).
+
+The BFF serves a JavaScript front-end.
 The original design specified Handlebars templates; current alternatives include React, Vue, Svelte, and HTMX.
 Choice should follow the language/stack decision (see [ADR-008](Decisions.md#adr-008-language-stack-open)).
 
 Requirements regardless of framework:
 
 - Server-side rendering of static views for search engine indexing
-- Websocket or Server-Sent Events (SSE) for real-time client updates
+- Server-Sent Events (SSE) for real-time client updates (BFF fans SSE from instance to browser)
 - Accessible markup (WCAG 2.1 AA minimum)
 
 ## Atom feeds
@@ -48,18 +55,16 @@ Requirements regardless of framework:
 Atom feeds remain a valid choice for content syndication and allow efficient indexing by search engines.
 [JSON Feed](https://www.jsonfeed.org/) is a simpler alternative if Atom's XML is a maintenance burden.
 
-## Push notifications: WebSub
+## Push notifications
 
-[WebSub](https://www.w3.org/TR/websub/) (the W3C standardisation of the original PubSubHubbub/PSHB protocol, W3C Recommendation 2018) provides server-to-server push over HTTP.
-It allows any subscriber to watch any feed without prior bilateral registration.
+All push between non-browser parties uses gRPC streaming.
+Every connection is client-initiated outbound, so no party needs a public URL.
+The BFF is the single conversion point: it holds a gRPC event stream from the instance and fans it out to browsers as SSE.
+SSE does not appear anywhere else in the system.
 
-**Note:** WebSub adoption outside the IndieWeb community is limited.
-For server-to-server push, webhooks are more widely understood and implemented.
-Review whether WebSub is worth the complexity versus a simpler webhook-based notification system.
-See [ADR-007](Decisions.md#adr-007-push-notifications-via-websub-formerly-pubsubhubbub).
+Webhooks are not part of the core model; they may be offered as an optional outbound integration for external tools that cannot speak gRPC.
 
-For browser clients, a stateless proxy daemon subscribes to WebSub (or polls) and delivers updates via websockets or SSE.
-This keeps the HTTP API server stateless.
+See [ADR-007](Decisions.md#adr-007-push-notifications--grpc-streaming).
 
 ## API specification
 

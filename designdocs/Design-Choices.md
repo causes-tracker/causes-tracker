@@ -79,8 +79,10 @@ See [ADR-010](Decisions.md#adr-010-security-model-open).
 
 ## Deployment
 
-The original design assumed operators would deploy from source.
-The current baseline expectation is:
+A fully functional public instance must run on a $10/month commodity VPS (1–2 vCPU, 1–2 GB RAM).
+This is a design goal, not a post-hoc validation: architectural decisions that would require more resources at modest scale should be reconsidered.
+
+The baseline deployment modes are:
 
 - **Local dev:** Docker Compose (one command to start all services)
 - **Production:** OCI container images; Docker or Kubernetes depending on scale

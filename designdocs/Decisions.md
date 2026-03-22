@@ -394,7 +394,7 @@ Embargo lifecycle:
 
 Default embargo period: 90 days, configurable per project.
 Extensions require an explicit action by a maintainer or security-team lead; silent expiry is not permitted.
-_Open: coordinated multi-project disclosure. Deferred: CVE assignment integration._
+_Deferred: CVE assignment integration, coordinated multi-project disclosure._
 
 **Personal data handling:**
 Causes stores display names, email addresses (from IdP tokens), user-generated content, and audit logs.
@@ -408,12 +408,12 @@ The software must:
 - Allow operators to configure a policy URL or policy text shown to users at account-creation time.
   This is especially important for social-login flows, which have no device-flow interstitial where a consent step can naturally appear.
 
-_Open: configurable audit log retention, data residency controls for federated deployments._
-
 **Operating an instance:**
 GDPR compliance obligations — lawful basis, data processing agreements, and handling subject access requests — rest with the operator of each instance, not with the Causes project.
 Operators must provide a privacy policy and present it to users at sign-up; the software provides the mechanism (the configurable policy text/URL above) but does not supply the policy itself.
 Operators must inform users in their privacy policy that content federated to other instances cannot be guaranteed erased on deletion.
+Operators are responsible for configuring audit log retention appropriate to their jurisdiction and risk appetite.
+Operators are responsible for data residency; the software imposes no constraint on where it is deployed.
 
 **Resistance to information harvesting:**
 Email addresses must not be visible to unauthenticated users.

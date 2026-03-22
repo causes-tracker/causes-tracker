@@ -77,10 +77,9 @@ See [ADR-009](Decisions.md#adr-009-api-specification-format--protobuf).
 
 ## Security
 
-No security model was defined in the original design.
-This must be resolved before any networked deployment.
-Key areas: authentication (OAuth 2.0 / OIDC for browsers; API tokens for CLI), authorisation (role-based ACLs per repository), HTTPS everywhere, and a private disclosure workflow for security vulnerabilities.
-See [ADR-010](Decisions.md#adr-010-security-model-open).
+See [ADR-010](Decisions.md#adr-010-security-model) for the full analysis.
+Key decisions: OIDC Device Flow as the universal default for human authentication (works behind NAT); BFF-only browser access; API tokens for service-to-service; no shared CA across instances.
+Key open areas: authorisation model, federation trust establishment, private disclosure workflow, GDPR handling, and connector credential management.
 
 ## Deployment
 

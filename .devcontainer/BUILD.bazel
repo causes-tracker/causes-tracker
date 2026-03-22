@@ -16,7 +16,7 @@ sh_test(
         "@bazel_tools//tools/bash/runfiles",
     ],
     tags = [
-        "local",
+        "no-sandbox",
         "requires-docker",
     ],
 )

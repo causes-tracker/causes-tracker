@@ -32,37 +32,51 @@ The master branch is protected: the `build` CI job must pass and all merges go t
 
 **Starting new work:**
 
+Always work in scratch — the empty change sitting above the merge-of-all-work change.
+Edit files there; they are tracked automatically.
+When ready, promote the scratch into a real branch:
+
 ```sh
-jj git fetch
-jj new master -m "what you're doing"
-# edit files — changes are part of @ immediately
-jj describe -m "final message"        # refine when ready
+jj describe -m "what you did"                          # name the scratch
+jj rebase -r @ -A master -B <merge-change>             # promote: child of master, before merge
+jj git push --named <name>=@                           # first push — creates the bookmark
+jj new <merge-change>                                  # restore scratch position
 ```
+
+**Pushing to GitHub:**
+
+Always push with `jj git push --all` — never push individual bookmarks.
+A bookmark points at a jj changeset, not a git revision.
+When a changeset evolves (via squash, rebase, etc.) the bookmark follows automatically — there is no need to move it.
+`jj git push --named` is only for creating a brand-new bookmark on first push; never use it for a bookmark that already exists.
 
 **Opening a PR:**
 
 ```sh
-jj git push --named <name>=@
-gh pr create --base <parent-bookmark> ...
+jj git push --named <name>=@   # first push only — creates the bookmark
+jj git push --all               # all subsequent pushes
+gh pr create --base <parent-bookmark> --head <name> ...
 ```
 
 The PR base branch must match the jj parent change's bookmark.
-If the change is a direct child of `master@origin`, the base is `master`.
+If the change is a direct child of `master`, the base is `master`.
 If it stacks on another change, the base is that change's bookmark.
 Never rebase a change to fix a wrong PR base — use `gh pr edit <n> --base <bookmark>` instead.
 
-**Keeping a branch up to date with master (never merge):**
+**Keeping branches up to date with master (never merge):**
+
+Rebase the entire working set — not individual branches — to avoid missing anything:
 
 ```sh
 jj git fetch
-jj rebase -d master
-jj git push -b <name> --force-with-lease
+jj rebase -r 'mutable()' -d master
+jj git push --all
 ```
 
 **After PRs merge — rebase and tidy the merge-of-all-work:**
 
 ```sh
-jj git fetch && jj rebase -r 'mutable()' -d master@origin
+jj git fetch && jj rebase -r 'mutable()' -d master
 jj simplify-parents -r <merge-change>   # drop parents now reachable via master
 ```
 
@@ -81,7 +95,7 @@ To promote the scratch change into a real branch and add it to the merge:
 ```sh
 jj rebase -r <scratch> -A <intended-parent> -B <merge-change>
 # -A sets the new parent (old parent is not preserved); -B inserts it before the merge
-jj git push --named <name>=<scratch>
+jj git push --named <name>=<scratch>   # first push — creates the bookmark
 # After the rebase, @ moves to the promoted change — restore the scratch position:
 jj new <merge-change>
 ```
@@ -127,7 +141,7 @@ jj squash                    # fold the resolution back into the conflicted comm
 Always pass `--base` and `--head` explicitly.
 
 ```sh
-gh pr create --base master --head <bookmark-name> ...
+gh pr create --base master --head <bookmark-name> --title "..." --body "..."
 gh pr edit <n> --base <bookmark-name>
 ```
 

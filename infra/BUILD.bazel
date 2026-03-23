@@ -1,0 +1,13 @@
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+
+# Run the AWS CLI.
+# Usage: bazel run //infra:aws -- sts get-caller-identity
+#        bazel run //infra:aws -- s3 ls
+sh_binary(
+    name = "aws",
+    srcs = ["aws.sh"],
+    data = [
+        "@bazel_tools//tools/bash/runfiles",
+        "@aws_cli_linux_amd64//:dist",
+    ],
+)

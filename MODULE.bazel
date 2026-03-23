@@ -57,6 +57,15 @@ filegroup(
 """,
 )
 
+# OpenTofu 1.11.5 Linux amd64 binary, used by //infra:tofu.
+# Update by downloading the new SHA256SUMS from the GitHub release page.
+http_archive(
+    name = "opentofu_linux_amd64",
+    url = "https://github.com/opentofu/opentofu/releases/download/v1.11.5/tofu_1.11.5_linux_amd64.zip",
+    sha256 = "901121681e751574d739de5208cad059eddf9bd739b575745cf9e3c961b28a13",
+    build_file_content = """exports_files(["tofu"])""",
+)
+
 http_archive(
     name = "protoc_gen_doc",
     url = "https://github.com/pseudomuto/protoc-gen-doc/releases/download/v1.5.1/protoc-gen-doc_1.5.1_linux_amd64.tar.gz",

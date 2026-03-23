@@ -1,5 +1,8 @@
 {
   "permissions": {
+    "deny": [
+      "Read(~/.aws/credentials)"
+    ],
     "allow": [
       "Bash(gh run:*)",
       "Bash(gh pr:*)",

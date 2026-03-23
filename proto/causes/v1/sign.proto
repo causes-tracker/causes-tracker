@@ -1,0 +1,43 @@
+// Sign represents a machine-observed piece of evidence of a problem.
+syntax = "proto3";
+
+package causes.v1;
+
+import "google/protobuf/timestamp.proto";
+import "causes/v1/common.proto";
+
+// Sign is machine-observed evidence of a problem.
+// Signs are typically sourced from external systems (crash reporters, test suites,
+// monitoring) via connectors.  Causes stores a summary or reference; the source
+// system holds the full data.  Signs are usually worked with in aggregate.
+//
+// Structured analysis data (e.g. a retraced backtrace from a crash dump, a heap
+// summary, log context) is attached via Annotation messages (see annotation.proto).
+// Human narrative discussion — once a developer or user has an opinion — belongs on
+// linked Symptoms and Plans.  This separation is a design choice, not a hard rule:
+// human Comments on Signs are also permitted (see comment.proto) for cases where
+// brief annotation is more appropriate than creating a full Symptom.
+message Sign {
+  enum Severity {
+    SEVERITY_UNSPECIFIED = 0;
+    SEVERITY_INFO = 1;
+    SEVERITY_WARNING = 2;
+    SEVERITY_ERROR = 3;
+    SEVERITY_CRITICAL = 4;
+  }
+
+  ResourceMeta meta = 1;
+
+  string title = 2;
+  // source identifies the system of origin (e.g. "sentry", "datadog", "test-suite").
+  string source = 3;
+  // source_ref is the URL or identifier of this Sign in the source system.
+  string source_ref = 4;
+  google.protobuf.Timestamp observed_at = 5;
+  google.protobuf.Timestamp last_observed_at = 6;
+  // count is the number of occurrences as reported by the source system.
+  uint64 count = 7;
+  // affected_version is the project version string where this was observed.
+  string affected_version = 8;
+  Severity severity = 9;
+}

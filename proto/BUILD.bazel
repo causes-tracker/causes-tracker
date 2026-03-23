@@ -1,1 +1,18 @@
+load("@rules_proto//proto:defs.bzl", "proto_library")
+load("//tools/lint:linters.bzl", "buf_lint_test")
+
 exports_files(["buf.yaml"])
+
+proto_library(
+    name = "causes_v1_proto",
+    srcs = glob(["causes/v1/*.proto"]),
+    strip_import_prefix = "",
+    deps = ["@protobuf//:timestamp_proto"],
+    visibility = ["//visibility:public"],
+)
+
+# Run with: bazel test //proto:buf_lint
+buf_lint_test(
+    name = "buf_lint",
+    srcs = [":causes_v1_proto"],
+)

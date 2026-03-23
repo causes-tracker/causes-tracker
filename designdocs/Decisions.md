@@ -492,3 +492,76 @@ Self-hosted `bazel-remote` is an alternative if the free tier is outgrown or dat
 BUILD file authoring has a learning curve; Gazelle reduces this significantly for Go.
 `MODULE.bazel` (bzlmod) is the current dependency management approach; some rulesets still have rough edges with bzlmod.
 If scale demands it in future (remote execution, very large codebase), the same Bazel infrastructure scales without a migration.
+
+---
+
+## ADR-012: Proto API conventions — typed IDs, ResourceMeta, and federation provenance
+
+**Status:** Accepted
+
+**Context:** The Causes API is defined in Protocol Buffers.
+The API must support federation: resources created on one instance can be replicated to others, and downstream instances must be able to create relationships between resources without write access to either resource's origin instance.
+Identifier fields must carry enough type information to prevent cross-domain mistakes and to appear safely in URL path segments.
+Common resource metadata (id, timestamps, embargo flag, origin) must be defined once and shared rather than duplicated across message types.
+Federation provenance has two distinct aspects — stable origin identity and per-entry transit path — that must not be conflated.
+
+**Decision — domain-narrowing wrappers:**
+Where the domain of a field is narrower than its protobuf primitive type, use a named wrapper message rather than the primitive directly.
+Each wrapper contains a single field carrying the underlying value (e.g. `string value = 1;`).
+The wrapper type name documents the constraint and prevents cross-domain assignment at compile time.
+
+Examples:
+- `SignId`, `PlanId`, `UserId` and every other identifier field: a field typed `SignId` cannot accidentally receive a `PlanId`.
+  All identifier values must conform to the URL-safe alphabet: ASCII letters (A-Z, a-z), digits (0-9), hyphens (-), and underscores (_).
+  This ensures any ID can appear literally in a URL path segment without percent-encoding.
+- Markdown body fields: a `Markdown` wrapper distinguishes fields whose string content is interpreted as Markdown from plain-text strings, enabling renderers and validators to select the correct code path without inspecting field names.
+
+Language-specific generated code enforces value constraints at construction time.
+
+When a field must carry one of several typed values (e.g. a Comment's parent may be a Sign, Symptom, or Plan), use proto3 `oneof` with a distinct typed field per case.
+There is no exception to the wrapper rule: even when the underlying encoding is identical, the distinct type names preserve semantics and enable static checking.
+
+**Decision — ResourceMeta:**
+All top-level resources (Sign, Symptom, Plan, Comment, Annotation, and link types) embed a single `ResourceMeta meta = 1;` field rather than repeating id, project_id, timestamps, embargo flag, and origin individually.
+This eliminates drift between resource types and gives readers a single place to look for common fields.
+
+**Decision — federation provenance split:**
+Two concepts that were previously conflated in a single provenance field are now separated:
+
+- `ResourceOrigin` (carried on `ResourceMeta.origin`): the stable, immutable identity of where a resource was created — instance ID and local resource ID on that instance.
+  Absent for resources created on this instance.
+  Never changes across journal entries.
+  Used for deduplication when the same resource arrives via multiple inbound paths.
+
+- `ReplicationPath` (carried on `JournalEntry.replication_path`): the transit path for a specific journal entry — which upstream delivered it and which relay hops it traversed.
+  Per-entry: can differ across entries for the same resource if entries arrive via different relay paths.
+  Absent for locally-authored entries.
+
+**Decision — link objects for relationships:**
+Many-to-many relationships between resources (Plan↔Sign, Plan↔Symptom) and ordering dependencies between Plans are stored as independent link objects (`PlanSignLink`, `PlanSymptomLink`, `PlanDependency`) in `link.proto`.
+This allows a downstream instance to record a local link without requiring write access to either linked resource.
+Link objects carry their own embargo flag; the server enforces the invariant that a link is embargoed whenever either linked resource is embargoed.
+
+**Decision — Annotation vs Comment:**
+Machine-generated or connector-supplied structured data on a Sign is stored as an `Annotation` (in `annotation.proto`) rather than a `Comment`.
+Annotations carry a binary `content` field and an `annotation_type` string (convention: `"domain/version"`) that identifies the content schema.
+Human narrative discussion belongs in `Comment` messages.
+Comments may be attached to Signs as well as Symptoms and Plans.
+
+**Decision — project_id is local filing metadata:**
+`ResourceMeta.project_id` is always a local identifier on the storing instance.
+It is not part of the stable resource identity — `ResourceOrigin` provides that.
+Project structure is never replicated; there is no globally stable project identity.
+
+Project mapping is the responsibility of the connection originator: the instance that establishes the federation connection.
+For a downstream pushing resources to an upstream, the downstream (connection originator) translates its local project_id to the upstream's project_id before serialising the snapshot.
+For a downstream pulling resources from an upstream, the downstream (connection originator) translates the upstream's project_id to its own local project_id as it stores the received snapshots.
+In both cases the snapshot arrives at the storing instance already containing the correct local project_id; no rewriting on ingest is required.
+
+This invariant holds transitively: in a chain of instances, each connection originator manages only the mapping between its own project IDs and its direct neighbour's.
+No instance learns about the project structure of non-adjacent instances.
+
+**Consequences:** The typed-wrapper approach adds message nesting versus plain strings, but the type-safety and constraint-documentation benefits justify the cost.
+The `ResourceMeta` embedding pattern requires all resource messages to reserve field 1; this is a stable convention that Gazelle and code generators can enforce.
+The `ResourceOrigin`/`ReplicationPath` split makes the data model more explicit at the cost of two separate fields where one existed before; the clarity is worth it.
+Link objects add an extra round-trip to create a relationship but are the only approach that is consistent with the federation trust model.

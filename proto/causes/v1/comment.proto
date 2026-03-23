@@ -1,0 +1,29 @@
+// Comment carries human discussion on a Sign, Symptom, or Plan.
+syntax = "proto3";
+
+package causes.v1;
+
+import "causes/v1/common.proto";
+
+// Comment carries human discussion.
+// Comments are first-class resources with their own journal and ResourceOrigin,
+// so community comment threads on a published resource can federate back to
+// the origin instance independently.
+//
+// Comments may be attached to Signs as well as Symptoms and Plans.  For
+// machine-generated structured data on a Sign (e.g. a retraced backtrace),
+// prefer Annotation (see annotation.proto) over Comment.
+message Comment {
+  ResourceMeta meta = 1;
+
+  // parent is the Sign, Symptom, or Plan this comment belongs to.
+  // Exactly one field must be set.
+  oneof parent {
+    SymptomId symptom_id = 2;
+    PlanId plan_id = 3;
+    SignId sign_id = 4;
+  }
+
+  FederatedIdentity author = 5;
+  Markdown body = 6;
+}

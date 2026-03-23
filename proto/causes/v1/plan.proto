@@ -1,0 +1,36 @@
+// Plan represents a developer's proposed change.
+syntax = "proto3";
+
+package causes.v1;
+
+import "causes/v1/common.proto";
+
+// Plan is a developer's proposed change, linked to Signs and Symptoms it
+// addresses.  Developer diagnosis and investigation discussion occurs on the
+// Plan via Comments.
+//
+// Relationships to Signs, Symptoms, and other Plans are stored as independent
+// intermediate objects (PlanSignLink, PlanSymptomLink, PlanDependency in
+// link.proto) rather than as repeated ID fields here.  This allows downstream
+// instances to create local links to federated Plans without modifying the
+// federated resource.
+message Plan {
+  enum Status {
+    STATUS_UNSPECIFIED = 0;
+    STATUS_PROPOSED = 1;
+    STATUS_ACCEPTED = 2;
+    STATUS_IN_PROGRESS = 3;
+    STATUS_DONE = 4;
+    STATUS_ABANDONED = 5;
+  }
+
+  ResourceMeta meta = 1;
+
+  string title = 2;
+  // description includes diagnosis notes and approach.
+  Markdown description = 3;
+  FederatedIdentity author = 4;
+  Status status = 5;
+  // target_version is the intended release for this change.
+  string target_version = 6;
+}

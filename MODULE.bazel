@@ -26,6 +26,19 @@ bazel_dep(name = "rules_android", version = "0.7.1")
 # protoc-gen-doc: generates reference documentation from proto files.
 # Pre-built Linux amd64 binary; used in the docs_site genrule.
 http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
+
+# Pre-built PostgreSQL 17 binaries for Linux x86_64 (full install: server +
+# client tools including psql, pg_isready, pg_dump, …).
+# Source: theseus-rs/postgresql-binaries on GitHub.
+# Update by checking https://github.com/theseus-rs/postgresql-binaries/releases
+# and recomputing sha256 from the matching .sha256 file.
+http_file(
+    name = "postgresql_linux_amd64",
+    url = "https://github.com/theseus-rs/postgresql-binaries/releases/download/17.9.0/postgresql-17.9.0-x86_64-unknown-linux-gnu.tar.gz",
+    sha256 = "463422cb007fd15bb37819b1d3562392dd81bba385205fbd0eef4891cb1d18b5",
+    downloaded_file_path = "postgresql.tar.gz",
+)
 
 http_archive(
     name = "protoc_gen_doc",

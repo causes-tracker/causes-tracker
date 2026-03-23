@@ -1,0 +1,19 @@
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+# Repack the theseus-rs PostgreSQL 17 tarball (which has a versioned top-level
+# directory) into a flat tar.gz so the fixture can extract it at a fixed path.
+# Output: bazel-bin/infra/postgres/postgres.tar.gz — bin/, lib/, share/, …
+# Test targets unpack this into $TEST_TMPDIR at runtime.
+genrule(
+    name = "postgres_binaries",
+    srcs = ["@postgresql_linux_amd64//file:postgresql.tar.gz"],
+    outs = ["postgres.tar.gz"],
+    cmd = """
+        TMPDIR=$$(mktemp -d)
+        tar -xzf $(location @postgresql_linux_amd64//file:postgresql.tar.gz) \
+            -C $$TMPDIR --strip-components=1
+        tar czf $@ -C $$TMPDIR .
+        rm -rf $$TMPDIR
+    """,
+)

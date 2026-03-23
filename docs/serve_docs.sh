@@ -19,24 +19,17 @@ else
   exit 1
 fi
 
+# shellcheck source=site_builder.bash
+source "$(rlocation _main/docs/site_builder.bash)"
+
 ZENSICAL=$(rlocation _main/docs/zensical)
+MKDOCS_YML=$(rlocation _main/docs/mkdocs.yml)
+PROTO_DOCS=$(rlocation _main/proto/proto_docs.md)
 
-# Zensical requires the config to sit at the project root with relative paths.
-# The workspace designdocs files are real files (single symlink) so no cp -rL needed.
-WORKDIR=$(mktemp -d)
-trap 'rm -rf "$WORKDIR"' EXIT
-ln -s "${BUILD_WORKSPACE_DIRECTORY}/designdocs" "$WORKDIR/designdocs"
-sed '/^docs_dir:/d' "${BUILD_WORKSPACE_DIRECTORY}/docs/mkdocs.yml" > "$WORKDIR/mkdocs.yml"
-echo "docs_dir: designdocs" >> "$WORKDIR/mkdocs.yml"
+# Use the workspace source directly so edits are reflected on re-run.
+DESIGNDOCS_SRC="${BUILD_WORKSPACE_DIRECTORY}/designdocs"
 
-cd "$WORKDIR"
-"$ZENSICAL" build --clean
-
-# Zensical locates its theme assets via __file__ at runtime, but the Bazel
-# runfiles layout differs from a regular pip install, so it silently skips
-# the copy. Copy them manually from the tool's runfiles.
-ZENSICAL_ASSETS=$(find "$(readlink -f "$ZENSICAL").runfiles" -path "*/zensical/templates/assets" -type d | head -1)
-cp -rL "$ZENSICAL_ASSETS" "$WORKDIR/site/assets"
+PROTO_DOCS="$PROTO_DOCS" build_docs_site
 
 echo "Serving docs on http://localhost:8000"
-exec python3 -m http.server 8000 --directory "$WORKDIR/site"
+exec python3 -m http.server 8000 --directory "$SITE_DIR"

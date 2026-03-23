@@ -23,6 +23,16 @@ bazel_dep(name = "aspect_rules_lint", version = "2.3.0")
 # 0.7.1 fixes this by loading from @platforms//host instead.
 bazel_dep(name = "rules_android", version = "0.7.1")
 
+# protoc-gen-doc: generates reference documentation from proto files.
+# Pre-built Linux amd64 binary; used in the docs_site genrule.
+http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+http_archive(
+    name = "protoc_gen_doc",
+    url = "https://github.com/pseudomuto/protoc-gen-doc/releases/download/v1.5.1/protoc-gen-doc_1.5.1_linux_amd64.tar.gz",
+    sha256 = "47cd72b07e6dab3408d686a65d37d3a6ab616da7d8b564b2bd2a2963a72b72fd",
+    build_file_content = """exports_files(["protoc-gen-doc"])""",
+)
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
 python.toolchain(python_version = "3.12")
 

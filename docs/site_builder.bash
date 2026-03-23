@@ -20,6 +20,12 @@ build_docs_site() {
   mkdir "$build_root/designdocs"
   cp -rL "$DESIGNDOCS_SRC/." "$build_root/designdocs/"
 
+  # Inject generated docs that are not in the source tree.
+  # Callers set PROTO_DOCS to the path of the generated proto reference Markdown.
+  if [[ -n "${PROTO_DOCS:-}" ]]; then
+    cp "$PROTO_DOCS" "$build_root/designdocs/Proto-Reference.md"
+  fi
+
   # Zensical rejects docs_dir values that contain '..'.
   # Strip docs_dir and site_dir from the source config and substitute a
   # local-relative path.

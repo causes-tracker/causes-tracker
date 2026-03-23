@@ -16,3 +16,40 @@ buf_lint_test(
     name = "buf_lint",
     srcs = [":causes_v1_proto"],
 )
+
+# Generate Markdown reference documentation from the proto definitions.
+# Output: bazel-bin/proto/proto_docs.md — consumed by //docs:docs_site.
+# protoc-gen-doc is a pre-built Linux amd64 binary (see MODULE.bazel).
+# Convenience filegroup for the .proto sources used by the docs genrule.
+filegroup(
+    name = "proto_srcs",
+    srcs = glob(["causes/v1/*.proto"]),
+    visibility = ["//docs:__pkg__"],
+)
+
+# Generate Markdown reference documentation from the proto definitions.
+# Output: bazel-bin/proto/proto_docs.md — consumed by //docs:docs_site.
+# protoc-gen-doc is a pre-built Linux amd64 binary (see MODULE.bazel).
+genrule(
+    name = "proto_docs",
+    srcs = [":proto_srcs", "@protobuf//:well_known_type_protos"],
+    outs = ["proto_docs.md"],
+    cmd = """
+        EXECROOT=$$(pwd)
+        WKT_DIR=$$(dirname $$(echo '$(locations @protobuf//:well_known_type_protos)' | tr ' ' '\\n' | head -1))
+        WKT_ROOT=$$(echo "$$WKT_DIR" | sed 's|/google/protobuf$$||')
+        PROTO_FILES=$$(echo '$(locations :proto_srcs)' | tr ' ' '\\n' | sed "s|^|$$EXECROOT/|" | tr '\\n' ' ')
+        $(location @protobuf//:protoc) \
+            --plugin=protoc-gen-doc=$(location @protoc_gen_doc//:protoc-gen-doc) \
+            --doc_out=$$EXECROOT/$(@D) \
+            --doc_opt=markdown,proto_docs.md \
+            --proto_path=$$EXECROOT/proto \
+            --proto_path=$$EXECROOT/$$WKT_ROOT \
+            $$PROTO_FILES
+    """,
+    tools = [
+        "@protobuf//:protoc",
+        "@protoc_gen_doc//:protoc-gen-doc",
+    ],
+    visibility = ["//docs:__pkg__"],
+)

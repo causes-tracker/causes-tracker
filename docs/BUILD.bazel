@@ -24,7 +24,7 @@ py_console_script_binary(
 # Output: bazel-bin/docs/site.tar.gz
 genrule(
     name = "docs_site",
-    srcs = ["//:designdocs", "mkdocs.yml"],
+    srcs = ["//:designdocs", "mkdocs.yml", "//proto:proto_docs"],
     outs = ["site.tar.gz"],
     cmd = """
         EXECROOT=$$(pwd)
@@ -35,6 +35,8 @@ genrule(
         # to dereference all symlinks and produce real files.
         mkdir $$OUTDIR/designdocs
         cp -rL $$EXECROOT/designdocs/. $$OUTDIR/designdocs/
+        # Copy generated proto reference docs into the designdocs tree.
+        cp $(location //proto:proto_docs) $$OUTDIR/designdocs/Proto-Reference.md
         sed -e '/^docs_dir:/d' -e '/^site_dir:/d' docs/mkdocs.yml > $$OUTDIR/mkdocs.yml
         echo "docs_dir: designdocs" >> $$OUTDIR/mkdocs.yml
         cd $$OUTDIR
@@ -56,6 +58,9 @@ sh_binary(
     srcs = ["serve_docs.sh"],
     data = [
         ":zensical",
+        "//proto:proto_docs",
+        "mkdocs.yml",
+        "site_builder.bash",
         "@bazel_tools//tools/bash/runfiles",
     ],
 )
@@ -69,6 +74,7 @@ sh_binary(
         ":ghp_import",
         ":zensical",
         "//:designdocs",
+        "//proto:proto_docs",
         "mkdocs.yml",
         "site_builder.bash",
         "@bazel_tools//tools/bash/runfiles",
@@ -82,6 +88,7 @@ sh_test(
     data = [
         ":zensical",
         "//:designdocs",
+        "//proto:proto_docs",
         "mkdocs.yml",
         "site_builder.bash",
         "@bazel_tools//tools/bash/runfiles",

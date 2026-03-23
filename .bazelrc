@@ -10,6 +10,9 @@ build --experimental_proto_descriptor_sets_include_source_info
 # Local disk cache (shared across workspaces on the same machine)
 build --disk_cache=~/.cache/bazel-disk-cache
 
+# Workspace status: populates COMMIT_SHA and REPO_URL for BuildBuddy flake detection.
+build --workspace_status_command="bash workspace_status.sh"
+
 # CI config — activated with --config=ci in GitHub Actions.
 # The API key is passed separately via --remote_header in the workflow.
 build:ci --build_metadata=ROLE=CI

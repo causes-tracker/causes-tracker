@@ -13,7 +13,9 @@
       "Bash(jj rebase:*)",
       "Bash(bazel build:*)",
       "Bash(tar tzf:*)",
-      "Bash(jj log:*)"
+      "Bash(jj log:*)",
+      "WebSearch",
+      "Bash(bazel run:*)"
     ]
   }
 }

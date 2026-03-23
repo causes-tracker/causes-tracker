@@ -17,3 +17,15 @@ genrule(
         rm -rf $$TMPDIR
     """,
 )
+
+# Self-test: verifies that pg_start brings up a reachable PostgreSQL instance.
+# Run with: bazel test //infra/postgres:testfixture_test
+sh_test(
+    name = "testfixture_test",
+    srcs = ["testfixture_test.sh"],
+    data = [
+        "testfixture.sh",
+        ":postgres_binaries",
+        "@bazel_tools//tools/bash/runfiles",
+    ],
+)

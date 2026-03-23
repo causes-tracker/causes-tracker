@@ -1,3 +1,12 @@
+# OpenTofu / Terraform
+infra/terraform/.terraform/
+infra/terraform/*.tfstate
+infra/terraform/*.tfstate.backup
+infra/terraform/*.tfplan
+infra/terraform/*.lock.info
+infra/terraform/.terraform.lock.hcl
+infra/terraform/terraform.tfvars
+
 # Bazel
 /bazel-*
 .bazelrc.user

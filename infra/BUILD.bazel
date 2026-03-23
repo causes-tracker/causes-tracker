@@ -11,3 +11,16 @@ sh_binary(
         "@aws_cli_linux_amd64//:dist",
     ],
 )
+
+# Run OpenTofu from the infra/terraform directory.
+# Usage: bazel run //infra:tofu -- init
+#        bazel run //infra:tofu -- plan
+#        bazel run //infra:tofu -- apply
+sh_binary(
+    name = "tofu",
+    srcs = ["tofu.sh"],
+    data = [
+        "@bazel_tools//tools/bash/runfiles",
+        "@opentofu_linux_amd64//:tofu",
+    ],
+)

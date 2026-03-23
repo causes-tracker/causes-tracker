@@ -94,6 +94,43 @@ scratch position above the merge.
 Always work on a new change at the tip; use `jj squash --into <target>` to
 move it to the right place in history once it works.
 
+**Graph surgery — moving a single node:**
+
+The key principle: identify the one node that is in the wrong place and move only it.
+Never try to fix a cascade by rebasing multiple nodes in sequence — that causes conflicts.
+
+```sh
+# Move node X to be a child of Y, inserting it before Z:
+jj rebase -r <X> -A <Y> -B <Z>
+
+# Move node X to be a direct child of master (independent branch):
+jj rebase -r <X> -A master -B <merge-change>
+
+# Add an existing node into the merge-of-all-work without changing its parent:
+jj rebase -r <node> -A <its-current-parent> -B <merge-change>
+```
+
+**Resolving conflicts:**
+
+Never abandon a conflicted commit and start over.
+Instead: create a child of the conflicted commit, write the correct content, then squash down.
+
+```sh
+jj new <conflicted-change>   # work on top of it
+# edit files to the correct resolved state
+jj squash                    # fold the resolution back into the conflicted commit
+```
+
+**`gh` commands always need explicit branches:**
+
+`gh` does not understand jj workspaces and cannot infer the current branch.
+Always pass `--base` and `--head` explicitly.
+
+```sh
+gh pr create --base master --head <bookmark-name> ...
+gh pr edit <n> --base <bookmark-name>
+```
+
 **Useful commands:**
 
 ```sh

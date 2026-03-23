@@ -40,6 +40,23 @@ http_file(
     downloaded_file_path = "postgresql.tar.gz",
 )
 
+# AWS CLI 2.34.14 Linux amd64, used by //infra:aws.
+# Update: download new zip, run sha256sum, update version and sha256 here.
+# https://awscli.amazonaws.com/awscli-exe-linux-x86_64-VERSION.zip
+http_archive(
+    name = "aws_cli_linux_amd64",
+    url = "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.34.14.zip",
+    sha256 = "05f820e8df6bdc2b1c296afd1b63d3fecd39ac0725fd823004f110191c8180dd",
+    strip_prefix = "aws",
+    build_file_content = """
+filegroup(
+    name = "dist",
+    srcs = glob(["dist/**"]),
+    visibility = ["//visibility:public"],
+)
+""",
+)
+
 http_archive(
     name = "protoc_gen_doc",
     url = "https://github.com/pseudomuto/protoc-gen-doc/releases/download/v1.5.1/protoc-gen-doc_1.5.1_linux_amd64.tar.gz",

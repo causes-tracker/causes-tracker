@@ -1,39 +1,49 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended"],
-
+  "extends": [
+    "config:recommended"
+  ],
   "minimumReleaseAge": "3 days",
-
   "automerge": true,
   "platformAutomerge": true,
   "automergeStrategy": "merge",
-
   "osvVulnerabilityAlerts": true,
   "vulnerabilityAlerts": {
     "minimumReleaseAge": "0 days"
   },
-
   "customManagers": [
     {
       "customType": "regex",
-      "fileMatch": ["^\\.devcontainer/Dockerfile$"],
-      "matchStrings": ["ARG BAZELISK_VERSION=(?<currentValue>\\S+)"],
+      "managerFilePatterns": [
+        "/^\\.devcontainer/Dockerfile$/"
+      ],
+      "matchStrings": [
+        "ARG BAZELISK_VERSION=(?<currentValue>\\S+)"
+      ],
       "depNameTemplate": "bazelbuild/bazelisk",
       "datasourceTemplate": "github-releases",
       "extractVersionTemplate": "^v(?<version>.*)$"
     },
     {
       "customType": "regex",
-      "fileMatch": ["^\\.devcontainer/Dockerfile$"],
-      "matchStrings": ["ARG BUILDIFIER_VERSION=(?<currentValue>\\S+)"],
+      "managerFilePatterns": [
+        "/^\\.devcontainer/Dockerfile$/"
+      ],
+      "matchStrings": [
+        "ARG BUILDIFIER_VERSION=(?<currentValue>\\S+)"
+      ],
       "depNameTemplate": "bazelbuild/buildtools",
       "datasourceTemplate": "github-releases",
       "extractVersionTemplate": "^v(?<version>.*)$"
     },
     {
       "customType": "regex",
-      "fileMatch": ["^\\.devcontainer/Dockerfile$"],
-      "matchStrings": ["ARG JJ_VERSION=(?<currentValue>\\S+)"],
+      "managerFilePatterns": [
+        "/^\\.devcontainer/Dockerfile$/"
+      ],
+      "matchStrings": [
+        "ARG JJ_VERSION=(?<currentValue>\\S+)"
+      ],
       "depNameTemplate": "jj-vcs/jj",
       "datasourceTemplate": "github-releases",
       "extractVersionTemplate": "^v(?<version>.*)$"

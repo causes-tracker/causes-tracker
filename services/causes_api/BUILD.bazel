@@ -1,0 +1,46 @@
+load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
+load("@rules_rs//rs:rust_test.bzl", "rust_test")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+rust_binary(
+    name = "causes_api",
+    srcs = glob(["src/**/*.rs"]),
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:clap",
+        "@crates//:dotenvy",
+        "@crates//:opentelemetry",
+        "@crates//:opentelemetry-otlp",
+        "@crates//:opentelemetry_sdk",
+        "@crates//:sqlx",
+        "@crates//:tokio",
+        "@crates//:tonic",
+        "@crates//:tonic-health",
+        "@crates//:tracing",
+        "@crates//:tracing-opentelemetry",
+        "@crates//:tracing-subscriber",
+    ],
+)
+
+# Unit + integration test binary.  Not run directly by Bazel; instead the
+# sh_test below starts a hermetic PostgreSQL instance and invokes this binary
+# with DATABASE_URL set.
+rust_test(
+    name = "causes_api_test",
+    crate = ":causes_api",
+    tags = ["manual"],
+)
+
+# Hermetic database test: spins up a throwaway PostgreSQL from the bundled
+# tarball, then runs the Rust test binary with DATABASE_URL pointed at it.
+sh_test(
+    name = "causes_api_db_test",
+    srcs = ["db_test.sh"],
+    args = ["$(location :causes_api_test)"],
+    data = [
+        ":causes_api_test",
+        "//infra/postgres:postgres_binaries",
+        "//infra/postgres:testfixture.sh",
+        "@bazel_tools//tools/bash/runfiles",
+    ],
+)

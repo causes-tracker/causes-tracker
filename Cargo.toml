@@ -1,7 +1,23 @@
 [workspace]
+members  = ["services/causes_api"]
 resolver = "2"
 
 [workspace.package]
 edition = "2021"
 license = "Apache-2.0"
 version = "0.1.0"
+
+[workspace.dependencies]
+tokio                 = { version = "1",    features = ["full"] }
+tonic                 = { version = "0.14" }
+tonic-health          = { version = "0.14" }
+sqlx                  = { version = "0.8",  features = ["runtime-tokio", "postgres", "uuid", "chrono", "migrate"] }
+clap                  = { version = "4",    features = ["env", "derive"] }
+anyhow                = "1"
+tracing               = "0.1"
+tracing-subscriber    = { version = "0.3",  features = ["env-filter", "json"] }
+tracing-opentelemetry = "0.32"
+opentelemetry         = "0.31"
+opentelemetry_sdk     = { version = "0.31", features = ["rt-tokio"] }
+opentelemetry-otlp    = { version = "0.31", features = ["http-proto", "reqwest-rustls"] }
+dotenvy               = "0.15"

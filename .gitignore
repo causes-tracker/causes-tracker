@@ -7,6 +7,9 @@ infra/terraform/*.lock.info
 infra/terraform/.terraform.lock.hcl
 infra/terraform/terraform.tfvars
 
+# Local dev environment overrides (DATABASE_URL, etc.) — never commit
+.env
+
 # Bazel
 /bazel-*
 .bazelrc.user

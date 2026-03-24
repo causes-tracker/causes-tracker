@@ -1,0 +1,54 @@
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+# Run the hermetic cargo binary from the rules_rs toolchain.
+# Suitable for commands that do not invoke the compiler:
+#   bazel run //tools:cargo -- generate-lockfile
+#   bazel run //tools:cargo -- fetch
+#   bazel run //tools:cargo -- metadata
+#   bazel run //tools:cargo -- tree
+# For compilation (check/build/test) use: bazel build //services/...
+sh_binary(
+    name = "cargo",
+    srcs = ["cargo.sh"],
+    data = [
+        "@bazel_tools//tools/bash/runfiles",
+        "@cargo_linux_x86_64_1_87_0//:cargo",
+    ],
+)
+
+# Run the hermetic rustc binary from the rules_rs toolchain.
+# Usage: bazel run //tools:rustc -- --version
+sh_binary(
+    name = "rustc",
+    srcs = ["rustc.sh"],
+    data = [
+        "@bazel_tools//tools/bash/runfiles",
+        "@rustc_linux_x86_64_1_87_0//:rustc",
+    ],
+)
+
+# Run the hermetic rustfmt binary from the rules_rs toolchain.
+# Usage: bazel run //tools:rustfmt -- --check services/instance-api/src/main.rs
+#        bazel run //tools:rustfmt -- services/instance-api/src/main.rs
+sh_binary(
+    name = "rustfmt",
+    srcs = ["rustfmt.sh"],
+    data = [
+        "@bazel_tools//tools/bash/runfiles",
+        "@rustfmt_linux_x86_64_1_87_0//:rustfmt_bin",
+    ],
+)
+
+# Verify all three wrappers resolve and report the expected toolchain version.
+# Run with: bazel test //tools:toolchain_versions_test
+sh_test(
+    name = "toolchain_versions_test",
+    srcs = ["toolchain_versions_test.sh"],
+    data = [
+        "@bazel_tools//tools/bash/runfiles",
+        "@cargo_linux_x86_64_1_87_0//:cargo",
+        "@rustc_linux_x86_64_1_87_0//:rustc",
+        "@rustfmt_linux_x86_64_1_87_0//:rustfmt_bin",
+    ],
+)

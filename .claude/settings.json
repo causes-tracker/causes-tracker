@@ -1,8 +1,5 @@
 {
   "permissions": {
-    "deny": [
-      "Read(~/.aws/credentials)"
-    ],
     "allow": [
       "Bash(gh run:*)",
       "Bash(gh pr:*)",
@@ -18,7 +15,13 @@
       "Bash(tar tzf:*)",
       "Bash(jj log:*)",
       "WebSearch",
-      "Bash(bazel run:*)"
+      "Bash(bazel run:*)",
+      "Bash(bazel sync:*)",
+      "Bash(bazel fetch:*)",
+      "Bash(bazel query:*)"
+    ],
+    "deny": [
+      "Read(~/.aws/credentials)"
     ]
   }
 }

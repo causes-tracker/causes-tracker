@@ -6,7 +6,7 @@ load("@rules_shell//shell:sh_test.bzl", "sh_test")
 _IMPL = "//tools:sqlx_prepare_impl.sh"
 
 _TOOL_DATA = [
-    "//infra/postgres:postgres_binaries",
+    "//infra/postgres:postgres_extracted",
     "//infra/postgres:testfixture.sh",
     "//tools:sqlx_bin",
     "@bazel_tools//tools/bash/runfiles",

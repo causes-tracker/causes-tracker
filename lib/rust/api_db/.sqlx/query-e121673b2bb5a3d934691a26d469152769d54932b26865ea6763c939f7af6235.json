@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT current_database()::text AS db",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "db",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "e121673b2bb5a3d934691a26d469152769d54932b26865ea6763c939f7af6235"
+}

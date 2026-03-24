@@ -18,7 +18,13 @@ sqlx = { version = "0.8", features = [
   "chrono",
   "migrate",
 ] }
+reqwest = { version = "0.12", features = [
+  "json",
+  "rustls-tls",
+], default-features = false }
 clap = { version = "4", features = ["env", "derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 anyhow = "1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
@@ -31,4 +37,6 @@ opentelemetry-otlp = { version = "0.31", features = [
 ] }
 dotenvy = "0.15"
 uuid = { version = "1", features = ["v4"] }
+url = "2"
+email_address = "0.2"
 wiremock = "0.6"

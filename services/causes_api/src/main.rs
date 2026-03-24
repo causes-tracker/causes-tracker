@@ -4,20 +4,12 @@ use anyhow::Context;
 use clap::Parser;
 use tracing::{Instrument as _, info, info_span};
 
+mod bootstrap;
 mod config;
+mod google;
 mod grpc;
+mod store;
 mod telemetry;
-
-/// Database operations needed by this service.
-trait Db: Send + 'static {
-    async fn migrate(&self) -> anyhow::Result<()>;
-}
-
-impl Db for api_db::DbPool {
-    async fn migrate(&self) -> anyhow::Result<()> {
-        api_db::DbPool::migrate(self).await
-    }
-}
 
 /// Production entry point for the Causes API service.
 #[tokio::main]
@@ -42,7 +34,7 @@ async fn main() -> anyhow::Result<()> {
 
 async fn main_inner(
     cfg: config::Config,
-    db: impl Db,
+    db: impl store::Store,
     shutdown: impl Future<Output = ()> + Send + 'static,
 ) -> anyhow::Result<()> {
     let _otel = telemetry::init(
@@ -58,12 +50,17 @@ async fn main_inner(
 
 async fn startup(
     cfg: &config::Config,
-    db: impl Db,
+    db: impl store::Store,
     shutdown: impl Future<Output = ()> + Send + 'static,
 ) -> anyhow::Result<()> {
     db.migrate().await.context("running migrations")?;
 
     info!("database ready");
+
+    let http_client = reqwest::Client::new();
+    bootstrap::run(&db, cfg, &http_client)
+        .await
+        .context("bootstrap failed")?;
 
     let addr = cfg.bind_addr.parse().context("parsing BIND_ADDR")?;
     let (_health_reporter, health_svc) = grpc::health_service().await;
@@ -83,13 +80,28 @@ async fn startup(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{config, main_inner, store};
 
     struct FakeDb;
 
-    impl Db for FakeDb {
+    impl store::Store for FakeDb {
         async fn migrate(&self) -> anyhow::Result<()> {
             Ok(())
+        }
+
+        async fn user_count(&self) -> anyhow::Result<i64> {
+            // Return > 0 so bootstrap short-circuits.
+            Ok(1)
+        }
+
+        async fn create_admin(
+            &self,
+            _display_name: &api_db::DisplayName,
+            _email: &api_db::Email,
+            _auth_provider: &api_db::AuthProvider,
+            _subject: &api_db::Subject,
+        ) -> anyhow::Result<api_db::UserId> {
+            unreachable!("bootstrap short-circuits when user_count > 0")
         }
     }
 
@@ -98,6 +110,8 @@ mod tests {
     async fn startup_migrates_and_binds() {
         let cfg = config::Config {
             database_url: "unused".to_string(),
+            google_client_id: String::new(),
+            google_client_secret: String::new(),
             honeycomb_api_key: None,
             honeycomb_endpoint: "https://api.honeycomb.io:443".to_string(),
             bind_addr: "127.0.0.1:0".to_string(),

@@ -26,6 +26,7 @@ bazel_dep(name = "rules_android", version = "0.7.1")
 # protoc-gen-doc: generates reference documentation from proto files.
 # Pre-built Linux amd64 binary; used in the docs_site genrule.
 http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
 http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
 
 # Pre-built PostgreSQL 17 binaries for Linux x86_64 (full install: server +
@@ -35,9 +36,9 @@ http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_
 # and recomputing sha256 from the matching .sha256 file.
 http_file(
     name = "postgresql_linux_amd64",
-    url = "https://github.com/theseus-rs/postgresql-binaries/releases/download/17.9.0/postgresql-17.9.0-x86_64-unknown-linux-gnu.tar.gz",
-    sha256 = "463422cb007fd15bb37819b1d3562392dd81bba385205fbd0eef4891cb1d18b5",
     downloaded_file_path = "postgresql.tar.gz",
+    sha256 = "463422cb007fd15bb37819b1d3562392dd81bba385205fbd0eef4891cb1d18b5",
+    url = "https://github.com/theseus-rs/postgresql-binaries/releases/download/17.9.0/postgresql-17.9.0-x86_64-unknown-linux-gnu.tar.gz",
 )
 
 # AWS CLI 2.34.14 Linux amd64, used by //infra:aws.
@@ -45,9 +46,6 @@ http_file(
 # https://awscli.amazonaws.com/awscli-exe-linux-x86_64-VERSION.zip
 http_archive(
     name = "aws_cli_linux_amd64",
-    url = "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.34.14.zip",
-    sha256 = "05f820e8df6bdc2b1c296afd1b63d3fecd39ac0725fd823004f110191c8180dd",
-    strip_prefix = "aws",
     build_file_content = """
 filegroup(
     name = "dist",
@@ -55,23 +53,75 @@ filegroup(
     visibility = ["//visibility:public"],
 )
 """,
+    sha256 = "05f820e8df6bdc2b1c296afd1b63d3fecd39ac0725fd823004f110191c8180dd",
+    strip_prefix = "aws",
+    url = "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.34.14.zip",
 )
 
 # OpenTofu 1.11.5 Linux amd64 binary, used by //infra:tofu.
 # Update by downloading the new SHA256SUMS from the GitHub release page.
 http_archive(
     name = "opentofu_linux_amd64",
-    url = "https://github.com/opentofu/opentofu/releases/download/v1.11.5/tofu_1.11.5_linux_amd64.zip",
-    sha256 = "901121681e751574d739de5208cad059eddf9bd739b575745cf9e3c961b28a13",
     build_file_content = """exports_files(["tofu"])""",
+    sha256 = "901121681e751574d739de5208cad059eddf9bd739b575745cf9e3c961b28a13",
+    url = "https://github.com/opentofu/opentofu/releases/download/v1.11.5/tofu_1.11.5_linux_amd64.zip",
 )
 
 http_archive(
     name = "protoc_gen_doc",
-    url = "https://github.com/pseudomuto/protoc-gen-doc/releases/download/v1.5.1/protoc-gen-doc_1.5.1_linux_amd64.tar.gz",
-    sha256 = "47cd72b07e6dab3408d686a65d37d3a6ab616da7d8b564b2bd2a2963a72b72fd",
     build_file_content = """exports_files(["protoc-gen-doc"])""",
+    sha256 = "47cd72b07e6dab3408d686a65d37d3a6ab616da7d8b564b2bd2a2963a72b72fd",
+    url = "https://github.com/pseudomuto/protoc-gen-doc/releases/download/v1.5.1/protoc-gen-doc_1.5.1_linux_amd64.tar.gz",
 )
+# ── Rust ──────────────────────────────────────────────────────────────────────
+
+bazel_dep(name = "rules_rs", version = "0.0.44")
+
+toolchains = use_extension(
+    "@rules_rs//rs/experimental/toolchains:module_extension.bzl",
+    "toolchains",
+)
+toolchains.toolchain(
+    edition = "2021",
+    version = "1.87.0",
+)
+use_repo(toolchains, "default_rust_toolchains")
+
+register_toolchains("@default_rust_toolchains//:all")
+
+crate = use_extension("@rules_rs//rs:extensions.bzl", "crate")
+crate.from_cargo(
+    name = "crates",
+    cargo_lock = "//:Cargo.lock",
+    cargo_toml = "//:Cargo.toml",
+    platform_triples = [
+        "aarch64-unknown-linux-gnu",
+        "x86_64-unknown-linux-gnu",
+    ],
+    use_experimental_platforms = True,
+)
+use_repo(crate, "crates")
+
+# ── Container images ───────────────────────────────────────────────────────────
+
+bazel_dep(name = "rules_oci", version = "2.3.0")
+bazel_dep(name = "aspect_bazel_lib", version = "2.22.5")
+
+oci = use_extension("@rules_oci//oci:extensions.bzl", "oci")
+oci.pull(
+    name = "distroless_cc_debian12",
+    # Pin with: bazel run @rules_oci//oci:pin -- --image=gcr.io/distroless/cc-debian12
+    image = "gcr.io/distroless/cc-debian12",
+    platforms = [
+        "linux/amd64",
+        "linux/arm64",
+    ],
+    tag = "latest",
+)
+use_repo(oci, "distroless_cc_debian12", "distroless_cc_debian12_linux_amd64", "distroless_cc_debian12_linux_arm64")
+
+# ── Python ────────────────────────────────────────────────────────────────────
+
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
 python.toolchain(python_version = "3.12")
 
@@ -86,11 +136,11 @@ use_repo(pip, "pip")
 npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")
 npm.npm_translate_lock(
     name = "npm",
-    pnpm_lock = "//.devcontainer:pnpm-lock.yaml",
     data = [
         "//.devcontainer:package.json",
         "//.devcontainer:pnpm-workspace.yaml",
     ],
+    pnpm_lock = "//.devcontainer:pnpm-lock.yaml",
 )
 use_repo(
     npm,

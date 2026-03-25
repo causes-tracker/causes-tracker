@@ -19,7 +19,8 @@
       "Bash(bazel sync:*)",
       "Bash(bazel fetch:*)",
       "Bash(bazel query:*)",
-      "Bash(bazel mod:*)"
+      "Bash(bazel mod:*)",
+      "Bash(bazel help:*)"
     ],
     "deny": [
       "Read(~/.aws/credentials)"

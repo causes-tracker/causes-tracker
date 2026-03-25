@@ -21,6 +21,6 @@ else
   exit 1
 fi
 
-cargo_bin="$(rlocation cargo_linux_x86_64_1_87_0/bin/cargo)"
+cargo_bin="$(rlocation rust_host_tools/bin/cargo)"
 cd "${BUILD_WORKSPACE_DIRECTORY}"
 exec "$cargo_bin" "$@"

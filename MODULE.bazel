@@ -87,13 +87,18 @@ toolchains.toolchain(
 )
 use_repo(
     toolchains,
-    "cargo_linux_x86_64_1_87_0",
     "default_rust_toolchains",
-    "rustc_linux_x86_64_1_87_0",
-    "rustfmt_linux_x86_64_1_87_0",
 )
 
 register_toolchains("@default_rust_toolchains//:all")
+
+# Exposes cargo/rustc/rustfmt from the hermetic toolchain as @rust_host_tools.
+# Using a dedicated extension (rather than listing the versioned repos directly
+# in the toolchains use_repo block) keeps 'bazel mod tidy' happy: the versioned
+# repos are internal to rules_rs and not reported as direct deps.
+rust_host = use_extension("//tools:rust_host_tools.bzl", "rust_host")
+rust_host.config(version = "1.87.0")
+use_repo(rust_host, "rust_host_tools")
 
 crate = use_extension("@rules_rs//rs:extensions.bzl", "crate")
 crate.from_cargo(

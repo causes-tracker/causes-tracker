@@ -22,5 +22,6 @@ else
 fi
 
 cargo_bin="$(rlocation rust_host_tools/bin/cargo)"
+export RUSTC="$(rlocation rust_host_tools/bin/rustc)"
 cd "${BUILD_WORKSPACE_DIRECTORY}"
 exec "$cargo_bin" "$@"

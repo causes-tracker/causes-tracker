@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Hermetic rustfmt wrapper.
 # Usage: bazel run //tools:rustfmt -- <rustfmt args>
-#   e.g. bazel run //tools:rustfmt -- --check services/instance-api/src/main.rs
-#        bazel run //tools:rustfmt -- services/instance-api/src/**/*.rs
+#   e.g. bazel run //tools:rustfmt -- --check services/causes_api/src/main.rs
+#        bazel run //tools:rustfmt -- services/causes_api/src/**/*.rs
 set -euo pipefail
 
 # Standard Bazel 3-way runfiles init.
@@ -21,6 +21,6 @@ else
   exit 1
 fi
 
-rustfmt_bin="$(rlocation rustfmt_linux_x86_64_1_87_0/bin/rustfmt)"
+rustfmt_bin="$(rlocation rust_host_tools/bin/rustfmt)"
 cd "${BUILD_WORKSPACE_DIRECTORY}"
 exec "$rustfmt_bin" "$@"

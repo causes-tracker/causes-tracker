@@ -22,9 +22,9 @@ fi
 EXPECTED_RUST_VERSION="1.87.0"
 EXPECTED_COMMIT="17067e9ac"
 
-cargo_bin="$(rlocation cargo_linux_x86_64_1_87_0/bin/cargo)"
-rustc_bin="$(rlocation rustc_linux_x86_64_1_87_0/bin/rustc)"
-rustfmt_bin="$(rlocation rustfmt_linux_x86_64_1_87_0/bin/rustfmt)"
+cargo_bin="$(rlocation rust_host_tools/bin/cargo)"
+rustc_bin="$(rlocation rust_host_tools/bin/rustc)"
+rustfmt_bin="$(rlocation rust_host_tools/bin/rustfmt)"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 

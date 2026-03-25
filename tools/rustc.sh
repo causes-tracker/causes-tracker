@@ -20,6 +20,6 @@ else
   exit 1
 fi
 
-rustc_bin="$(rlocation rustc_linux_x86_64_1_87_0/bin/rustc)"
+rustc_bin="$(rlocation rust_host_tools/bin/rustc)"
 cd "${BUILD_WORKSPACE_DIRECTORY}"
 exec "$rustc_bin" "$@"

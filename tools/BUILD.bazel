@@ -13,7 +13,7 @@ sh_binary(
     srcs = ["cargo.sh"],
     data = [
         "@bazel_tools//tools/bash/runfiles",
-        "@cargo_linux_x86_64_1_87_0//:cargo",
+        "@rust_host_tools//:cargo",
     ],
 )
 
@@ -24,19 +24,19 @@ sh_binary(
     srcs = ["rustc.sh"],
     data = [
         "@bazel_tools//tools/bash/runfiles",
-        "@rustc_linux_x86_64_1_87_0//:rustc",
+        "@rust_host_tools//:rustc",
     ],
 )
 
 # Run the hermetic rustfmt binary from the rules_rs toolchain.
-# Usage: bazel run //tools:rustfmt -- --check services/instance-api/src/main.rs
-#        bazel run //tools:rustfmt -- services/instance-api/src/main.rs
+# Usage: bazel run //tools:rustfmt -- --check services/causes_api/src/main.rs
+#        bazel run //tools:rustfmt -- services/causes_api/src/main.rs
 sh_binary(
     name = "rustfmt",
     srcs = ["rustfmt.sh"],
     data = [
         "@bazel_tools//tools/bash/runfiles",
-        "@rustfmt_linux_x86_64_1_87_0//:rustfmt_bin",
+        "@rust_host_tools//:rustfmt",
     ],
 )
 
@@ -47,8 +47,8 @@ sh_test(
     srcs = ["toolchain_versions_test.sh"],
     data = [
         "@bazel_tools//tools/bash/runfiles",
-        "@cargo_linux_x86_64_1_87_0//:cargo",
-        "@rustc_linux_x86_64_1_87_0//:rustc",
-        "@rustfmt_linux_x86_64_1_87_0//:rustfmt_bin",
+        "@rust_host_tools//:cargo",
+        "@rust_host_tools//:rustc",
+        "@rust_host_tools//:rustfmt",
     ],
 )

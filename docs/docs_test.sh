@@ -40,11 +40,6 @@ DESIGNDOCS_SRC="$TEST_TMPDIR/designdocs"
 mkdir "$DESIGNDOCS_SRC"
 cp -rL "$(dirname "$DESIGNDOCS_RUNFILES")/." "$DESIGNDOCS_SRC/"
 
-# Unset RUNFILES_DIR to simulate the bazel run (sh_binary) environment, where the
-# runfiles library may use the manifest path and leave RUNFILES_DIR unbound.
-# Any code in site_builder.bash that references $RUNFILES_DIR directly will fail
-# here exactly as it would fail in the deploy job.
-unset RUNFILES_DIR
 # Pass PROTO_DOCS so build_docs_site injects Proto-Reference.md.
 # This mirrors the call sites in serve_docs.sh and deploy_docs.sh.
 PROTO_DOCS="$PROTO_DOCS" build_docs_site

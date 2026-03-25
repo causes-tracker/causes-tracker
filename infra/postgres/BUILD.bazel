@@ -21,6 +21,16 @@ genrule(
     """,
 )
 
+# Interactive psql wrapper for local debugging: bazel run //infra/postgres:psql -- <args>
+sh_binary(
+    name = "psql",
+    srcs = ["psql.sh"],
+    data = [
+        ":postgres_binaries",
+        "@bazel_tools//tools/bash/runfiles",
+    ],
+)
+
 # Self-test: verifies that pg_start brings up a reachable PostgreSQL instance.
 # Run with: bazel test //infra/postgres:testfixture_test
 sh_test(

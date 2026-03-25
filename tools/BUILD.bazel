@@ -2,7 +2,9 @@ load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 # Run the hermetic cargo binary from the rules_rs toolchain.
-# Suitable for commands that do not invoke the compiler:
+# RUSTC is set to the hermetic rustc so that cargo subcommands that
+# probe the toolchain (e.g. fetch, metadata) work without a host rustc
+# on PATH.
 #   bazel run //tools:cargo -- generate-lockfile
 #   bazel run //tools:cargo -- fetch
 #   bazel run //tools:cargo -- metadata
@@ -14,6 +16,7 @@ sh_binary(
     data = [
         "@bazel_tools//tools/bash/runfiles",
         "@rust_host_tools//:cargo",
+        "@rust_host_tools//:rustc",
     ],
 )
 

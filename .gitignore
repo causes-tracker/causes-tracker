@@ -22,6 +22,8 @@ node_modules/
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
 
+# various native build artifacts (because IDE plugins often kick in even when not needed)
+target
 dist
 cabal-dev
 *.o

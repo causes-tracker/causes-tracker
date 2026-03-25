@@ -1,0 +1,20 @@
+[package]
+name    = "causes_api"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+tokio.workspace               = true
+tonic.workspace               = true
+tonic-health.workspace        = true
+sqlx.workspace                = true
+clap.workspace                = true
+anyhow.workspace              = true
+tracing.workspace             = true
+tracing-subscriber.workspace  = true
+tracing-opentelemetry.workspace = true
+opentelemetry.workspace       = true
+opentelemetry_sdk.workspace   = true
+opentelemetry-otlp.workspace  = true
+dotenvy.workspace             = true

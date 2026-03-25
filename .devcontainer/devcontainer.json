@@ -6,6 +6,7 @@
     "ghcr.io/devcontainers/features/github-cli:1": {},
     "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
   },
+  "postStartCommand": "docker network connect causes_default $(hostname) 2>/dev/null || true",
   "mounts": [
     {
       "source": "${localEnv:USERPROFILE}/.claude",

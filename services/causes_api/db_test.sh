@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Self-test for the PostgreSQL test fixture.
-# Verifies that pg_start brings up a reachable PostgreSQL instance.
-# Run with: bazel test //infra/postgres:testfixture_test
+# Database integration tests for causes_api.
+# Starts a hermetic PostgreSQL instance via the Bazel test fixture,
+# then runs the compiled Rust test binary with DATABASE_URL set.
+# $1 — path to the causes_api_test binary (supplied by sh_test args).
 set -euo pipefail
 
 # Standard Bazel 3-way runfiles init.
@@ -20,16 +21,9 @@ else
   exit 1
 fi
 
-# shellcheck source=testfixture.sh
+# shellcheck source=../../infra/postgres/testfixture.sh
 source "$(rlocation _main/infra/postgres/testfixture.sh)"
-
 pg_start
 
-# Verify the instance is reachable.
-result="$("$PGBIN/psql" -c 'SELECT 1 AS ok' -t -A 2>&1)"
-if [[ "$result" != "1" ]]; then
-  echo >&2 "ERROR: SELECT 1 returned: $result"
-  exit 1
-fi
-
-echo "OK: PostgreSQL is reachable; SELECT 1 returned 1"
+test_binary="${1:?usage: db_test.sh <path-to-causes_api_test>}"
+DATABASE_URL="$TEST_POSTGRES_URL" "$test_binary" "${@:2}"

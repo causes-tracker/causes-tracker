@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # Bazel test fixture: starts a throwaway PostgreSQL instance.
 # Source this file and call pg_start.
-# Requires: POSTGRES_TARBALL — path to postgres.tar.gz.
+# Caller must source the Bazel runfiles library before calling pg_start.
 # After pg_start exports: PGBIN, PGDATA, PGHOST, PGPORT,
 #                         PGUSER, PGDATABASE, TEST_POSTGRES_URL.
 
 pg_start() {
   local pg_root="${TEST_TMPDIR}/postgres"
   mkdir -p "$pg_root"
-  tar -xzf "$POSTGRES_TARBALL" -C "$pg_root"
+  tar -xzf "$(rlocation _main/infra/postgres/postgres.tar.gz)" -C "$pg_root"
 
   export PGBIN="${pg_root}/bin"
   export PGDATA="${TEST_TMPDIR}/pgdata"

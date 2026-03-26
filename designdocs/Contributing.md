@@ -86,6 +86,26 @@ In the interim:
 * Keep the subject line under 72 characters.
 * Reference relevant ADRs or issues in the body where applicable.
 
+## Version control (jj)
+
+We use [Jujutsu (`jj`)](https://github.com/jj-vcs/jj) for local version control.
+See the workflow instructions in `CLAUDE.md` for day-to-day usage.
+
+### One-time setup after cloning
+
+The repository ships a jj repo-level config at `tools/jj-repo-config.toml`.
+jj does not yet support versioning files inside `.jj/` directly
+(see [jj managed config design](https://docs.jj-vcs.dev/latest/design/managed-config/) for future plans in this area),
+so the file lives in `tools/` and must be symlinked into place once after cloning:
+
+```sh
+ln -s ../../tools/jj-repo-config.toml .jj/repo/config.toml
+```
+
+This config registers merge drivers for `Cargo.lock` and `MODULE.bazel.lock`
+that regenerate those files automatically instead of leaving conflict markers
+when `jj resolve --all` is run.
+
 ## Getting help
 
 Open an issue on GitHub to ask questions or start a design discussion.

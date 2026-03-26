@@ -145,6 +145,20 @@ gh pr create --base master --head <bookmark-name> --title "..." --body "..."
 gh pr edit <n> --base <bookmark-name>
 ```
 
+**Lockfile merge drivers — one-time setup after clone:**
+
+`tools/jj-repo-config.toml` contains merge drivers that auto-regenerate
+`Cargo.lock` and `MODULE.bazel.lock` instead of leaving conflict markers.
+jj cannot version files inside `.jj/`, so the file lives in `tools/` and
+must be symlinked once after cloning:
+
+```sh
+ln -s ../../tools/jj-repo-config.toml .jj/repo/config.toml
+```
+
+After this, `jj resolve --all` on a conflicted change regenerates the lockfiles
+automatically via `bazel run //tools:cargo -- generate-lockfile` and `bazel mod tidy`.
+
 **Useful commands:**
 
 ```sh

@@ -1,0 +1,14 @@
+# Merge drivers for generated lockfiles.
+# When jj resolve is run (or jj resolve --all), these tools regenerate
+# the lockfile from the current workspace state rather than trying to
+# three-way merge them.
+
+[merge-tools.cargo-lock-regen]
+program = "tools/jj-merge-cargo-lock.sh"
+merge-args = ["$output"]
+patterns = ["glob:Cargo.lock"]
+
+[merge-tools.module-lock-regen]
+program = "tools/jj-merge-module-lock.sh"
+merge-args = ["$output"]
+patterns = ["glob:MODULE.bazel.lock"]

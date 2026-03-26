@@ -39,18 +39,15 @@ build_docs_site() {
   # runfiles layout differs from a regular pip install, so it silently skips
   # the copy.  Copy them manually.
   #
-  # Search RUNFILES_DIR: Bazel sets this for both bazel run and bazel test in
-  # Bazel 6+, and the caller's runfiles tree contains all of zensical's Python
-  # packages transitively.
-  local assets
-  assets=$(find "$RUNFILES_DIR" -path "*/zensical/templates/assets" -type d 2>/dev/null | head -1)
+  # Derive the runfiles root from ZENSICAL, which rlocation resolved to
+  # {root}/_main/docs/zensical — three dirname calls reach the root.
+  # This works for both bazel test (where RUNFILES_DIR is also set) and
+  # bazel run (where RUNFILES_DIR may be absent).
+  local runfiles_root assets
+  runfiles_root="$(dirname "$(dirname "$(dirname "$ZENSICAL")")")"
+  assets=$(find "$runfiles_root" -path "*/zensical/templates/assets" -type d 2>/dev/null | head -1)
   if [[ -z "$assets" ]]; then
-    # Fallback: older rules_python placed a .runfiles directory adjacent to the
-    # resolved binary; try that path if RUNFILES_DIR search found nothing.
-    assets=$(find "$(readlink -f "${ZENSICAL}").runfiles" -path "*/zensical/templates/assets" -type d 2>/dev/null | head -1)
-  fi
-  if [[ -z "$assets" ]]; then
-    echo >&2 "ERROR: zensical theme assets not found in $(readlink -f "${ZENSICAL}").runfiles"
+    echo >&2 "ERROR: zensical theme assets not found under runfiles root: $runfiles_root"
     return 1
   fi
   cp -rL "$assets" "$build_root/site/assets"

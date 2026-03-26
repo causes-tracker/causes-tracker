@@ -21,12 +21,21 @@ genrule(
     """,
 )
 
+# Extract the psql binary from the postgres tarball so Bazel caches it
+# and invalidates automatically when the tarball changes.
+genrule(
+    name = "psql_extracted",
+    srcs = [":postgres_binaries"],
+    outs = ["postgres_psql"],
+    cmd = "tar -xzf $< -C $(@D) --strip-components=2 ./bin/psql && mv $(@D)/psql $(@D)/postgres_psql",
+)
+
 # Interactive psql wrapper for local debugging: bazel run //infra/postgres:psql -- <args>
 sh_binary(
     name = "psql",
     srcs = ["psql.sh"],
     data = [
-        ":postgres_binaries",
+        ":psql_extracted",
         "@bazel_tools//tools/bash/runfiles",
     ],
 )

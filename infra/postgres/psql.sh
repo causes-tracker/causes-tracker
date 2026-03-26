@@ -14,13 +14,4 @@ else
   echo >&2 "ERROR: cannot find Bazel runfiles library"; exit 1
 fi
 
-pg_tarball="$(rlocation _main/infra/postgres/postgres.tar.gz)"
-
-# Use a stable extraction dir so repeated runs are instant.
-pg_cache="${XDG_CACHE_HOME:-$HOME/.cache}/causes-postgres-bin"
-if [[ ! -x "$pg_cache/bin/psql" ]]; then
-  mkdir -p "$pg_cache"
-  tar -xzf "$pg_tarball" -C "$pg_cache"
-fi
-
-exec "$pg_cache/bin/psql" "$@"
+exec "$(rlocation _main/infra/postgres/postgres_psql)" "$@"

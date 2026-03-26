@@ -1,0 +1,19 @@
+---
+# yamllint configuration — applies to all YAML files linted via bazel test //...
+# See https://yamllint.readthedocs.io/en/stable/rules.html
+
+extends: default
+
+rules:
+  # GitHub Actions workflows use long lines for step names and 'run' blocks.
+  line-length:
+    max: 120
+    level: warning
+
+  # Trailing spaces are caught by editors; don't fail the build on them.
+  trailing-spaces: disable
+
+  # Allow both 'true'/'false' and 'yes'/'no' booleans (buf.yaml uses them).
+  truthy:
+    allowed-values: ["true", "false", "yes", "no", "on", "off"]
+    check-keys: false

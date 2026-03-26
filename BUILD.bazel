@@ -1,7 +1,16 @@
+load("@aspect_rules_lint//format:defs.bzl", "format_multirun")
 load("@gazelle//:def.bzl", "gazelle")
 load("@rules_python//python:pip.bzl", "compile_pip_requirements")
+load("//tools/lint:linters.bzl", "markdown_lint_test", "yamllint_lint_test")
 
 package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    ".clippy.toml",
+    ".pymarkdown.json",
+    ".shellcheckrc",
+    ".yamllint",
+])
 
 # Run with: bazel run //:gazelle
 # Generates and updates BUILD files for Go targets.
@@ -11,8 +20,8 @@ gazelle(name = "gazelle")
 compile_pip_requirements(
     name = "requirements",
     src = "requirements.in",
-    requirements_txt = "requirements_lock.txt",
     python_version = "3.12",
+    requirements_txt = "requirements_lock.txt",
 )
 
 # Exposes all design docs as a Bazel target so //docs:docs_site can depend on them.
@@ -20,4 +29,42 @@ filegroup(
     name = "designdocs",
     srcs = glob(["designdocs/**/*.md"]),
     visibility = ["//docs:__pkg__"],
+)
+
+# ── Formatting ────────────────────────────────────────────────────────────────
+# Format all source files in-place:  bazel run //:format
+# Check formatting without edits:    bazel run //:format.check
+format_multirun(
+    name = "format",
+    rust = "@rust_host_tools//:rustfmt",
+    shell = "@aspect_rules_lint//format:shfmt",
+    starlark = "@buildifier_prebuilt//:buildifier",
+    toml = "//tools/lint:taplo",
+    yaml = "@aspect_rules_lint//format:yamlfmt",
+)
+
+# ── YAML lint ─────────────────────────────────────────────────────────────────
+# Workspace-level YAML files not owned by a subpackage.
+# .devcontainer/ has its own package so its YAML is excluded here.
+filegroup(
+    name = "yaml_srcs",
+    srcs = glob([
+        ".github/workflows/*.yml",
+        "docker-compose.yml",
+    ]),
+    tags = ["lint-with-yamllint"],
+)
+
+# Run with: bazel test //:yamllint
+yamllint_lint_test(
+    name = "yamllint",
+    srcs = [":yaml_srcs"],
+)
+
+# ── Markdown lint ─────────────────────────────────────────────────────────────
+# Covers root-level .md files and designdocs/ (which has no BUILD.bazel of its own).
+# Run with: bazel test //:pymarkdown
+markdown_lint_test(
+    name = "pymarkdown",
+    srcs = glob(["*.md", "designdocs/**/*.md"]),
 )

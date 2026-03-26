@@ -1,5 +1,4 @@
 name: renovate-lockfile
-
 # Renovate (hosted) cannot run Bazel, so MODULE.bazel.lock would be stale
 # after a bazel_dep update.  This workflow detects that case and pushes the
 # regenerated lockfile back to the Renovate branch before CI runs.
@@ -7,10 +6,8 @@ on:
   push:
     branches: ["renovate/**"]
     paths: ["MODULE.bazel"]
-
 permissions:
   contents: write
-
 jobs:
   update-lockfile:
     runs-on: ubuntu-latest
@@ -18,17 +15,14 @@ jobs:
       - uses: actions/checkout@v6
         with:
           ref: ${{ github.ref_name }}
-
       - name: Install Bazelisk
         uses: bazel-contrib/setup-bazel@0.19.0
         with:
           bazelisk-cache: true
           disk-cache: ${{ github.workflow }}
           repository-cache: true
-
       - name: Regenerate MODULE.bazel.lock
         run: bazel mod deps --lockfile_mode=update
-
       - name: Commit updated lockfile
         run: |
           git config user.name "github-actions[bot]"

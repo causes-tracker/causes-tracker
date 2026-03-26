@@ -15,8 +15,16 @@ bazel_dep(name = "aspect_rules_js", version = "3.0.3")
 bazel_dep(name = "rules_proto", version = "7.1.0")
 bazel_dep(name = "protobuf", version = "34.1")
 
-# Linting and formatting (proto via buf lint; extended to other languages as they land).
+# Linting and formatting.
+# aspect_rules_lint provides: buf (proto), shellcheck (shell), yamllint (yaml),
+# shfmt (shell format), yamlfmt (yaml format), and the format_multirun macro.
 bazel_dep(name = "aspect_rules_lint", version = "2.3.0")
+
+# Buildifier for Starlark/BUILD linting and formatting.
+bazel_dep(name = "buildifier_prebuilt", version = "8.5.1")
+
+# rules_multirun is needed by format_multirun.
+bazel_dep(name = "rules_multirun", version = "0.10.0")
 
 # aspect_rules_lint transitively pulls in rules_android, which registers an Android SDK
 # toolchain. rules_android <=0.6.4 references @local_config_platform (removed in Bazel 9);
@@ -28,6 +36,16 @@ bazel_dep(name = "rules_android", version = "0.7.1")
 http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
+
+# taplo TOML formatter/linter — hermetic linux/amd64 binary.
+# Update: check https://github.com/tamasfe/taplo/releases for new versions.
+http_file(
+    name = "taplo_linux_amd64",
+    downloaded_file_path = "taplo.gz",
+    executable = False,
+    sha256 = "8fe196b894ccf9072f98d4e1013a180306e17d244830b03986ee5e8eabeb6156",
+    url = "https://github.com/tamasfe/taplo/releases/download/0.10.0/taplo-linux-x86_64.gz",
+)
 
 # Pre-built PostgreSQL 17 binaries for Linux x86_64 (full install: server +
 # client tools including psql, pg_isready, pg_dump, …).

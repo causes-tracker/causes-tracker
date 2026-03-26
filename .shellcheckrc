@@ -1,0 +1,16 @@
+# shellcheck configuration — applies to all scripts linted via bazel test //...
+# See https://www.shellcheck.net/wiki/Directive for rule IDs.
+
+# All scripts in this repo target bash.
+shell=bash
+
+# SC2148: Scripts without a shebang are linted; we already declare shell=bash above.
+disable=SC2148
+
+# SC1091: shellcheck cannot follow sourced files when running as a Bazel lint aspect
+# because the aspect action only receives the target's own srcs as sandbox inputs —
+# data and dep files are not present at lint time.  The "# shellcheck source=X"
+# annotations are kept as documentation of what is being sourced; the cross-script
+# analysis they enable simply isn't available in this execution model.
+# See https://www.shellcheck.net/wiki/SC1091
+disable=SC1091

@@ -10,15 +10,15 @@ jml dumped the notes from bug tracker yammer on #subunit here.  Since then, it's
 
 ## Why?
 
-After using Launchpad’s bug tracker, we dislike using other bug trackers. But Launchpad’s bug tracker is ugly, mostly unmaintained and tied up with the rest of Launchpad. Maybe it’s a good idea to make another bug tracker.
+After using Launchpad's bug tracker, we dislike using other bug trackers. But Launchpad's bug tracker is ugly, mostly unmaintained and tied up with the rest of Launchpad. Maybe it's a good idea to make another bug tracker.
 
 The bug tracker does seem to be one of the things that Launchpad got right.
 
 ## Assumptions
 
 * Launchpad is not being usefully maintained
-* Launchpad’s UI is terrible
-* Extracting Launchpad’s bug tracker into a separate thing and making it good is more work than making a new good thing
+* Launchpad's UI is terrible
+* Extracting Launchpad's bug tracker into a separate thing and making it good is more work than making a new good thing
 * We can make something useful in our spare time, despite us all having interesting day jobs
 
 ## Relevant
@@ -26,49 +26,50 @@ The bug tracker does seem to be one of the things that Launchpad got right.
 mpt's spec for an issue tracker
 
 ## Questions
+
 * Are cross-project bugs actually a desirable feature?
 * Are distributions too idiosyncratic for a generalized bug tracker? If we were to do this work, would we care about distros?
 * What more assumptions?
-* What’s the minimum viable product?
+* What's the minimum viable product?
 * What about kanban? Is it even relevant?
 * What would a bug tracker designed by David Allen (GTD) look like?
 
-# Braindump
+## Braindump
 
 ## lifeless
 
 * API, callbacks (whatever sort - pshb, webhooks, don't care)
 * evidence-based model
-   * Observations are from users
-   * Causes are from experts
+  * Observations are from users
+  * Causes are from experts
 * Assume sensible behaviour; default open permissions
 * Keep out of the way
 * Snappy
-* Website (but don’t care too much about it)
-* For the few projects that do become popular, don’t assume that 'project priorities' == 'user priorities' == 'contributor priorities'
+* Website (but don't care too much about it)
+* For the few projects that do become popular, don't assume that 'project priorities' == 'user priorities' == 'contributor priorities'
 * 'in trunk' vs 'in a tarball' is still useful for many people
-* Don’t want
-   * a freaking stack freaking exchange ghetto.
-   * copy-paste anything ever related to code pushes/releases/
-   * bug graffiti (e.g. open/close wars)
-* Don’t care about
-   * release management
-   * multiple long lived branches in the bug tracker model
-   * subcomponents and other highly refined metadata
-      * if it’s big enough to need a structured marker, it’s big enough to be its own project.
+* Don't want
+  * a freaking stack freaking exchange ghetto.
+  * copy-paste anything ever related to code pushes/releases/
+  * bug graffiti (e.g. open/close wars)
+* Don't care about
+  * release management
+  * multiple long lived branches in the bug tracker model
+  * subcomponents and other highly refined metadata
+    * if it's big enough to need a structured marker, it's big enough to be its own project.
 
 ## jelmer
 
 * custom statuses
 * distributed (but none of the current ones can do it)
-   * don’t version all bug data as if it were code
-      * i.e. if you pull a bug report from a user you clutter the history of your project with that
-      * if you pull a bug report from a user you clutter the history of your project with that
-      * if you pull a bug report from a user you clutter the history of your project with that
-      * I think it might be more reasonable if you had a separate branch, perhaps in the same git repository for each bug
+  * don't version all bug data as if it were code
+    * i.e. if you pull a bug report from a user you clutter the history of your project with that
+    * if you pull a bug report from a user you clutter the history of your project with that
+    * if you pull a bug report from a user you clutter the history of your project with that
+    * I think it might be more reasonable if you had a separate branch, perhaps in the same git repository for each bug
 * the site should be one way of presenting and interacting that data
-   * they should not get to own it
-   * not be the exclusive way to interact with it like they are with bug data at the moment
+  * they should not get to own it
+  * not be the exclusive way to interact with it like they are with bug data at the moment
 
 ## jml
 
@@ -84,37 +85,36 @@ mpt's spec for an issue tracker
 * Keep all the info!
 * PyPy!
 * Make waste (inventory, hand-offs, waiting) obvious
-* Tags are nice, because they establish context. It’s often easier after fixing one bug to fix a similarly tagged bug.
-* I don’t use priorities for my personal TODOs. Why should a bug tracker have them?
-   * Now / Soon / Never
+* Tags are nice, because they establish context. It's often easier after fixing one bug to fix a similarly tagged bug.
+* I don't use priorities for my personal TODOs. Why should a bug tracker have them?
+  * Now / Soon / Never
 * Keyboard bindings
 * Mass editing
 * API with callbacks
 
 ## poolie
 
-* many (probably most) bugs won’t get fixed; so avoid requiring or encouraging developers to spend most time on them, or having them get in the way.
+* many (probably most) bugs won't get fixed; so avoid requiring or encouraging developers to spend most time on them, or having them get in the way.
 * bugs should decay from view if they are not fixed, but still make it possible to dig out old bugs
 * good automatic dupe-finding, including retrospectively or interactively hunting for dupes
 
 ## ttx
+
 * Looking into a new task tracker to support OpenStack needs (features + bugs)
-* Having multiple tasks (project + branch combination) within a single “story” is very useful to us
+* Having multiple tasks (project + branch combination) within a single "story" is very useful to us
 * Still interested in getting feature tracking in the same framework, but not as a wishlist importance bug. Features can benefit from tasks too (tasks which can affect multiple projects, and supporting multiple items with the same project + branch combination to emulate work items)
-* Avoid inconsistencies (bug ‘triaged’ but without an importance set)
-* For objectives management, replacing series nominations (and the confusing series goal vs. target milestone) by a “release radar” flag set by drivers, to highlight things that should be on release radar
+* Avoid inconsistencies (bug 'triaged' but without an importance set)
+* For objectives management, replacing series nominations (and the confusing series goal vs. target milestone) by a "release radar" flag set by drivers, to highlight things that should be on release radar
 * Tasks can share importance
-* More at https://wiki.openstack.org/wiki/Task_Tracker_Requirements
+* More at <https://wiki.openstack.org/wiki/Task_Tracker_Requirements>
 
-
-# Work notes
+## Work notes
 
 * Pay someone to do visuals?
 * lifeless will do the guts if someone else does the HTTP
 * At least want some people in group who care about upper layers / front-end
 
-
-# Edited conversations
+## Edited conversations
 
 ## WONTFIX, priorities, how bugs relate to code, federation
 
@@ -122,19 +122,19 @@ WONTFIX is not a valid bug status for open source projects.  At least, not the w
 
 There is a WONTFIX, in the sense that I can say "I will not merge a change that meets this use case ever."
 
-Federation is one answer to that tension – “oh yeah, well I am publishing a tree that does it” – but it’s not a very satisfying answer.
+Federation is one answer to that tension – "oh yeah, well I am publishing a tree that does it" – but it's not a very satisfying answer.
 
 Tie WONTFIX to code?
 
 Perhaps WONTFIX is something that's specific to a particular branch of the code, much like a particular branch can contain a fix for a bug?
 
-Perhaps not. We have code to MITM SSL connections in Squid. If as a project we had said “we consider this immoral and won't support it”, then it might be per branch, for-all project official branches, and perhaps even 'for all branches hosted on project servers'. Making WONTFIX specific to code would require speaking about larger entities than just simple branches, which complicates things.
+Perhaps not. We have code to MITM SSL connections in Squid. If as a project we had said "we consider this immoral and won't support it", then it might be per branch, for-all project official branches, and perhaps even 'for all branches hosted on project servers'. Making WONTFIX specific to code would require speaking about larger entities than just simple branches, which complicates things.
 
 Bug reports might talk about a branch, or a project, or an effort – it's fluffy. Is binding them together necessary to talk about WONTFIX? No.
 
-Track everyone’s priorities
+Track everyone's priorities
 
-Perhaps then we should explicitly track everyone’s priorities and present an aggregate?
+Perhaps then we should explicitly track everyone's priorities and present an aggregate?
 
 Interesting actors in a bug report
 * a user
@@ -143,35 +143,26 @@ Interesting actors in a bug report
 * some volunteers
 * the project
 
-
 Consider a project member. The project likely has some a priori agenda (whether commercial like LP itself, or opinionated, like testtools)  A project member may well want to track both personal interests and project interests. (NB: I'm not strictly talking priorities here.)
-
 
 Consider a user.  They probably don't want to track anything, but they want to know if *anyone* has decided they will do this thing so they want [queue depth in days for this bug to be what someone is hacking on].
 
-
 Consider the project again.  Beyond or complementary to its a priori agenda, it may well want to know what things are most frustrating to its user base.  Which is where tracking incident rates [for crashes] and reporting rates [for frequently requested dups], and 'me wants it too' etc data.
-
 
 Do I want to track every users priority on every bug in every project? Probably.
 Do I want to show it as that? Hell no.
 
-
 For instance, on openstack, it would be awesome if companies like HP that have their own priorities could just mark up the main with all their desires without conflicting with 'the project' view of the world.
-
 
 Federation says 'HP should have their own private tracker', but it's unsatisfying because unless you have bi-di sync you lose data.  If you have bi- di sync then you have a base data model to do the sorts of things I express above.
 
-
 Note that a few nice things fall out of this, if you don't consider showing everyone's values to everyone ever.  In particular, the 'bug graffiti' of someone unprivileged closing a bug becomes more manageable.
-
 
 A user says 'this is fix released' but you treat that as input to 'what users think' aggregate data rather than a change on the core.
 
+## Raw conversations
 
-# Raw conversations
-
-```
+```text
 [14:41:24] <jelmer> I still really appreciate the Launchpad bug tracker UI; GitHub's is terrible, and so are most others, especially bugzilla
 [14:46:05] <jml> yeah
 [14:46:10] <jml> it could definitely use some love though
@@ -211,8 +202,7 @@ A user says 'this is fix released' but you treat that as input to 'what users th
 [15:16:16] <jelmer> jml: likewise, we'll pick it up some other time :)
 ```
 
-
-```
+```text
 [10:11:24] * jml mutters something about launchpad
 [10:11:35] <lifeless> I've been using gerrit recently.
 [10:11:44] <lifeless> Much less usable in some ways. Better in others.
@@ -227,10 +217,7 @@ A user says 'this is fix released' but you treat that as input to 'what users th
 [20:47:46] <jelmer> fair enough :)
 ```
 
-
-
-
-```
+```text
 [10:31:45] <jml> I might start migrating my interesting +junk to github today
 [10:35:42] <jelmer> jml: what are you going to do for bugs?
 [10:36:00] <jml> jelmer: what bugs?
@@ -270,7 +257,7 @@ A user says 'this is fix released' but you treat that as input to 'what users th
 [10:52:23] <jml> vaguely https://dev.launchpad.net/IssueTracker
 ```
 
-```
+```text
 [10:52:28] <lifeless> yah
 [10:52:53] <jml> heh.
 [10:53:03] <lifeless> So, IMO, LP's biggest innovation bug tracker wise is - once setup - getting out of the way of devs nearly all the time
@@ -352,7 +339,7 @@ A user says 'this is fix released' but you treat that as input to 'what users th
 [11:13:18] <lifeless> jelmer: we have code to MITM SSL connections in it
 ```
 
-```
+```text
 [11:13:51] <lifeless> jelmer: if as a project we had said 'we consider this immoral and won't support it'
 [11:14:05] <lifeless> jelmer: then it might be per branch, for-all project official branches
 [11:14:25] <lifeless> jelmer: and perhaps even 'for all branches hosted on project servers'
@@ -391,7 +378,7 @@ A user says 'this is fix released' but you treat that as input to 'what users th
 [11:24:31] <lifeless> jelmer: a project member may well want to track both personal interests and project interests.
 ```
 
-```
+```text
 [11:24:50] <lifeless> [NB: I'm not strictly talking priorities here.]
 [11:25:21] <lifeless> jelmer: now consider a user. They probably don't want to track anything, but they want to know if *anyone* has decided they will do this thing soon.
 [11:25:48] <lifeless> jelmer: so they want [queue depth in days for this bug to be what someone is hacking on]
@@ -422,7 +409,7 @@ A user says 'this is fix released' but you treat that as input to 'what users th
 [11:33:06] <lifeless> If I was to hack on a bug tracker again, I think I'd do a pure local storage one
 ```
 
-```
+```text
 [11:33:13] <lifeless> and let other folk do HTTP and HTML bindings.
 [11:33:44] <lifeless> I have enough on my TODO without adding *another* web app.
 [11:33:51] <jml> :)
@@ -448,105 +435,95 @@ A user says 'this is fix released' but you treat that as input to 'what users th
 [12:21:20] <jml> I guess.
 ```
 
-
-
-## mbp says:
+## mbp says
 
 Some of the Launchpad bug tracker and the Ubuntu crash tracker help of this, but I would like to see much more done in open source bug trackers towards this:
 
+* default towards doing nothing.
+* don't encourage developers to triage everything[b]
+* bugs should decay from view
+* still make it possible to dig out old bugs
+* good automatic dupe-finding, including retrospectively or interactively hunting for dupes
+* show an automatic estimate of the odds a bug will be fixed
 
-- default towards doing nothing.
-- don't encourage developers to triage everything[b]
-- bugs should decay from view
-- still make it possible to dig out old bugs
-- good automatic dupe-finding, including retrospectively or interactively hunting for dupes
-- show an automatic estimate of the odds a bug will be fixed
-
-
-## lifeless:
+## lifeless (LCA notes)
 
 I spoke with stewart and devananda at LCA about this; they like the basic idea. Some things from them:
-- releases and backports do matter
-- very interested in being able to handle crashdumps.
-- we discussed a bit of a data model that might capture this
-- symptom (user, description), relates to symptom (dups), series (present in from $date, not present from $date), fix (addressed by)
-- series (description), relates to symptom, fix (landed on $date), release (on date)
-- fix (description), relates to symptom, series.
 
+* releases and backports do matter
+* very interested in being able to handle crashdumps.
+* we discussed a bit of a data model that might capture this
+* symptom (user, description), relates to symptom (dups), series (present in from $date, not present from $date), fix (addressed by)
+* series (description), relates to symptom, fix (landed on $date), release (on date)
+* fix (description), relates to symptom, series.
 
-## jelmer:
+## jelmer (GSoC 2013)
 
 Had a discussion with a handful of folks about distributed bug trackers at GSoC 2013. While there are a handful of distributed bug trackers out there, nobody has seen any that they like.
 
-
 We agreed that code and bug tracking are very different things - as easy as it might seem to piggyback onto a DVCS somehow as a way to leverage an existing database:
-- having the bug data in the main repository is noisy:
-* can require a significant amount of storage (especially if it includes attachments, etc)
-* lots of noise related to bugtracker in the commit history, making it less useful
-* lots of extra rebasing/merging to cope with bug commits
-* removing bugs/cleaning up spam requires rebasing the main code branch
-- action on central repository required to report bug (e.g. merge request)
-* automatically merging is possible, but would require lots of hooks to prevent (non-developer) users from breaking format of files, truncating bugs, etc.
--would need fancy merge hooks for bug data
-- bugs are (generally) independent of each other, sharing history isn’t particularly useful
-- impossible to have security bugs in central bug tracker
-- impossible to import to just some bugs without rewriting history
 
+* having the bug data in the main repository is noisy:
+  * can require a significant amount of storage (especially if it includes attachments, etc)
+  * lots of noise related to bugtracker in the commit history, making it less useful
+  * lots of extra rebasing/merging to cope with bug commits
+  * removing bugs/cleaning up spam requires rebasing the main code branch
+* action on central repository required to report bug (e.g. merge request)
+  * automatically merging is possible, but would require lots of hooks to prevent (non-developer) users from breaking format of files, truncating bugs, etc.
+  * would need fancy merge hooks for bug data
+* bugs are (generally) independent of each other, sharing history isn't particularly useful
+* impossible to have security bugs in central bug tracker
+* impossible to import to just some bugs without rewriting history
 
 Some conclusions:
 
-
 Distributed tracking is useful, but not everybody will want a copy of the bug database just to make changes to it - unlike e.g. with a distributed VCS. Some use cases:
-- cooperation between distributions and upstream
-- forks
-- individual developers that want a local copy (for analysis, or offline use, etc)
-- backup
 
+* cooperation between distributions and upstream
+* forks
+* individual developers that want a local copy (for analysis, or offline use, etc)
+* backup
 
 Since most users will not be developers of the project, a web UI is mandatory; perhaps also email integration. Most users will likely end up using the web UI.
 
-
 Eventual thoughts were that it might be useful to reuse some of the infrastructure from e.g. git but not store data in the main repository.
 
-
 History should be kept per bug, so it possible/easier to:
-- have just some bugs in the database and not others (in case bugs apply just to a fork, a branch, a downstream package, etc)
-- have ACLs and e.g. hide security bugs from the public
-- remove spammy bugs/edit out launch codes without affecting the rest of the bug database
 
+* have just some bugs in the database and not others (in case bugs apply just to a fork, a branch, a downstream package, etc)
+* have ACLs and e.g. hide security bugs from the public
+* remove spammy bugs/edit out launch codes without affecting the rest of the bug database
 
 Several people mentioned they would like the ability to interact with external bug trackers (e.g. github) as a way to have a local view on all their bugs in all their projects.
-I think that’s useful, but would like to avoid the complication of having to support the superset of all bug trackers. Perhaps just a way of importing data from external bug trackers is sufficient - it’s important that it doesn’t make the core more complex.
+I think that's useful, but would like to avoid the complication of having to support the superset of all bug trackers. Perhaps just a way of importing data from external bug trackers is sufficient - it's important that it doesn't make the core more complex.
 
 Martin Pool adds, "from andyfitz's talk, a hierarchy of needs for design: function> reliability > usability > pleasure"
 
 [b]robertc:
 I think triage as Launchpad does it now is useful, not as Ubuntu does it. [which is to say, encourage devs to look briefly at all reports to identify zomg things].
-________________
+
+---
+
 Martin Pool:
 I think it makes some sense to look at every bug briefly to decide whether you're going to do anything or not.  It is also nice for users to get a definitive answer whether their bug will be worked or not.
 
-
 But the cost per bug must be low.  That implies:
 
-
-- project rules/habits for bug triage must allow a quick and (normally) final decision about whether to do any further work on the bug
-
-
-- the information to do this should be on a single screen in the bug tracker
-
-
-- expressing this in the bug tracker ought to be very quick (ideally one click or keypress to deal with the bug and move to the next, and of course <100ms load time)
-
+* project rules/habits for bug triage must allow a quick and (normally) final decision about whether to do any further work on the bug
+* the information to do this should be on a single screen in the bug tracker
+* expressing this in the bug tracker ought to be very quick (ideally one click or keypress to deal with the bug and move to the next, and of course <100ms load time)
 
 If you spend substantial time investigating a bug in the ~90% of bugs that won't get fixed, that can add up to a substantial amount of wasted work.
-________________
+
+---
+
 robertc:
 I do agree that you can easily create a lot of waste. I think its a mistake to focus too much on what devs need to do in assessing waste though: equally what users are doing by filing bugs is contributing effort too, and that should be respected much as we respect developer effort. When the supply of those things is asymmetric, we may need to limit either supply of work-for-devs, or effort by devs per bug.
-________________
+
+---
+
 Martin Pool:
 Oh, I certainly agree this can waste user time - and I think that needs the
 same thing.  Somehow communicate to users what kind of bug is very unlikely
 to every be fixed, so they can avoid wasting their time filing it.  I think
 tens of percent of bugs in Launchpad were a waste of time to even file.
-

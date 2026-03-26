@@ -1,0 +1,8 @@
+{
+    "mode": "strict",
+    "plugins": {
+        "md013": {
+            "enabled": false
+        }
+    }
+}

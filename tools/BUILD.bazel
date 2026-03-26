@@ -1,5 +1,34 @@
+load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+# Hermetic sqlx binary compiled from tools/sqlx-cli via the crate_index.
+# Bazel caches and invalidates this like any other rust_binary target.
+rust_binary(
+    name = "sqlx_bin",
+    srcs = ["sqlx-cli/src/main.rs"],
+    deps = [
+        "@crates//:clap",
+        "@crates//:console",
+        "@crates//:sqlx-cli",
+        "@crates//:tokio",
+    ],
+    edition = "2021",
+    visibility = ["//visibility:private"],
+)
+
+# Run the hermetic sqlx binary.
+# DATABASE_URL must be set (or present in .env) for prepare / migrate.
+#   bazel run //tools:sqlx -- prepare --workspace-root services/causes_api
+#   bazel run //tools:sqlx -- migrate run
+sh_binary(
+    name = "sqlx",
+    srcs = ["sqlx.sh"],
+    data = [
+        ":sqlx_bin",
+        "@bazel_tools//tools/bash/runfiles",
+    ],
+)
 
 # Run the hermetic cargo binary from the rules_rs toolchain.
 # RUSTC is set to the hermetic rustc so that cargo subcommands that

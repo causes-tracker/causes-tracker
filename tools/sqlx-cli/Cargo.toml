@@ -1,0 +1,19 @@
+[package]
+name    = "sqlx-cli-tool"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+# Entry point that drives the sqlx-cli library.
+# This crate also pins sqlx-cli in Cargo.lock so that rules_rs can build
+# it as a hermetic rust_binary without any cargo install step.
+[[bin]]
+name = "sqlx"
+path = "src/main.rs"
+
+[dependencies]
+clap     = { workspace = true }
+console  = "0.15"
+sqlx-cli = { version = "0.8", default-features = false, features = ["rustls", "postgres"] }
+tokio    = { workspace = true }

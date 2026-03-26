@@ -1,5 +1,5 @@
 [workspace]
-members  = ["services/causes_api"]
+members  = ["services/causes_api", "tools/sqlx-cli"]
 resolver = "2"
 
 [workspace.package]

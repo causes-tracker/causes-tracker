@@ -1,6 +1,6 @@
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
-load("//tools/lint:linters.bzl", "markdown_lint_test", "shellcheck_lint_test")
+load("//tools/lint:linters.bzl", "markdown_lint_test")
 
 exports_files(["testfixture.sh"])
 
@@ -50,14 +50,6 @@ sh_test(
         "testfixture.sh",
         ":postgres_binaries",
         "@bazel_tools//tools/bash/runfiles",
-    ],
-)
-
-shellcheck_lint_test(
-    name = "shellcheck",
-    srcs = [
-        ":psql",
-        ":testfixture_test",
     ],
 )
 

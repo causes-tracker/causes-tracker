@@ -26,6 +26,13 @@ build:ci --bes_results_url=https://app.buildbuddy.io/invocation/
 build --platforms=@rules_rs//rs/experimental/platforms:x86_64-unknown-linux-gnu
 build --extra_execution_platforms=@rules_rs//rs/experimental/platforms:x86_64-unknown-linux-gnu
 
+# Lint aspects: run shellcheck and clippy automatically on all matching targets.
+# No per-package wiring needed — aspects apply repo-wide.
+build --aspects=//tools/lint:linters.bzl%shellcheck
+build --aspects=//tools/lint:linters.bzl%clippy
+build --output_groups=+rules_lint_human
+build --@aspect_rules_lint//lint:fail_on_violation=true
+
 # Import user-local overrides (BuildBuddy API key, personal flags).
 # This file is gitignored — copy .bazelrc.user.template to .bazelrc.user and fill it in.
 try-import %workspace%/.bazelrc.user

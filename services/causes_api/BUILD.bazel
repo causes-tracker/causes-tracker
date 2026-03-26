@@ -1,7 +1,6 @@
 load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
 load("@rules_rs//rs:rust_test.bzl", "rust_test")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
-load("//tools/lint:linters.bzl", "clippy_lint_test", "shellcheck_lint_test")
 
 rust_binary(
     name = "causes_api",
@@ -45,14 +44,4 @@ sh_test(
         "//infra/postgres:testfixture.sh",
         "@bazel_tools//tools/bash/runfiles",
     ],
-)
-
-shellcheck_lint_test(
-    name = "shellcheck",
-    srcs = [":causes_api_db_test"],
-)
-
-clippy_lint_test(
-    name = "clippy",
-    srcs = [":causes_api"],
 )

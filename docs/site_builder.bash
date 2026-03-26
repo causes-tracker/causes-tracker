@@ -52,5 +52,5 @@ build_docs_site() {
 	fi
 	cp -rL "$assets" "$build_root/site/assets"
 
-	SITE_DIR="$build_root/site"
+	export SITE_DIR="$build_root/site"
 }

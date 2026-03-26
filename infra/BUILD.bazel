@@ -1,5 +1,5 @@
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
-load("//tools/lint:linters.bzl", "markdown_lint_test", "shellcheck_lint_test")
+load("//tools/lint:linters.bzl", "markdown_lint_test")
 
 # Run the AWS CLI.
 # Usage: bazel run //infra:aws -- sts get-caller-identity
@@ -23,14 +23,6 @@ sh_binary(
     data = [
         "@bazel_tools//tools/bash/runfiles",
         "@opentofu_linux_amd64//:tofu",
-    ],
-)
-
-shellcheck_lint_test(
-    name = "shellcheck",
-    srcs = [
-        ":aws",
-        ":tofu",
     ],
 )
 

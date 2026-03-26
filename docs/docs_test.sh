@@ -22,9 +22,6 @@ fi
 # shellcheck source=site_builder.bash
 source "$(rlocation _main/docs/site_builder.bash)"
 
-ZENSICAL=$(rlocation _main/docs/zensical)
-MKDOCS_YML=$(rlocation _main/docs/mkdocs.yml)
-
 # Resolve the runfiles designdocs directory. Runfiles use a double-symlink chain
 # (runfiles → execroot → source); Zensical silently finds 0 pages through
 # double-symlinks, so copy files with -L to dereference all symlinks.

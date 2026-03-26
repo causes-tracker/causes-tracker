@@ -19,7 +19,7 @@ else
 	exit 1
 fi
 
-# shellcheck source=/dev/null
+# shellcheck source=site_builder.bash
 source "$(rlocation _main/docs/site_builder.bash)"
 
 # These vars are consumed by build_docs_site (defined in site_builder.bash).

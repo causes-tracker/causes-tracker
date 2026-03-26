@@ -1,8 +1,6 @@
 load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
-load("//tools/lint:linters.bzl", "shellcheck_lint_test")
-
 # Hermetic sqlx binary compiled from tools/sqlx-cli via the crate_index.
 # Bazel caches and invalidates this like any other rust_binary target.
 rust_binary(
@@ -70,16 +68,6 @@ sh_binary(
     data = [
         "@bazel_tools//tools/bash/runfiles",
         "@rust_host_tools//:rustfmt",
-    ],
-)
-
-shellcheck_lint_test(
-    name = "shellcheck",
-    srcs = [
-        ":cargo",
-        ":rustc",
-        ":rustfmt",
-        ":sqlx",
     ],
 )
 

@@ -3,7 +3,6 @@ load(
     "py_console_script_binary",
 )
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
-load("//tools/lint:linters.bzl", "shellcheck_lint_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -56,13 +55,5 @@ sh_binary(
     data = [
         ":taplo_extracted",
         "@bazel_tools//tools/bash/runfiles",
-    ],
-)
-
-shellcheck_lint_test(
-    name = "shellcheck",
-    srcs = [
-        ":run_pymarkdown",
-        ":taplo",
     ],
 )

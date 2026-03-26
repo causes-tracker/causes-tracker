@@ -1,12 +1,13 @@
 "Linter aspects for the Causes monorepo."
 
-# Each linter is defined once here and referenced from BUILD files via:
+# Shellcheck and clippy run automatically on all matching targets via .bazelrc:
 #
-#   load("//tools/lint:linters.bzl", "buf_lint_test", "clippy_lint_test", "shellcheck_lint_test", ...)
+#   build --aspects=//tools/lint:linters.bzl%shellcheck
+#   build --aspects=//tools/lint:linters.bzl%clippy
 #
-# To add a lint test in a package:
-#   clippy_lint_test(name = "clippy", srcs = [":some_rust_binary"])
-#   shellcheck_lint_test(name = "shellcheck", srcs = [":some_sh_binary"])
+# No per-package wiring is needed for those two linters.
+#
+# YAML and Markdown still use explicit targets — add them to packages that have them:
 #   yamllint_lint_test(name = "yamllint", srcs = [":some_yaml_filegroup"])
 #   markdown_lint_test(name = "pymarkdown", srcs = ["README.md"])
 
@@ -35,8 +36,6 @@ shellcheck = lint_shellcheck_aspect(
     config = Label("//:.shellcheckrc"),
 )
 
-shellcheck_lint_test = lint_test(aspect = shellcheck)
-
 # ── yamllint (YAML files) ─────────────────────────────────────────────────────
 # Applies to filegroup targets tagged "lint-with-yamllint".
 # Binary: hermetic yamllint installed via pip/rules_python.
@@ -58,8 +57,6 @@ clippy = lint_clippy_aspect(
     config = Label("//:.clippy.toml"),
     clippy_flags = ["-Dwarnings"],
 )
-
-clippy_lint_test = lint_test(aspect = clippy)
 
 # ── pymarkdown (Markdown linter) ──────────────────────────────────────────────
 # Unlike the aspect-based linters above, markdown files have no native Bazel

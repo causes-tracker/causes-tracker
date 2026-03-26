@@ -7,6 +7,25 @@ one sentence per line, blank lines between paragraphs.
 This keeps diffs small and reviewable.
 List item continuation sentences are indented to align with the list marker.
 
+## Build system
+
+This project uses [Bazel](https://bazel.build) exclusively.
+**Never use native tooling (`cargo`, `rustc`, `psql`, `yamllint`, etc.) directly.**
+Use the Bazel-wrapped equivalents:
+
+```sh
+bazel build //...                     # build everything
+bazel test //...                      # run all tests + lint
+bazel run //:format                   # format all source files in-place
+bazel run //:format.check             # check formatting without changes (what CI runs)
+bazel run //infra/postgres:psql -- …  # hermetic psql
+bazel run //tools:sqlx -- …           # hermetic sqlx-cli
+bazel run //tools:cargo -- …          # hermetic cargo (metadata only, not compilation)
+```
+
+Lint checks are Bazel test targets included in `//...`.
+There is no separate lint command.
+
 ## Commit discipline
 
 Each commit must do exactly one thing.

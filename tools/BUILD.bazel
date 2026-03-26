@@ -1,20 +1,19 @@
 load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
-
 # Hermetic sqlx binary compiled from tools/sqlx-cli via the crate_index.
 # Bazel caches and invalidates this like any other rust_binary target.
 rust_binary(
     name = "sqlx_bin",
     srcs = ["sqlx-cli/src/main.rs"],
+    edition = "2021",
+    visibility = ["//visibility:private"],
     deps = [
         "@crates//:clap",
         "@crates//:console",
         "@crates//:sqlx-cli",
         "@crates//:tokio",
     ],
-    edition = "2021",
-    visibility = ["//visibility:private"],
 )
 
 # Run the hermetic sqlx binary.

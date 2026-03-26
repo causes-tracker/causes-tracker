@@ -1,110 +1,95 @@
 # Contributing to Causes
 
-Thank you for your interest in contributing to Causes.
-This document covers how to propose changes to the design docs and — when implementation begins — how to set up a development environment.
+## Overall process
 
-## Contributing to the design docs
+The design docs in `designdocs/` are the source of truth for architecture decisions.
 
-The design docs in this directory are the primary artefact of the project right now.
-All changes go through pull requests on GitHub.
-
-1. Fork the repository and create a branch.
-2. Make your changes to the relevant `.md` files.
-3. Ensure your Markdown passes the linter before submitting (see [Linting](#linting) below).
-4. Open a pull request with a clear description of what you changed and why.
-5. Decisions that affect the architecture should be recorded in [Decisions.md](Decisions.md) as a new ADR, or as an update to an existing one.
+Submit changes as GitHub pull requests.
+Decisions that affect the architecture should be recorded in [Decisions.md](Decisions.md) as a new ADR, or as an update to an existing one.
 
 For significant design changes, open an issue first to discuss the approach before writing a PR.
 
-## Linting
+## Development environment
 
-Markdown files are linted with [markdownlint](https://github.com/DavidAnson/markdownlint).
-The rules follow the default configuration.
+The repository uses [Bazel](https://bazel.build) as its build system.
+Bazel is hermetic: it manages all toolchains itself.
+**Do not use native tooling (`cargo`, `rustc`, `psql`, `yamllint`, etc.) directly — use the Bazel-wrapped equivalents documented below.**
+Even within Bazel, most native tools are not wired up; only narrow cases like lockfile generation are supported.
 
-To check locally (requires Node.js):
+### Prerequisites
 
-```sh
-npm install -g markdownlint-cli
-markdownlint designdocs/*.md
-```
+- [Docker](https://docs.docker.com/get-docker/) (for integration tests)
+- [Bazel](https://bazel.build/install) (or the `bazelisk` wrapper included in the devcontainer)
 
-CI runs this automatically on every pull request.
-
-## CI
-
-> **Note:** CI configuration has not been set up yet.
-> The following is the intended setup.
-
-GitHub Actions will run the following jobs on every pull request:
-
-| Job | What it checks |
-| --- | --- |
-| `lint-docs` | `markdownlint` on all `.md` files |
-| `check-links` | [`markdown-link-check`](https://github.com/tcort/markdown-link-check) on all `.md` files |
-| `lint` | Language linter (TBD pending stack decision) |
-| `test` | Test suite (TBD pending stack decision) |
-| `build` | Build and container image (TBD pending stack decision) |
-
-All jobs must pass before a PR can be merged.
-
-## Development environment (implementation — not yet started)
-
-> **Note:** No implementation code exists yet.
-> The language and stack are not decided (see [ADR-008](Decisions.md#adr-008-language-stack-open)).
-> This section will be filled in once a stack is chosen.
-
-Intended setup:
-
-```sh
-# Clone the repo
-git clone https://github.com/<org>/causes.git
-cd causes
-
-# Start all services locally (Docker Compose)
-docker compose up
-
-# Run tests
-<language-specific test command>
-
-# Run linter
-<language-specific lint command>
-```
-
-## Code style
-
-Code style guidelines will be documented here once the language and stack are decided.
-In the interim:
-
-* Follow existing conventions in any file you edit.
-* Run the linter before submitting a PR.
-* Keep functions small and focused.
-* Write tests for new behaviour.
-
-## Commit messages
-
-* Use the imperative mood in the subject line: "Add symptom deduplication" not "Added symptom deduplication".
-* Keep the subject line under 72 characters.
-* Reference relevant ADRs or issues in the body where applicable.
-
-## Version control (jj)
-
-We use [Jujutsu (`jj`)](https://github.com/jj-vcs/jj) for local version control.
-See the workflow instructions in `CLAUDE.md` for day-to-day usage.
-
-### One-time setup after cloning
+### First-time setup
 
 The repository ships a jj repo-level config at `tools/jj-repo-config.toml`.
 jj does not yet support versioning files inside `.jj/` directly
-(see [jj managed config design](https://docs.jj-vcs.dev/latest/design/managed-config/) for future plans in this area),
+(see [jj managed config design](https://docs.jj-vcs.dev/latest/design/managed-config/) for future plans),
 so the file lives in `tools/` and must be symlinked into place once after cloning:
 
 ```sh
 ln -s ../../tools/jj-repo-config.toml .jj/repo/config.toml
 ```
 
-This config registers merge drivers for `Cargo.lock` and `MODULE.bazel.lock`
-that regenerate those files automatically instead of leaving conflict markers
-when `jj resolve --all` is run.
+This registers merge drivers for `Cargo.lock` and `MODULE.bazel.lock` that regenerate those files automatically on `jj resolve --all`, instead of leaving conflict markers.
+
+## Building and testing
+
+Build everything:
+
+```sh
+bazel build //...
+```
+
+Run all tests (including lint checks):
+
+```sh
+bazel test //...
+```
+
+## Formatting
+
+To format all source files in-place:
+
+```sh
+bazel run //:format
+```
+
+To check formatting without making changes (what CI does):
+
+```sh
+bazel run //:format.check
+```
+
+All formatters are hermetic: they run the exact pinned versions downloaded by Bazel.
+Do not rely on any formatter installed in the devcontainer.
+
+### Manually enforced formatting rules
+
+All `.md` files use **sentence-per-line** formatting: one sentence per line, blank lines between paragraphs.
+This keeps diffs small and reviewable.
+
+## Version control (jj)
+
+We use [Jujutsu (`jj`)](https://github.com/jj-vcs/jj) for local version control.
+jj layers transparently over Git, so GitHub, CI, and the merge queue are unaffected.
+
+See `CLAUDE.md` at the repository root for the full jj workflow including branching, stacking, and the merge-of-all-work pattern.
+
+## CI
+
+All merges go through the merge queue.
+The `build` job (`bazel test //...`) must pass before a PR can merge.
+
+## Commit discipline
+
+Each commit must do exactly one thing.
+Commits must pass all linting and tests before being pushed.
+Keep commits small: **400–500 diff lines maximum** (added + removed).
+For larger changes, split into a sequence of focused commits.
+
+Keep subject lines under 50 characters; put detail in the body.
 
 ## Getting help
 

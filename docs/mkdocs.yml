@@ -1,7 +1,6 @@
 site_name: Causes
 site_description: A bug tracker built to free developers from the tedium of manual bug gardening.
 docs_dir: ../designdocs
-
 nav:
   - Overview: README.md
   - Manifesto: Manifesto.md

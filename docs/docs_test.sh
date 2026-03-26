@@ -5,24 +5,27 @@ set -euo pipefail
 
 # Standard Bazel 3-way runfiles init.
 if [[ -f "${RUNFILES_DIR:-/dev/null}/bazel_tools/tools/bash/runfiles/runfiles.bash" ]]; then
-  # shellcheck source=/dev/null
-  source "${RUNFILES_DIR}/bazel_tools/tools/bash/runfiles/runfiles.bash"
+	# shellcheck source=/dev/null
+	source "${RUNFILES_DIR}/bazel_tools/tools/bash/runfiles/runfiles.bash"
 elif [[ -f "${BASH_SOURCE[0]}.runfiles/bazel_tools/tools/bash/runfiles/runfiles.bash" ]]; then
-  # shellcheck source=/dev/null
-  source "${BASH_SOURCE[0]}.runfiles/bazel_tools/tools/bash/runfiles/runfiles.bash"
+	# shellcheck source=/dev/null
+	source "${BASH_SOURCE[0]}.runfiles/bazel_tools/tools/bash/runfiles/runfiles.bash"
 elif [[ -f "${RUNFILES_MANIFEST_FILE:-/dev/null}" ]]; then
-  # shellcheck source=/dev/null
-  source "$(grep -m1 "^bazel_tools/tools/bash/runfiles/runfiles.bash " \
-    "$RUNFILES_MANIFEST_FILE" | cut -d ' ' -f2-)"
+	# shellcheck source=/dev/null
+	source "$(grep -m1 "^bazel_tools/tools/bash/runfiles/runfiles.bash " \
+		"$RUNFILES_MANIFEST_FILE" | cut -d ' ' -f2-)"
 else
-  echo >&2 "ERROR: cannot find Bazel runfiles library"
-  exit 1
+	echo >&2 "ERROR: cannot find Bazel runfiles library"
+	exit 1
 fi
 
 # shellcheck source=site_builder.bash
 source "$(rlocation _main/docs/site_builder.bash)"
 
+# These vars are consumed by build_docs_site (defined in site_builder.bash).
+export ZENSICAL
 ZENSICAL=$(rlocation _main/docs/zensical)
+export MKDOCS_YML
 MKDOCS_YML=$(rlocation _main/docs/mkdocs.yml)
 
 # Resolve the runfiles designdocs directory. Runfiles use a double-symlink chain
@@ -50,35 +53,35 @@ FAIL=0
 # Every page in the nav must produce an index.html with non-trivial content.
 # Keys are site-relative paths; values are strings that must appear in the page.
 declare -A EXPECTED_PAGES=(
-  ["index.html"]="Causes"
-  ["Manifesto/index.html"]="Manifesto"
-  ["Design-Choices/index.html"]="Design"
-  ["Decisions/index.html"]="Decision"
-  ["Proto-Reference/index.html"]="Protocol Documentation"
-  ["Contributing/index.html"]="Contributing"
-  ["Raw-Discussion/index.html"]="Discussion"
+	["index.html"]="Causes"
+	["Manifesto/index.html"]="Manifesto"
+	["Design-Choices/index.html"]="Design"
+	["Decisions/index.html"]="Decision"
+	["Proto-Reference/index.html"]="Protocol Documentation"
+	["Contributing/index.html"]="Contributing"
+	["Raw-Discussion/index.html"]="Discussion"
 )
 
 # Assets must be present so the site renders correctly in a browser.
 if ! find "$SITE/assets/javascripts" -name "bundle*.min.js" -type f | grep -q .; then
-  echo "ERROR: theme JS bundle missing from site/assets/javascripts/" >&2
-  FAIL=1
+	echo "ERROR: theme JS bundle missing from site/assets/javascripts/" >&2
+	FAIL=1
 fi
 if ! find "$SITE/assets/stylesheets" -name "*.min.css" -type f | grep -q .; then
-  echo "ERROR: theme CSS missing from site/assets/stylesheets/" >&2
-  FAIL=1
+	echo "ERROR: theme CSS missing from site/assets/stylesheets/" >&2
+	FAIL=1
 fi
 
 for page in "${!EXPECTED_PAGES[@]}"; do
-  needle="${EXPECTED_PAGES[$page]}"
-  path="$SITE/$page"
-  if [[ ! -f "$path" ]]; then
-    echo "ERROR: expected page missing: $page" >&2
-    FAIL=1
-  elif ! grep -qi "$needle" "$path"; then
-    echo "ERROR: $page exists but does not contain '$needle'" >&2
-    FAIL=1
-  fi
+	needle="${EXPECTED_PAGES[$page]}"
+	path="$SITE/$page"
+	if [[ ! -f "$path" ]]; then
+		echo "ERROR: expected page missing: $page" >&2
+		FAIL=1
+	elif ! grep -qi "$needle" "$path"; then
+		echo "ERROR: $page exists but does not contain '$needle'" >&2
+		FAIL=1
+	fi
 done
 
 [[ "$FAIL" -eq 0 ]] || exit 1

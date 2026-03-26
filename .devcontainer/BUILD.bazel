@@ -1,7 +1,6 @@
 load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@npm__at_devcontainers_cli__0.84.1//:package_json.bzl", devcontainers_cli_bin = "bin")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
-
 npm_link_all_packages()
 
 devcontainers_cli_bin.devcontainer_binary(name = "devcontainer_cli")
@@ -10,9 +9,9 @@ sh_test(
     name = "build_test",
     srcs = ["build_test.sh"],
     data = [
-        ":devcontainer_cli",
         "Dockerfile",
         "devcontainer.json",
+        ":devcontainer_cli",
         "@bazel_tools//tools/bash/runfiles",
     ],
     tags = [

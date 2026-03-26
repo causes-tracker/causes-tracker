@@ -10,18 +10,18 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilte
 /// When `honeycomb_api_key` is `Some`, spans are exported to Honeycomb via
 /// OTLP/HTTP in addition to being written as structured JSON to stdout.
 /// Returns a guard that shuts down the OTel pipeline on drop.
-pub fn init(service_name: &str, honeycomb_api_key: Option<&str>, honeycomb_endpoint: &str) -> OtelGuard {
-    let env_filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new("info"));
+pub fn init(
+    service_name: &str,
+    honeycomb_api_key: Option<&str>,
+    honeycomb_endpoint: &str,
+) -> OtelGuard {
+    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
 
     let fmt_layer = tracing_subscriber::fmt::layer().json();
 
     if let Some(api_key) = honeycomb_api_key {
         let mut headers = std::collections::HashMap::new();
-        headers.insert(
-            "x-honeycomb-team".to_string(),
-            api_key.to_string(),
-        );
+        headers.insert("x-honeycomb-team".to_string(), api_key.to_string());
 
         let traces_endpoint = format!("{}/v1/traces", honeycomb_endpoint.trim_end_matches('/'));
 

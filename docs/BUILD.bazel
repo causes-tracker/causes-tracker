@@ -1,9 +1,10 @@
-load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load(
     "@rules_python//python/entry_points:py_console_script_binary.bzl",
     "py_console_script_binary",
 )
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//tools/lint:linters.bzl", "shellcheck_lint_test", "yamllint_lint_test")
 
 # Hermetically managed zensical binary.
 # Run directly with: bazel run //docs:zensical -- build
@@ -24,7 +25,11 @@ py_console_script_binary(
 # Output: bazel-bin/docs/site.tar.gz
 genrule(
     name = "docs_site",
-    srcs = ["//:designdocs", "mkdocs.yml", "//proto:proto_docs"],
+    srcs = [
+        "//:designdocs",
+        "mkdocs.yml",
+        "//proto:proto_docs",
+    ],
     outs = ["site.tar.gz"],
     cmd = """
         EXECROOT=$$(pwd)
@@ -57,10 +62,10 @@ sh_binary(
     name = "serve_docs",
     srcs = ["serve_docs.sh"],
     data = [
-        ":zensical",
-        "//proto:proto_docs",
         "mkdocs.yml",
         "site_builder.bash",
+        ":zensical",
+        "//proto:proto_docs",
         "@bazel_tools//tools/bash/runfiles",
     ],
 )
@@ -71,12 +76,12 @@ sh_binary(
     name = "deploy_docs",
     srcs = ["deploy_docs.sh"],
     data = [
+        "mkdocs.yml",
+        "site_builder.bash",
         ":ghp_import",
         ":zensical",
         "//:designdocs",
         "//proto:proto_docs",
-        "mkdocs.yml",
-        "site_builder.bash",
         "@bazel_tools//tools/bash/runfiles",
     ],
 )
@@ -93,16 +98,36 @@ sh_test(
     ],
 )
 
+shellcheck_lint_test(
+    name = "shellcheck",
+    srcs = [
+        ":deploy_docs",
+        ":serve_docs",
+        ":serve_test",
+    ],
+)
+
+filegroup(
+    name = "yaml_srcs",
+    srcs = ["mkdocs.yml"],
+    tags = ["lint-with-yamllint"],
+)
+
+yamllint_lint_test(
+    name = "yamllint",
+    srcs = [":yaml_srcs"],
+)
+
 # Smoke-test the docs build. Run with: bazel test //docs:docs_test
 sh_test(
     name = "docs_test",
     srcs = ["docs_test.sh"],
     data = [
+        "mkdocs.yml",
+        "site_builder.bash",
         ":zensical",
         "//:designdocs",
         "//proto:proto_docs",
-        "mkdocs.yml",
-        "site_builder.bash",
         "@bazel_tools//tools/bash/runfiles",
     ],
 )

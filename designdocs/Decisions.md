@@ -251,7 +251,7 @@ Each API token has an associated signing secret (a symmetric key stored server-s
 
 For every authenticated gRPC call the client interceptor computes:
 
-```
+```text
 HMAC-SHA256(signing_secret, request-id || timestamp)
 ```
 

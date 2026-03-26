@@ -14,7 +14,11 @@ async fn main() -> anyhow::Result<()> {
 
     let cfg = config::Config::parse();
 
-    let _otel = telemetry::init("causes-api", cfg.honeycomb_api_key.as_deref(), &cfg.honeycomb_endpoint);
+    let _otel = telemetry::init(
+        "causes-api",
+        cfg.honeycomb_api_key.as_deref(),
+        &cfg.honeycomb_endpoint,
+    );
 
     startup(&cfg).instrument(info_span!("startup")).await
 }

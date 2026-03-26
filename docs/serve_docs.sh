@@ -5,28 +5,32 @@ set -euo pipefail
 
 # Standard Bazel 3-way runfiles init.
 if [[ -f "${RUNFILES_DIR:-/dev/null}/bazel_tools/tools/bash/runfiles/runfiles.bash" ]]; then
-  # shellcheck source=/dev/null
-  source "${RUNFILES_DIR}/bazel_tools/tools/bash/runfiles/runfiles.bash"
+	# shellcheck source=/dev/null
+	source "${RUNFILES_DIR}/bazel_tools/tools/bash/runfiles/runfiles.bash"
 elif [[ -f "${BASH_SOURCE[0]}.runfiles/bazel_tools/tools/bash/runfiles/runfiles.bash" ]]; then
-  # shellcheck source=/dev/null
-  source "${BASH_SOURCE[0]}.runfiles/bazel_tools/tools/bash/runfiles/runfiles.bash"
+	# shellcheck source=/dev/null
+	source "${BASH_SOURCE[0]}.runfiles/bazel_tools/tools/bash/runfiles/runfiles.bash"
 elif [[ -f "${RUNFILES_MANIFEST_FILE:-/dev/null}" ]]; then
-  # shellcheck source=/dev/null
-  source "$(grep -m1 "^bazel_tools/tools/bash/runfiles/runfiles.bash " \
-    "$RUNFILES_MANIFEST_FILE" | cut -d ' ' -f2-)"
+	# shellcheck source=/dev/null
+	source "$(grep -m1 "^bazel_tools/tools/bash/runfiles/runfiles.bash " \
+		"$RUNFILES_MANIFEST_FILE" | cut -d ' ' -f2-)"
 else
-  echo >&2 "ERROR: cannot find Bazel runfiles library"
-  exit 1
+	echo >&2 "ERROR: cannot find Bazel runfiles library"
+	exit 1
 fi
 
-# shellcheck source=site_builder.bash
+# shellcheck source=/dev/null
 source "$(rlocation _main/docs/site_builder.bash)"
 
+# These vars are consumed by build_docs_site (defined in site_builder.bash).
+# shellcheck disable=SC2034
 ZENSICAL=$(rlocation _main/docs/zensical)
+# shellcheck disable=SC2034
 MKDOCS_YML=$(rlocation _main/docs/mkdocs.yml)
 PROTO_DOCS=$(rlocation _main/proto/proto_docs.md)
 
 # Use the workspace source directly so edits are reflected on re-run.
+# shellcheck disable=SC2034
 DESIGNDOCS_SRC="${BUILD_WORKSPACE_DIRECTORY}/designdocs"
 
 PROTO_DOCS="$PROTO_DOCS" build_docs_site

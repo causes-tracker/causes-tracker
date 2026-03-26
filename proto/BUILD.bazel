@@ -1,14 +1,25 @@
 load("@rules_proto//proto:defs.bzl", "proto_library")
-load("//tools/lint:linters.bzl", "buf_lint_test")
+load("//tools/lint:linters.bzl", "buf_lint_test", "yamllint_lint_test")
 
 exports_files(["buf.yaml"])
+
+filegroup(
+    name = "yaml_srcs",
+    srcs = ["buf.yaml"],
+    tags = ["lint-with-yamllint"],
+)
+
+yamllint_lint_test(
+    name = "yamllint",
+    srcs = [":yaml_srcs"],
+)
 
 proto_library(
     name = "causes_v1_proto",
     srcs = glob(["causes/v1/*.proto"]),
     strip_import_prefix = "",
-    deps = ["@protobuf//:timestamp_proto"],
     visibility = ["//visibility:public"],
+    deps = ["@protobuf//:timestamp_proto"],
 )
 
 # Run with: bazel test //proto:buf_lint
@@ -32,7 +43,10 @@ filegroup(
 # protoc-gen-doc is a pre-built Linux amd64 binary (see MODULE.bazel).
 genrule(
     name = "proto_docs",
-    srcs = [":proto_srcs", "@protobuf//:well_known_type_protos"],
+    srcs = [
+        ":proto_srcs",
+        "@protobuf//:well_known_type_protos",
+    ],
     outs = ["proto_docs.md"],
     cmd = """
         EXECROOT=$$(pwd)

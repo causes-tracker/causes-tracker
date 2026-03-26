@@ -1,0 +1,8 @@
+# shellcheck configuration — applies to all scripts linted via bazel test //...
+# See https://www.shellcheck.net/wiki/Directive for rule IDs.
+
+# All scripts in this repo target bash.
+shell=bash
+
+# SC2148: Scripts without a shebang are linted; we already declare shell=bash above.
+disable=SC2148

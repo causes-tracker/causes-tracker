@@ -1,5 +1,6 @@
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//tools/lint:linters.bzl", "markdown_lint_test", "shellcheck_lint_test")
 
 exports_files(["testfixture.sh"])
 
@@ -10,7 +11,6 @@ exports_files(["testfixture.sh"])
 genrule(
     name = "postgres_binaries",
     srcs = ["@postgresql_linux_amd64//file:postgresql.tar.gz"],
-    visibility = ["//visibility:public"],
     outs = ["postgres.tar.gz"],
     cmd = """
         TMPDIR=$$(mktemp -d)
@@ -19,6 +19,7 @@ genrule(
         tar czf $@ -C $$TMPDIR .
         rm -rf $$TMPDIR
     """,
+    visibility = ["//visibility:public"],
 )
 
 # Extract the psql binary from the postgres tarball so Bazel caches it
@@ -50,4 +51,17 @@ sh_test(
         ":postgres_binaries",
         "@bazel_tools//tools/bash/runfiles",
     ],
+)
+
+shellcheck_lint_test(
+    name = "shellcheck",
+    srcs = [
+        ":psql",
+        ":testfixture_test",
+    ],
+)
+
+markdown_lint_test(
+    name = "pymarkdown",
+    srcs = ["README.md"],
 )

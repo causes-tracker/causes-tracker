@@ -38,7 +38,12 @@ mod tests {
         .await
         .expect("pg_tables query failed");
 
-        for expected in ["instance_config", "users", "external_identities", "role_assignments"] {
+        for expected in [
+            "instance_config",
+            "users",
+            "external_identities",
+            "role_assignments",
+        ] {
             assert!(
                 tables.contains(&expected.to_string()),
                 "missing table: {expected}"

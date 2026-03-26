@@ -1,1 +1,68 @@
+load(
+    "@rules_python//python/entry_points:py_console_script_binary.bzl",
+    "py_console_script_binary",
+)
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("//tools/lint:linters.bzl", "shellcheck_lint_test")
+
 package(default_visibility = ["//visibility:public"])
+
+# ── yamllint ──────────────────────────────────────────────────────────────────
+# Hermetic yamllint binary via pip/rules_python.
+# Used by the yamllint_lint_test aspect defined in linters.bzl.
+py_console_script_binary(
+    name = "yamllint",
+    pkg = "@pip//yamllint",
+    script = "yamllint",
+)
+
+# ── pymarkdown ────────────────────────────────────────────────────────────────
+# Hermetic pymarkdown binary via pip/rules_python.
+# Used by the markdown_lint_test macro defined in linters.bzl.
+py_console_script_binary(
+    name = "pymarkdown",
+    pkg = "@pip//pymarkdownlnt",
+    script = "pymarkdown",
+)
+
+exports_files(["run_pymarkdown.sh"])
+
+sh_binary(
+    name = "run_pymarkdown",
+    srcs = ["run_pymarkdown.sh"],
+    data = [
+        ":pymarkdown",
+        "//:.pymarkdown.json",
+        "@bazel_tools//tools/bash/runfiles",
+        "@rules_shell//shell/runfiles:runfiles",
+    ],
+)
+
+# ── taplo (TOML formatter) ────────────────────────────────────────────────────
+# Decompresses the hermetic taplo gz download into an executable binary.
+# Update the http_file in MODULE.bazel to upgrade taplo.
+genrule(
+    name = "taplo_extracted",
+    srcs = ["@taplo_linux_amd64//file"],
+    outs = ["taplo_bin"],
+    cmd = "gzip -dc $< > $@ && chmod +x $@",
+)
+
+# Thin wrapper so format_multirun can use taplo as an executable label.
+# All arguments are forwarded to the real taplo binary.
+sh_binary(
+    name = "taplo",
+    srcs = ["taplo.sh"],
+    data = [
+        ":taplo_extracted",
+        "@bazel_tools//tools/bash/runfiles",
+    ],
+)
+
+shellcheck_lint_test(
+    name = "shellcheck",
+    srcs = [
+        ":run_pymarkdown",
+        ":taplo",
+    ],
+)

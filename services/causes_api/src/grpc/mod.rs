@@ -7,6 +7,8 @@ use tonic_health::ServingStatus;
 /// The HealthServer is added to the tonic Router in main.
 pub async fn health_service() -> (HealthReporter, HealthServer<impl Health>) {
     let (reporter, server) = tonic_health::server::health_reporter();
-    reporter.set_service_status("", ServingStatus::Serving).await;
+    reporter
+        .set_service_status("", ServingStatus::Serving)
+        .await;
     (reporter, server)
 }

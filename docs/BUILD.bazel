@@ -81,6 +81,18 @@ sh_binary(
     ],
 )
 
+# End-to-end test: build the site then serve it over HTTP and fetch pages.
+# Run with: bazel test //docs:serve_test
+sh_test(
+    name = "serve_test",
+    srcs = ["serve_test.sh"],
+    data = [
+        ":serve_docs",
+        "//:designdocs",
+        "@bazel_tools//tools/bash/runfiles",
+    ],
+)
+
 # Smoke-test the docs build. Run with: bazel test //docs:docs_test
 sh_test(
     name = "docs_test",

@@ -31,5 +31,6 @@ DESIGNDOCS_SRC="${BUILD_WORKSPACE_DIRECTORY}/designdocs"
 
 PROTO_DOCS="$PROTO_DOCS" build_docs_site
 
-echo "Serving docs on http://localhost:8000"
-exec python3 -m http.server 8000 --directory "$SITE_DIR"
+PORT="${SERVE_PORT:-8000}"
+echo "Serving docs on http://localhost:${PORT}"
+exec python3 -m http.server "$PORT" --directory "$SITE_DIR"

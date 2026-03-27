@@ -10,6 +10,8 @@ exports_files([
     ".pymarkdown.json",
     ".shellcheckrc",
     ".yamllint",
+    "Cargo.toml",
+    "Cargo.lock",
 ])
 
 # Run with: bazel run //:gazelle

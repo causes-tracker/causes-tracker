@@ -1,5 +1,5 @@
 [workspace]
-members = ["services/causes_api", "tools/sqlx-cli"]
+members = ["lib/rust/api_db", "services/causes_api", "tools/sqlx-cli"]
 resolver = "2"
 
 [workspace.package]
@@ -30,3 +30,4 @@ opentelemetry-otlp = { version = "0.31", features = [
   "reqwest-rustls",
 ] }
 dotenvy = "0.15"
+uuid = { version = "1", features = ["v4"] }

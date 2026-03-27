@@ -26,4 +26,26 @@ source "$(rlocation _main/infra/postgres/testfixture.sh)"
 pg_start
 
 test_binary="${1:?usage: db_test.sh <path-to-api_db_test>}"
-DATABASE_URL="$TEST_POSTGRES_URL" "$test_binary" "${@:2}"
+
+if [[ -n "${COVERAGE_DIR:-}" ]]; then
+	# Coverage mode: direct the instrumented binary to write profraw data into
+	# a scratch dir, then merge and export LCOV into $COVERAGE_DIR/coverage.dat.
+	# Intermediate .profraw/.profdata files must stay outside $COVERAGE_DIR so
+	# Bazel's CoverageOutputGenerator does not try to parse them alongside LCOV.
+	profraw_dir="$(mktemp -d)"
+	export LLVM_PROFILE_FILE="${profraw_dir}/rust_test_%m.profraw"
+	DATABASE_URL="$TEST_POSTGRES_URL" "$test_binary" "${@:2}"
+
+	llvm_profdata="$(rlocation rust_host_tools/bin/llvm-profdata)"
+	llvm_cov="$(rlocation rust_host_tools/bin/llvm-cov)"
+
+	"$llvm_profdata" merge -sparse "${profraw_dir}"/*.profraw \
+		-o "${profraw_dir}/merged.profdata"
+	"$llvm_cov" export --format=lcov \
+		--instr-profile="${profraw_dir}/merged.profdata" \
+		"$test_binary" \
+		>"${COVERAGE_DIR}/coverage.dat"
+	rm -rf "$profraw_dir"
+else
+	DATABASE_URL="$TEST_POSTGRES_URL" "$test_binary" "${@:2}"
+fi

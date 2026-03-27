@@ -1,0 +1,13 @@
+[package]
+name    = "api_db"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+sqlx.workspace    = true
+anyhow.workspace  = true
+tracing.workspace = true
+
+[dev-dependencies]
+tokio.workspace   = true

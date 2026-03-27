@@ -1,0 +1,44 @@
+load("@rules_rs//rs:rust_library.bzl", "rust_library")
+load("@rules_rs//rs:rust_test.bzl", "rust_test")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+rust_library(
+    name = "api_db",
+    srcs = glob(["src/**/*.rs"]),
+    compile_data = glob([".sqlx/**"], allow_empty = True),
+    rustc_env = {"SQLX_OFFLINE": "true"},
+    visibility = ["//visibility:public"],
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:sqlx",
+        "@crates//:tracing",
+    ],
+)
+
+# Integration test binary.
+# Not run directly by Bazel; the sh_test below starts a hermetic PostgreSQL
+# instance and invokes this binary with DATABASE_URL set.
+rust_test(
+    name = "api_db_test",
+    crate = ":api_db",
+    compile_data = glob([".sqlx/**"], allow_empty = True),
+    rustc_env = {"SQLX_OFFLINE": "true"},
+    tags = ["manual"],
+    deps = [
+        "@crates//:tokio",
+    ],
+)
+
+# Hermetic database test: spins up a throwaway PostgreSQL from the bundled
+# tarball, then runs the Rust test binary with DATABASE_URL pointed at it.
+sh_test(
+    name = "api_db_db_test",
+    srcs = ["db_test.sh"],
+    args = ["$(location :api_db_test)"],
+    data = [
+        ":api_db_test",
+        "//infra/postgres:postgres_binaries",
+        "//infra/postgres:testfixture.sh",
+        "@bazel_tools//tools/bash/runfiles",
+    ],
+)

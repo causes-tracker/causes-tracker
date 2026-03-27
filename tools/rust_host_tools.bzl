@@ -40,6 +40,15 @@ def _rust_host_tools_repo_impl(rctx):
     arch = _normalize_arch(rctx.os.arch)
     triple_suffix = "{}_{}".format(os_name, arch)
 
+    # Map os+arch to the Rust target triple used in stdlib repo names.
+    triple_map = {
+        "linux_x86_64": "x86_64_unknown_linux_gnu",
+        "linux_aarch64": "aarch64_unknown_linux_gnu",
+        "macos_x86_64": "x86_64_apple_darwin",
+        "macos_aarch64": "aarch64_apple_darwin",
+    }
+    target_triple_key = triple_map.get(triple_suffix, "x86_64_unknown_linux_gnu")
+
     # Navigate to the Bazel external directory via a known file inside
     # @bazel_tools//tools/bash/runfiles (always present, no use_repo needed).
     # runfiles.bash lives at:
@@ -66,10 +75,19 @@ def _rust_host_tools_repo_impl(rctx):
     rctx.symlink(rctx.path(rustc_src), "bin/rustc")
     rctx.symlink(rctx.path(rustfmt_src), "bin/rustfmt")
 
+    # Write the stdlib sysroot path to a text file so that hermetic cargo
+    # invocations (e.g. sqlx prepare) can set RUSTFLAGS=--sysroot correctly.
+    stdlib_dir = "{}/{}/".format(
+        external_dir,
+        ext_prefix + "rust_stdlib_{}_{}".format(target_triple_key, version_key),
+    )
+    rctx.file("sysroot_path.txt", stdlib_dir + "\n")
+
     rctx.file("BUILD.bazel", """\
 filegroup(name = "cargo",   srcs = ["bin/cargo"],   visibility = ["//visibility:public"])
 filegroup(name = "rustc",   srcs = ["bin/rustc"],   visibility = ["//visibility:public"])
 filegroup(name = "rustfmt", srcs = ["bin/rustfmt"], visibility = ["//visibility:public"])
+exports_files(["sysroot_path.txt"])
 """)
 
 _rust_host_tools_repo = repository_rule(

@@ -101,7 +101,7 @@ toolchains = use_extension(
 )
 toolchains.toolchain(
     edition = "2021",
-    version = "1.87.0",
+    version = "1.94.1",
 )
 use_repo(
     toolchains,
@@ -115,7 +115,7 @@ register_toolchains("@default_rust_toolchains//:all")
 # in the toolchains use_repo block) keeps 'bazel mod tidy' happy: the versioned
 # repos are internal to rules_rs and not reported as direct deps.
 rust_host = use_extension("//tools:rust_host_tools.bzl", "rust_host")
-rust_host.config(version = "1.87.0")
+rust_host.config(version = "1.94.1")
 use_repo(rust_host, "rust_host_tools")
 
 crate = use_extension("@rules_rs//rs:extensions.bzl", "crate")

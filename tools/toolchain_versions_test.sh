@@ -18,9 +18,9 @@ else
 	exit 1
 fi
 
-# Rust 1.87.0 release commit hash — appears in rustc and rustfmt --version output.
-EXPECTED_RUST_VERSION="1.87.0"
-EXPECTED_COMMIT="17067e9ac"
+# Rust 1.94.1 release commit hash — appears in rustc and rustfmt --version output.
+EXPECTED_RUST_VERSION="1.94.1"
+EXPECTED_COMMIT="e408947bfd"
 
 cargo_bin="$(rlocation rust_host_tools/bin/cargo)"
 rustc_bin="$(rlocation rust_host_tools/bin/rustc)"
@@ -41,7 +41,7 @@ rustc_ver="$("$rustc_bin" --version)"
 	fail "rustc version mismatch: got '$rustc_ver', want $EXPECTED_RUST_VERSION"
 echo "PASS: $rustc_ver"
 
-# rustfmt has its own version number; verify it's from the 1.87.0 toolchain
+# rustfmt has its own version number; verify it's from the 1.94.1 toolchain
 # by matching the release commit hash that appears in its --version output.
 rustfmt_ver="$("$rustfmt_bin" --version)"
 [[ "$rustfmt_ver" == *"$EXPECTED_COMMIT"* ]] ||

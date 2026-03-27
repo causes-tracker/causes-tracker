@@ -320,8 +320,8 @@
     "https://bcr.bazel.build/modules/rules_python/1.9.0/source.json": "3921ea0b65298d51aead5b9e4a82203d7be9b5918619b58b53f1c259f4e63169",
     "https://bcr.bazel.build/modules/rules_robolectric/4.14.1.2/MODULE.bazel": "d44fec647d0aeb67b9f3b980cf68ba634976f3ae7ccd6c07d790b59b87a4f251",
     "https://bcr.bazel.build/modules/rules_robolectric/4.14.1.2/source.json": "37c10335f2361c337c5c1f34ed36d2da70534c23088062b33a8bdaab68aa9dea",
-    "https://bcr.bazel.build/modules/rules_rs/0.0.44/MODULE.bazel": "aa151d9a96e5d9363732df8943c7fb5327738cc160732fa74c02e5de7822007b",
-    "https://bcr.bazel.build/modules/rules_rs/0.0.44/source.json": "1358c9418e1325fdb5d0caf53ef32f98d525fe2030668279cae2e97c34cd29eb",
+    "https://bcr.bazel.build/modules/rules_rs/0.0.48/MODULE.bazel": "c18701fe2b5a3bdc464b5a377d38159db3002459c393797d08ec9cb6cff7f2c1",
+    "https://bcr.bazel.build/modules/rules_rs/0.0.48/source.json": "45e9ddad9522855993b891c881d6ccf22f543f3cfceb374cca034fb035d57100",
     "https://bcr.bazel.build/modules/rules_rust/0.67.0/MODULE.bazel": "87c3816c4321352dcfd9e9e26b58e84efc5b21351ae3ef8fb5d0d57bde7237f5",
     "https://bcr.bazel.build/modules/rules_rust/0.67.0/source.json": "a8ef4d3be30eb98e060cad9e5875a55b603195487f76e01b619b51a1df4641cc",
     "https://bcr.bazel.build/modules/rules_shell/0.1.2/MODULE.bazel": "66e4ca3ce084b04af0b9ff05ff14cab4e5df7503973818bb91cbc6cda08d32fc",
@@ -373,7 +373,7 @@
     "@@aspect_tools_telemetry+//:extension.bzl%telemetry": {
       "general": {
         "bzlTransitiveDigest": "cl5A2O84vDL6Tt+Qga8FCj1DUDGqn+e7ly5rZ+4xvcc=",
-        "usagesDigest": "EVl6lvlhTmzsdotqtIt3/DlvE5B4akGAqisDSGCaS90=",
+        "usagesDigest": "Is7T6TGAxZ8LFaZUdfIacjZFL2wOkj3gHW4pn29w+ek=",
         "recordedInputs": [
           "REPO_MAPPING:aspect_tools_telemetry+,bazel_lib bazel_lib+",
           "REPO_MAPPING:aspect_tools_telemetry+,bazel_skylib bazel_skylib+"
@@ -385,9 +385,24 @@
               "deps": {
                 "aspect_rules_js": "3.0.3",
                 "aspect_rules_lint": "2.3.0",
-                "rules_rs": "0.0.44",
+                "rules_rs": "0.0.48",
                 "aspect_tools_telemetry": "0.3.3"
               }
+            }
+          }
+        }
+      }
+    },
+    "@@protobuf+//python/dist:system_python.bzl%system_python_extension": {
+      "general": {
+        "bzlTransitiveDigest": "qh0n9IrXU/xS94wxKQrG1J63zrLkA1Wy2Y3BQxptPcI=",
+        "usagesDigest": "AF5a9lHFrJtHw1GTt3jJOs7ZYl1+N2bkn1LbPFLoguA=",
+        "recordedInputs": [],
+        "generatedRepoSpecs": {
+          "system_python": {
+            "repoRuleId": "@@protobuf+//python/dist:system_python.bzl%system_python",
+            "attributes": {
+              "minimum_python_version": "3.9"
             }
           }
         }

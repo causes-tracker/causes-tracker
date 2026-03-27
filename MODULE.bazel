@@ -93,7 +93,7 @@ http_archive(
 )
 # ── Rust ──────────────────────────────────────────────────────────────────────
 
-bazel_dep(name = "rules_rs", version = "0.0.44")
+bazel_dep(name = "rules_rs", version = "0.0.48")
 
 toolchains = use_extension(
     "@rules_rs//rs/experimental/toolchains:module_extension.bzl",

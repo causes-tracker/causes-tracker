@@ -6,11 +6,7 @@
 #                         PGUSER, PGDATABASE, TEST_POSTGRES_URL.
 
 pg_start() {
-	local pg_root="${TEST_TMPDIR}/postgres"
-	mkdir -p "$pg_root"
-	tar -xzf "$(rlocation _main/infra/postgres/postgres.tar.gz)" -C "$pg_root"
-
-	export PGBIN="${pg_root}/bin"
+	export PGBIN="$(rlocation _main/infra/postgres/postgres_extracted)/bin"
 	export PGDATA="${TEST_TMPDIR}/pgdata"
 	export PGUSER="postgres"
 	export PGDATABASE="postgres"

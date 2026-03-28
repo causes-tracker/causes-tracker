@@ -37,7 +37,7 @@ sh_test(
     args = ["$(location :api_db_test)"],
     data = [
         ":api_db_test",
-        "//infra/postgres:postgres_binaries",
+        "//infra/postgres:postgres_extracted",
         "//infra/postgres:testfixture.sh",
         "@bazel_tools//tools/bash/runfiles",
     ],

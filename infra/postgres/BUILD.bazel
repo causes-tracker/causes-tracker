@@ -1,34 +1,18 @@
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//tools/lint:linters.bzl", "markdown_lint_test")
+load(":defs.bzl", "extract_tarball")
 
 exports_files(["testfixture.sh"])
 
-# Repack the theseus-rs PostgreSQL 17 tarball (which has a versioned top-level
-# directory) into a flat tar.gz so the fixture can extract it at a fixed path.
-# Output: bazel-bin/infra/postgres/postgres.tar.gz — bin/, lib/, share/, …
-# Test targets unpack this into $TEST_TMPDIR at runtime.
-genrule(
-    name = "postgres_binaries",
-    srcs = ["@postgresql_linux_amd64//file:postgresql.tar.gz"],
-    outs = ["postgres.tar.gz"],
-    cmd = """
-        TMPDIR=$$(mktemp -d)
-        tar -xzf $(location @postgresql_linux_amd64//file:postgresql.tar.gz) \
-            -C $$TMPDIR --strip-components=1
-        tar czf $@ -C $$TMPDIR .
-        rm -rf $$TMPDIR
-    """,
+# Extract the theseus-rs PostgreSQL 17 tarball into a directory TreeArtifact
+# at build time.  Consumers use rlocation _main/infra/postgres/postgres_extracted
+# to get the root; binaries find shared libraries (libpq.so.5 etc.) via the
+# RPATH embedded in the tarball build ($ORIGIN/../lib relative to bin/).
+extract_tarball(
+    name = "postgres_extracted",
+    src = "@postgresql_linux_amd64//file:postgresql.tar.gz",
     visibility = ["//visibility:public"],
-)
-
-# Extract the psql binary from the postgres tarball so Bazel caches it
-# and invalidates automatically when the tarball changes.
-genrule(
-    name = "psql_extracted",
-    srcs = [":postgres_binaries"],
-    outs = ["postgres_psql"],
-    cmd = "tar -xzf $< -C $(@D) --strip-components=2 ./bin/psql && mv $(@D)/psql $(@D)/postgres_psql",
 )
 
 # Interactive psql wrapper for local debugging: bazel run //infra/postgres:psql -- <args>
@@ -36,7 +20,7 @@ sh_binary(
     name = "psql",
     srcs = ["psql.sh"],
     data = [
-        ":psql_extracted",
+        ":postgres_extracted",
         "@bazel_tools//tools/bash/runfiles",
     ],
 )
@@ -48,7 +32,17 @@ sh_test(
     srcs = ["testfixture_test.sh"],
     data = [
         "testfixture.sh",
-        ":postgres_binaries",
+        ":postgres_extracted",
+        "@bazel_tools//tools/bash/runfiles",
+    ],
+)
+
+# Verify the bundled psql binary runs (shared libs must be present alongside it).
+sh_test(
+    name = "psql_test",
+    srcs = ["psql_test.sh"],
+    data = [
+        ":postgres_extracted",
         "@bazel_tools//tools/bash/runfiles",
     ],
 )

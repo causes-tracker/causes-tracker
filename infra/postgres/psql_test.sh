@@ -23,5 +23,8 @@ output="$("$(rlocation _main/infra/postgres/postgres_extracted)/bin/psql" --vers
 # shellcheck disable=SC2254
 case "$output" in
 psql\ \(PostgreSQL\)\ *) echo "OK: $output" ;;
-*) echo >&2 "unexpected output: $output"; exit 1 ;;
+*)
+	echo >&2 "unexpected output: $output"
+	exit 1
+	;;
 esac

@@ -5,7 +5,10 @@ load("@rules_shell//shell:sh_test.bzl", "sh_test")
 rust_library(
     name = "api_db",
     srcs = glob(["src/**/*.rs"]),
-    compile_data = glob([".sqlx/**"], allow_empty = True),
+    compile_data = glob(
+        [".sqlx/**"],
+        allow_empty = True,
+    ),
     rustc_env = {"SQLX_OFFLINE": "true"},
     visibility = ["//visibility:public"],
     deps = [
@@ -20,8 +23,11 @@ rust_library(
 # spins up a hermetic postgres before running this binary.
 rust_test(
     name = "api_db_test",
+    compile_data = glob(
+        [".sqlx/**"],
+        allow_empty = True,
+    ),
     crate = ":api_db",
-    compile_data = glob([".sqlx/**"], allow_empty = True),
     rustc_env = {"SQLX_OFFLINE": "true"},
     tags = ["manual"],
     deps = [

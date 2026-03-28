@@ -1,10 +1,10 @@
+use opentelemetry::KeyValue;
 use opentelemetry::global;
 use opentelemetry::trace::TracerProvider as _;
-use opentelemetry::KeyValue;
 use opentelemetry_otlp::{WithExportConfig, WithHttpConfig};
-use opentelemetry_sdk::trace::SdkTracerProvider;
 use opentelemetry_sdk::Resource;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+use opentelemetry_sdk::trace::SdkTracerProvider;
+use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
 
 /// Initialise the tracing subscriber.
 /// When `honeycomb_api_key` is `Some`, spans are exported to Honeycomb via

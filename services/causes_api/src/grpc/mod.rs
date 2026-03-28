@@ -1,6 +1,6 @@
+use tonic_health::ServingStatus;
 use tonic_health::pb::health_server::{Health, HealthServer};
 use tonic_health::server::HealthReporter;
-use tonic_health::ServingStatus;
 
 /// Builds the gRPC Health Checking Protocol service pair.
 /// The HealthReporter handle can update statuses at runtime.

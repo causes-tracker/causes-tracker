@@ -1,6 +1,6 @@
 use anyhow::Context;
-use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
+use sqlx::postgres::PgPoolOptions;
 
 /// Create a connection pool and run all pending migrations.
 #[tracing::instrument(skip(database_url), fields(db.system = "postgresql"))]

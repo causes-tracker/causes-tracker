@@ -12,6 +12,7 @@ py_binary(
     srcs = ["show_coverage.py"],
     main = "show_coverage.py",
 )
+
 # Hermetic sqlx binary compiled from tools/sqlx-cli via the crate_index.
 # Bazel caches and invalidates this like any other rust_binary target.
 rust_binary(

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Runs the bundled psql binary.  Use via: bazel run //infra/postgres:psql -- <args>
+# Verifies the bundled psql binary runs correctly.
+# Fails if shared libraries (libpq.so.5 etc.) are not available alongside it.
 set -euo pipefail
 
 # Standard Bazel 3-way runfiles init.
@@ -18,4 +19,9 @@ else
 	exit 1
 fi
 
-exec "$(rlocation _main/infra/postgres/postgres_extracted)/bin/psql" "$@"
+output="$("$(rlocation _main/infra/postgres/postgres_extracted)/bin/psql" --version)"
+# shellcheck disable=SC2254
+case "$output" in
+psql\ \(PostgreSQL\)\ *) echo "OK: $output" ;;
+*) echo >&2 "unexpected output: $output"; exit 1 ;;
+esac

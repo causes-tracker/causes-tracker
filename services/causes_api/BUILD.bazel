@@ -40,7 +40,7 @@ sh_test(
     args = ["$(location :causes_api_test)"],
     data = [
         ":causes_api_test",
-        "//infra/postgres:postgres_binaries",
+        "//infra/postgres:postgres_extracted",
         "//infra/postgres:testfixture.sh",
         "@bazel_tools//tools/bash/runfiles",
         "@rust_host_tools//:llvm_cov",

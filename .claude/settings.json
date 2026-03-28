@@ -20,7 +20,8 @@
       "Bash(bazel fetch:*)",
       "Bash(bazel query:*)",
       "Bash(bazel mod:*)",
-      "Bash(bazel help:*)"
+      "Bash(bazel help:*)",
+      "Bash(bash tools/coverage.sh //...)"
     ],
     "deny": [
       "Read(~/.aws/credentials)"

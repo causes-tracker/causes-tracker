@@ -1,4 +1,5 @@
 load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
+load("@rules_rs//rs:rust_test.bzl", "rust_test")
 
 rust_binary(
     name = "causes_api",
@@ -17,5 +18,13 @@ rust_binary(
         "@crates//:tracing",
         "@crates//:tracing-opentelemetry",
         "@crates//:tracing-subscriber",
+    ],
+)
+
+rust_test(
+    name = "causes_api_test",
+    crate = ":causes_api",
+    deps = [
+        "@crates//:wiremock",
     ],
 )

@@ -42,6 +42,11 @@ coverage --instrumentation_filter="^//"
 # invokes CC_CODE_COVERAGE_SCRIPT, the rules_rust binary that converts .profraw → LCOV.
 # --action_env reaches collect_coverage.sh's process; RunEnvironmentInfo does not.
 coverage --action_env=GENERATE_LLVM_LCOV=1
+# collect_cc_coverage.sh calls init_gcov() unconditionally; it exits 1 if
+# COVERAGE_GCOV_PATH is empty, even for sh_test targets that produce no C
+# coverage data.  Point it at the system gcov so init_gcov() passes; for
+# sh_tests gcov_coverage() is then a no-op (no .gcda/.gcno files to process).
+coverage --action_env=COVERAGE_GCOV_PATH=/usr/bin/gcov
 
 # Import user-local overrides (BuildBuddy API key, personal flags).
 # This file is gitignored — copy .bazelrc.user.template to .bazelrc.user and fill it in.

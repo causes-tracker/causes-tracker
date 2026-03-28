@@ -19,8 +19,8 @@ jobs:
           repository-cache: true
       - name: Check formatting
         run: bazel run --config=ci --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_ORG_API_KEY }} //:format.check
-      - name: Test and build docs
-        run: bazel test --config=ci --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_ORG_API_KEY }} //...
+      - name: Test, build docs, and check coverage
+        run: tools/coverage.sh --config=ci --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_ORG_API_KEY }} //...
   deploy:
     runs-on: ubuntu-latest
     needs: build

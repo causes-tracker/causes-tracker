@@ -1,13 +1,23 @@
 use clap::Parser;
 
-/// Runtime configuration for instance-api, read entirely from environment
-/// variables (with `.env` file support via dotenvy).
+/// Runtime configuration, read entirely from environment variables
+/// (with `.env` file support via dotenvy).
 #[derive(Parser, Debug, Clone)]
-#[command(about = "Causes instance API server")]
+#[command(about = "Causes API server")]
 pub struct Config {
     /// PostgreSQL connection string.
     #[arg(long, env = "DATABASE_URL")]
     pub database_url: String,
+
+    /// Google OAuth 2.0 Client ID (TV and Limited Input devices type).
+    /// Required during first-time bootstrap; can be unset after an admin
+    /// has been created.
+    #[arg(long, env = "GOOGLE_CLIENT_ID", default_value = "")]
+    pub google_client_id: String,
+
+    /// Google OAuth 2.0 Client Secret paired with `GOOGLE_CLIENT_ID`.
+    #[arg(long, env = "GOOGLE_CLIENT_SECRET", default_value = "")]
+    pub google_client_secret: String,
 
     /// Honeycomb API key for OpenTelemetry OTLP export.
     /// When absent, traces are not exported and only structured JSON logs

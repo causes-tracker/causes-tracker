@@ -1,6 +1,7 @@
 load("@rules_rs//rs:rust_library.bzl", "rust_library")
 load("@rules_rs//rs:rust_test.bzl", "rust_test")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//tools:sqlx_prepare.bzl", "sqlx_prepare")
 
 rust_library(
     name = "api_db",
@@ -16,8 +17,11 @@ rust_library(
     visibility = ["//visibility:public"],
     deps = [
         "@crates//:anyhow",
+        "@crates//:email_address",
         "@crates//:sqlx",
         "@crates//:tracing",
+        "@crates//:url",
+        "@crates//:uuid",
     ],
 )
 
@@ -55,4 +59,17 @@ sh_test(
         "@rust_host_tools//:llvm_cov",
         "@rust_host_tools//:llvm_profdata",
     ],
+)
+
+# Golden file targets — regenerates or checks the committed .sqlx/ files.
+# Run `bazel run //lib/rust/api_db:sqlx_prepare` to update .sqlx/ in the source tree.
+# `bazel test //lib/rust/api_db:sqlx_prepare_test` fails if the files are stale.
+sqlx_prepare(
+    name = "sqlx_prepare",
+    srcs = glob(["src/**/*.rs"]) + glob(
+        [".sqlx/**"],
+        allow_empty = True,
+    ),
+    migrations = glob(["migrations/**"]),
+    visibility = ["//visibility:public"],
 )

@@ -99,7 +99,7 @@ mod tests {
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
-    use super::*;
+    use super::build;
 
     #[tokio::test]
     async fn otel_exporter_sends_traces_to_endpoint() {

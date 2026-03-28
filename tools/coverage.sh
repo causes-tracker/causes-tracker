@@ -10,6 +10,12 @@ set -euo pipefail
 REPORT="bazel-out/_coverage/_coverage_report.dat"
 MIN_PCT=25
 
+# Files excluded from the per-file coverage threshold (thin delegation layers
+# that can only be exercised by integration tests with external services).
+SKIP_FILES=(
+	"services/causes_api/src/store.rs"
+)
+
 bazel coverage "$@"
 
 if [[ ! -f "$REPORT" ]]; then
@@ -49,6 +55,18 @@ lcov_summary=$(awk '
 # For each file on disk, look it up and report its coverage.
 failed=0
 for f in "${disk_files[@]}"; do
+	skip=0
+	for s in "${SKIP_FILES[@]}"; do
+		if [[ "$f" == "$s" ]]; then
+			skip=1
+			break
+		fi
+	done
+	if [[ "$skip" -eq 1 ]]; then
+		printf "%-6s  %5s  (%s)  %s\n" "skip" "n/a" "excluded" "$f"
+		continue
+	fi
+
 	entry=$(echo "$lcov_summary" | awk -v f="$f" '$3 == f { print; exit }')
 
 	if [[ -z "$entry" ]]; then

@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT current_setting('port')::text AS port",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "port",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "0709595b2ab7fcfaea09d2af7f42d154a9fd0b18fe9d6f367e9e9221d730d2ee"
+}

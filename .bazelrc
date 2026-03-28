@@ -34,11 +34,14 @@ build --output_groups=+rules_lint_human
 build --@aspect_rules_lint//lint:fail_on_violation=true
 
 # Coverage:
-# DB-backed tests run via sh_test wrappers (*_db_test) that spin up a hermetic
-# postgres; the raw rust_test binaries are tagged manual and never run directly.
-# Restrict instrumentation to workspace Rust crates (faster, no external noise).
 # Run with: bazel coverage //... && bazel run //tools:show_coverage
-coverage --instrumentation_filter="//services/causes_api[/:]|//lib/rust/api_db[/:]"
+# ^// instruments all first-party targets; external crates (labels starting with @)
+# are excluded automatically.
+coverage --instrumentation_filter="^//"
+# GENERATE_LLVM_LCOV must be set at action level so that Bazel's collect_coverage.sh
+# invokes CC_CODE_COVERAGE_SCRIPT, the rules_rust binary that converts .profraw → LCOV.
+# --action_env reaches collect_coverage.sh's process; RunEnvironmentInfo does not.
+coverage --action_env=GENERATE_LLVM_LCOV=1
 
 # Import user-local overrides (BuildBuddy API key, personal flags).
 # This file is gitignored — copy .bazelrc.user.template to .bazelrc.user and fill it in.

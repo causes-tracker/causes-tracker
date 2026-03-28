@@ -12,3 +12,14 @@ pub async fn health_service() -> (HealthReporter, HealthServer<impl Health>) {
         .await;
     (reporter, server)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Verifies that the gRPC health service can be constructed.
+    #[tokio::test]
+    async fn health_service_can_be_constructed() {
+        let (_reporter, _health_svc) = health_service().await;
+    }
+}

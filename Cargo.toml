@@ -31,3 +31,4 @@ opentelemetry-otlp = { version = "0.31", features = [
 ] }
 dotenvy = "0.15"
 uuid = { version = "1", features = ["v4"] }
+wiremock = "0.6"

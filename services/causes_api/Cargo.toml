@@ -8,7 +8,7 @@ license.workspace = true
 tokio.workspace = true
 tonic.workspace = true
 tonic-health.workspace = true
-sqlx.workspace = true
+api_db = { path = "../../lib/rust/api_db" }
 clap.workspace = true
 anyhow.workspace = true
 tracing.workspace = true

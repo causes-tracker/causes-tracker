@@ -3,7 +3,6 @@ use clap::Parser;
 use tracing::{Instrument as _, info, info_span};
 
 mod config;
-mod db;
 mod grpc;
 mod telemetry;
 
@@ -25,9 +24,11 @@ async fn main() -> anyhow::Result<()> {
 
 async fn startup(cfg: &config::Config) -> anyhow::Result<()> {
     info!("connecting to database");
-    let pool = db::init(&cfg.database_url)
+    let pool = api_db::DbPool::connect(&cfg.database_url)
         .await
-        .context("initialising database")?;
+        .context("connecting to database")?;
+
+    pool.migrate().await.context("running migrations")?;
 
     info!("database ready");
 

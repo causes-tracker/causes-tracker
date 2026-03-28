@@ -6,7 +6,10 @@ rust_library(
     name = "api_db",
     srcs = glob(["src/**/*.rs"]),
     compile_data = glob(
-        [".sqlx/**"],
+        [
+            ".sqlx/**",
+            "migrations/**",
+        ],
         allow_empty = True,
     ),
     rustc_env = {"SQLX_OFFLINE": "true"},
@@ -24,7 +27,10 @@ rust_library(
 rust_test(
     name = "api_db_test",
     compile_data = glob(
-        [".sqlx/**"],
+        [
+            ".sqlx/**",
+            "migrations/**",
+        ],
         allow_empty = True,
     ),
     crate = ":api_db",

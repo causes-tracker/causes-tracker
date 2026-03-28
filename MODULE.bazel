@@ -94,6 +94,19 @@ http_archive(
 # ── Rust ──────────────────────────────────────────────────────────────────────
 
 bazel_dep(name = "rules_rs", version = "0.0.44")
+single_version_override(
+    module_name = "rules_rs",
+    patch_strip = 1,
+    patches = [
+        # Coverage support: wires llvm-tools (llvm-cov, llvm-profdata) into the
+        # toolchain so that `bazel coverage` adds -C instrument-coverage to rustc.
+        # Track https://github.com/hermeticbuild/rules_rs/issues/76 — remove these
+        # patches once upstream ships native coverage support.
+        "//build/patches:rules_rs_llvm_tools_repo.patch",
+        "//build/patches:rules_rs_module_extension.patch",
+        "//build/patches:rules_rs_declare_toolchains.patch",
+    ],
+)
 
 toolchains = use_extension(
     "@rules_rs//rs/experimental/toolchains:module_extension.bzl",

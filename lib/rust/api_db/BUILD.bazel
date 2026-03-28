@@ -15,9 +15,9 @@ rust_library(
     ],
 )
 
-# Integration test binary.
-# Not run directly by Bazel; the sh_test below starts a hermetic PostgreSQL
-# instance and invokes this binary with DATABASE_URL set.
+# Compiled test binary — invoked by api_db_db_test (sh_test wrapper below).
+# Tagged manual so Bazel never runs it directly; always use the wrapper, which
+# spins up a hermetic postgres before running this binary.
 rust_test(
     name = "api_db_test",
     crate = ":api_db",
@@ -40,5 +40,7 @@ sh_test(
         "//infra/postgres:postgres_binaries",
         "//infra/postgres:testfixture.sh",
         "@bazel_tools//tools/bash/runfiles",
+        "@rust_host_tools//:llvm_cov",
+        "@rust_host_tools//:llvm_profdata",
     ],
 )

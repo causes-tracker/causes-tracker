@@ -1,8 +1,17 @@
+load("@rules_python//python:defs.bzl", "py_binary")
 load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 exports_files(["sqlx_prepare_impl.sh"])
+
+# Render the most recent bazel coverage report as HTML and serve it.
+# Usage: bazel coverage //... && bazel run //tools:show_coverage
+py_binary(
+    name = "show_coverage",
+    srcs = ["show_coverage.py"],
+    main = "show_coverage.py",
+)
 # Hermetic sqlx binary compiled from tools/sqlx-cli via the crate_index.
 # Bazel caches and invalidates this like any other rust_binary target.
 rust_binary(

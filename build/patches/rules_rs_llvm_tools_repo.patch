@@ -1,0 +1,55 @@
+--- a/rs/private/llvm_tools_repository.bzl
++++ b/rs/private/llvm_tools_repository.bzl
+@@ -0,0 +1,52 @@
++"""Repository rule for downloading llvm-tools (llvm-cov, llvm-profdata)."""
++
++load("@bazel_tools//tools/build_defs/repo:utils.bzl", "get_auth")
++load("@rules_rust//rust/platform:triple.bzl", "triple")
++load(
++    "@rules_rust//rust/private:repository_utils.bzl",
++    "DEFAULT_STATIC_RUST_URL_TEMPLATES",
++    "produce_tool_path",
++    "produce_tool_suburl",
++)
++load(":rust_repository_utils.bzl", "RUST_REPOSITORY_COMMON_ATTR")
++
++_BUILD_TEMPLATE = """\
++package(default_visibility = ["//visibility:public"])
++
++filegroup(
++    name = "llvm_cov_bin",
++    srcs = ["lib/rustlib/{triple}/bin/llvm-cov"],
++)
++
++filegroup(
++    name = "llvm_profdata_bin",
++    srcs = ["lib/rustlib/{triple}/bin/llvm-profdata"],
++)
++"""
++
++def _llvm_tools_repository_impl(rctx):
++    exec_triple = triple(rctx.attr.triple)
++
++    # The llvm-tools tarball structure is:
++    #   llvm-tools-{version}-{triple}/llvm-tools-preview/lib/rustlib/{triple}/bin/llvm-cov
++    # Strip both the top-level archive dir and the component dir so the repo
++    # root contains lib/rustlib/{triple}/bin/llvm-cov directly.
++    tool_suburl = produce_tool_suburl("llvm-tools", exec_triple, rctx.attr.version, rctx.attr.iso_date)
++    urls = [url.format(tool_suburl) for url in rctx.attr.urls]
++    tool_path = produce_tool_path("llvm-tools", rctx.attr.version, exec_triple)
++    rctx.download_and_extract(
++        urls,
++        sha256 = rctx.attr.sha256,
++        auth = get_auth(rctx, urls),
++        strip_prefix = tool_path + "/llvm-tools-preview",
++    )
++    rctx.file(
++        "BUILD.bazel",
++        _BUILD_TEMPLATE.format(triple = rctx.attr.triple),
++    )
++    return rctx.repo_metadata(reproducible = True)
++
++llvm_tools_repository = repository_rule(
++    implementation = _llvm_tools_repository_impl,
++    attrs = RUST_REPOSITORY_COMMON_ATTR,
++)

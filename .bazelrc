@@ -33,6 +33,13 @@ build --aspects=//tools/lint:linters.bzl%clippy
 build --output_groups=+rules_lint_human
 build --@aspect_rules_lint//lint:fail_on_violation=true
 
+# Coverage:
+# DB-backed tests run via sh_test wrappers (*_db_test) that spin up a hermetic
+# postgres; the raw rust_test binaries are tagged manual and never run directly.
+# Restrict instrumentation to workspace Rust crates (faster, no external noise).
+# Run with: bazel coverage //... && bazel run //tools:show_coverage
+coverage --instrumentation_filter="//services/causes_api[/:]|//lib/rust/api_db[/:]"
+
 # Import user-local overrides (BuildBuddy API key, personal flags).
 # This file is gitignored — copy .bazelrc.user.template to .bazelrc.user and fill it in.
 try-import %workspace%/.bazelrc.user

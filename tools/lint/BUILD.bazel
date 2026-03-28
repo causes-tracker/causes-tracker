@@ -33,7 +33,7 @@ sh_binary(
         ":pymarkdown",
         "//:.pymarkdown.json",
         "@bazel_tools//tools/bash/runfiles",
-        "@rules_shell//shell/runfiles:runfiles",
+        "@rules_shell//shell/runfiles",
     ],
 )
 

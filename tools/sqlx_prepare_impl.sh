@@ -8,7 +8,10 @@
 set -euo pipefail
 
 CHECK=false
-if [[ "${1:-}" == "--check" ]]; then CHECK=true; shift; fi
+if [[ "${1:-}" == "--check" ]]; then
+	CHECK=true
+	shift
+fi
 BAZEL_PACKAGE="${1:?bazel package path required}"
 
 # Standard Bazel 3-way runfiles init.
@@ -36,8 +39,10 @@ source "$(rlocation _main/infra/postgres/testfixture.sh)"
 pg_start
 
 SQLX="$(rlocation _main/tools/sqlx_bin)"
-export CARGO; CARGO="$(rlocation rust_host_tools/bin/cargo)"
-export RUSTC;  RUSTC="$(rlocation rust_host_tools/bin/rustc)"
+export CARGO
+CARGO="$(rlocation rust_host_tools/bin/cargo)"
+export RUSTC
+RUSTC="$(rlocation rust_host_tools/bin/rustc)"
 
 # Pass the hermetic stdlib sysroot to rustc so that `cargo check` (invoked by
 # `sqlx prepare`) can find core/std without a system Rust installation.
@@ -57,7 +62,7 @@ if [[ "$CHECK" == "true" ]]; then
 
 	# Rewrite the workspace Cargo.toml so only our package is a member.
 	# This lets cargo metadata resolve without the other workspace members.
-	python3 - "${WORKSPACE_ROOT}/Cargo.toml" "$ISOLATED/Cargo.toml" << 'PYEOF'
+	python3 - "${WORKSPACE_ROOT}/Cargo.toml" "$ISOLATED/Cargo.toml" <<'PYEOF'
 import sys, re
 src, dst = sys.argv[1], sys.argv[2]
 text = open(src).read()
@@ -66,10 +71,10 @@ open(dst, 'w').write(text)
 PYEOF
 
 	cp "${WORKSPACE_ROOT}/Cargo.lock" "$ISOLATED/Cargo.lock"
-	cp "${PACKAGE_DIR}/Cargo.toml"   "$ISOLATED/pkg/Cargo.toml"
-	cp -r "${PACKAGE_DIR}/src"       "$ISOLATED/pkg/src"
+	cp "${PACKAGE_DIR}/Cargo.toml" "$ISOLATED/pkg/Cargo.toml"
+	cp -r "${PACKAGE_DIR}/src" "$ISOLATED/pkg/src"
 	cp -r "${PACKAGE_DIR}/migrations" "$ISOLATED/pkg/migrations"
-	cp -r "${PACKAGE_DIR}/.sqlx"     "$ISOLATED/pkg/.sqlx"
+	cp -r "${PACKAGE_DIR}/.sqlx" "$ISOLATED/pkg/.sqlx"
 
 	DATABASE_URL="$TEST_POSTGRES_URL" "$SQLX" migrate run \
 		--source "$ISOLATED/pkg/migrations"

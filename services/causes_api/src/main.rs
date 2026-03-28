@@ -1,6 +1,6 @@
 use anyhow::Context;
 use clap::Parser;
-use tracing::{info, info_span, Instrument as _};
+use tracing::{Instrument as _, info, info_span};
 
 mod config;
 mod db;

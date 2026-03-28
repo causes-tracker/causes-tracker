@@ -68,5 +68,8 @@ yamllint_lint_test(
 # Run with: bazel test //:pymarkdown
 markdown_lint_test(
     name = "pymarkdown",
-    srcs = glob(["*.md", "designdocs/**/*.md"]),
+    srcs = glob([
+        "*.md",
+        "designdocs/**/*.md",
+    ]),
 )

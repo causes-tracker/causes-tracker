@@ -8,12 +8,12 @@ set -euo pipefail
 # fall back to the legacy bazel_tools location.
 # shellcheck source=/dev/null
 if [[ -f "${RUNFILES_DIR:-/dev/null}/rules_shell/shell/runfiles/runfiles.bash" ]]; then
-  source "${RUNFILES_DIR}/rules_shell/shell/runfiles/runfiles.bash"
+	source "${RUNFILES_DIR}/rules_shell/shell/runfiles/runfiles.bash"
 elif [[ -f "${RUNFILES_DIR:-/dev/null}/bazel_tools/tools/bash/runfiles/runfiles.bash" ]]; then
-  source "${RUNFILES_DIR}/bazel_tools/tools/bash/runfiles/runfiles.bash"
+	source "${RUNFILES_DIR}/bazel_tools/tools/bash/runfiles/runfiles.bash"
 else
-  echo >&2 "ERROR: cannot find runfiles.bash"
-  exit 1
+	echo >&2 "ERROR: cannot find runfiles.bash"
+	exit 1
 fi
 
 PYMARKDOWN="$(rlocation _main/tools/lint/pymarkdown)"

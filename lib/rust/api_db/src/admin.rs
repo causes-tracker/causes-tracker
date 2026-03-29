@@ -136,6 +136,11 @@ impl UserId {
         Self(Uuid::new_v4().to_string())
     }
 
+    /// Wrap an existing id string (e.g. from the database).
+    pub(crate) fn from_existing(s: String) -> Self {
+        Self(s)
+    }
+
     pub fn as_str(&self) -> &str {
         &self.0
     }

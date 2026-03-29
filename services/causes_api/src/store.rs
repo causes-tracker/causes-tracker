@@ -1,40 +1,35 @@
-use std::future::Future;
-
 /// Abstraction over database operations needed by this service.
-/// Implemented by [`api_db::DbPool`] in production and by fakes in tests.
+/// Implemented by [`api_db::DbPool`] in production; in tests, use
+/// [`mockall::automock`]-generated `MockStore`.
+#[cfg_attr(test, mockall::automock)]
 pub trait Store: Send + 'static {
-    fn migrate(&self) -> impl Future<Output = anyhow::Result<()>> + Send;
-    fn user_count(&self) -> impl Future<Output = anyhow::Result<i64>> + Send;
-    fn create_admin(
+    async fn migrate(&self) -> anyhow::Result<()>;
+    async fn user_count(&self) -> anyhow::Result<i64>;
+    async fn create_admin(
         &self,
         display_name: &api_db::DisplayName,
         email: &api_db::Email,
         auth_provider: &api_db::AuthProvider,
         subject: &api_db::Subject,
-    ) -> impl Future<Output = anyhow::Result<api_db::UserId>> + Send;
+    ) -> anyhow::Result<api_db::UserId>;
 }
 
 impl Store for api_db::DbPool {
-    fn migrate(&self) -> impl Future<Output = anyhow::Result<()>> + Send {
-        api_db::DbPool::migrate(self)
+    async fn migrate(&self) -> anyhow::Result<()> {
+        api_db::DbPool::migrate(self).await
     }
 
-    fn user_count(&self) -> impl Future<Output = anyhow::Result<i64>> + Send {
-        api_db::user_count(self)
+    async fn user_count(&self) -> anyhow::Result<i64> {
+        api_db::user_count(self).await
     }
 
-    fn create_admin(
+    async fn create_admin(
         &self,
         display_name: &api_db::DisplayName,
         email: &api_db::Email,
         auth_provider: &api_db::AuthProvider,
         subject: &api_db::Subject,
-    ) -> impl Future<Output = anyhow::Result<api_db::UserId>> + Send {
-        let display_name = display_name.clone();
-        let email = email.clone();
-        let auth_provider = auth_provider.clone();
-        let subject = subject.clone();
-        let pool = self.clone();
-        async move { api_db::create_admin(&pool, &display_name, &email, &auth_provider, &subject).await }
+    ) -> anyhow::Result<api_db::UserId> {
+        api_db::create_admin(self, display_name, email, auth_provider, subject).await
     }
 }

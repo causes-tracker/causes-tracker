@@ -23,4 +23,5 @@ opentelemetry-otlp.workspace = true
 dotenvy.workspace = true
 
 [dev-dependencies]
+mockall.workspace = true
 wiremock.workspace = true

@@ -1,4 +1,32 @@
 {
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(jj git push:*)",
+            "command": "cd /workspaces/causes && { bazel run //:format.check && bash tools/coverage.sh //...; } || printf '{\"continue\":false,\"stopReason\":\"Pre-push gate failed — fix format/coverage issues before pushing.\"}'",
+            "timeout": 300,
+            "statusMessage": "Running pre-push checks (format + coverage)..."
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd /workspaces/causes && { bazel run //:format.check && bash tools/coverage.sh //...; } || printf '{\"decision\":\"block\",\"reason\":\"Format or coverage check failed — fix before finishing.\"}'",
+            "timeout": 300,
+            "statusMessage": "Running post-work checks (format + coverage)..."
+          }
+        ]
+      }
+    ]
+  },
   "permissions": {
     "allow": [
       "Bash(gh run:*)",

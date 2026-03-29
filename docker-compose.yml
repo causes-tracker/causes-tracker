@@ -23,6 +23,7 @@ services:
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       HONEYCOMB_API_KEY: ${HONEYCOMB_API_KEY:-}
+      HONEYCOMB_ENDPOINT: ${HONEYCOMB_ENDPOINT:-}
     depends_on:
       - postgres
     restart: unless-stopped

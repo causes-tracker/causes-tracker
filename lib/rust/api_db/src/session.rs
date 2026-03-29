@@ -143,6 +143,27 @@ pub struct SessionRow {
     pub expires_at: chrono::DateTime<chrono::Utc>,
 }
 
+impl SessionRow {
+    /// Returns `true` if this session has expired.
+    pub fn is_expired(&self) -> bool {
+        self.expires_at < chrono::Utc::now()
+    }
+
+    /// Create a `SessionRow` for testing.
+    /// If `expired` is true, the session is already expired.
+    pub fn new_for_test(user_id: UserId, expired: bool) -> Self {
+        let expires_at = if expired {
+            chrono::Utc::now() - std::time::Duration::from_secs(1)
+        } else {
+            chrono::Utc::now() + std::time::Duration::from_secs(3600)
+        };
+        Self {
+            user_id,
+            expires_at,
+        }
+    }
+}
+
 struct RawUserRow {
     display_name: String,
     email: String,

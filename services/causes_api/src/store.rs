@@ -2,7 +2,8 @@
 /// Implemented by [`api_db::DbPool`] in production; in tests, use
 /// [`mockall::automock`]-generated `MockStore`.
 #[cfg_attr(test, mockall::automock)]
-pub trait Store: Send + 'static {
+#[tonic::async_trait]
+pub trait Store: Send + Sync + 'static {
     async fn migrate(&self) -> anyhow::Result<()>;
     async fn user_count(&self) -> anyhow::Result<i64>;
     async fn create_admin(
@@ -43,6 +44,7 @@ pub trait Store: Send + 'static {
     async fn delete_pending_login(&self, nonce: &api_db::LoginNonce) -> anyhow::Result<()>;
 }
 
+#[tonic::async_trait]
 impl Store for api_db::DbPool {
     async fn migrate(&self) -> anyhow::Result<()> {
         api_db::DbPool::migrate(self).await

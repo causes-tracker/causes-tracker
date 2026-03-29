@@ -13,6 +13,7 @@ MIN_PCT=25
 # Files excluded from the per-file coverage threshold (thin delegation layers
 # that can only be exercised by integration tests with external services).
 SKIP_FILES=(
+	"lib/rust/causes_proto/src/generated/causes.v1.rs"
 	"services/causes_api/src/store.rs"
 )
 

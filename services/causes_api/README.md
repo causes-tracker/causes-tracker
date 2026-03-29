@@ -65,6 +65,8 @@ $EDITOR .env
 
 ## Running locally
 
+### Via Bazel (development)
+
 ```sh
 # Start Postgres
 docker compose up -d postgres
@@ -72,6 +74,18 @@ docker compose up -d postgres
 # Run the service (reads .env automatically)
 bazel run //services/causes_api
 ```
+
+### Via docker-compose (production-like)
+
+```sh
+# Build the OCI image and load it into Docker
+bazel run //services/causes_api:image_load
+
+# Start both Postgres and causes-api
+docker compose up
+```
+
+The `image_load` step must be re-run after each code change.
 
 Migrations run automatically on startup.
 Run migrations manually:

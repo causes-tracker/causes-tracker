@@ -151,16 +151,16 @@ bazel_dep(name = "aspect_bazel_lib", version = "2.22.5")
 
 oci = use_extension("@rules_oci//oci:extensions.bzl", "oci")
 oci.pull(
-    name = "distroless_cc_debian12",
-    # Pin with: bazel run @rules_oci//oci:pin -- --image=gcr.io/distroless/cc-debian12
-    image = "gcr.io/distroless/cc-debian12",
+    name = "distroless_cc_debian13",
+    # Pin with: bazel run @rules_oci//oci:pin -- --image=gcr.io/distroless/cc-debian13
+    image = "gcr.io/distroless/cc-debian13",
     platforms = [
         "linux/amd64",
         "linux/arm64",
     ],
     tag = "latest",
 )
-use_repo(oci, "distroless_cc_debian12", "distroless_cc_debian12_linux_amd64", "distroless_cc_debian12_linux_arm64")
+use_repo(oci, "distroless_cc_debian13", "distroless_cc_debian13_linux_amd64", "distroless_cc_debian13_linux_arm64")
 
 # ── Python ────────────────────────────────────────────────────────────────────
 

@@ -719,7 +719,7 @@
     "@@rules_oci+//oci:extensions.bzl%oci": {
       "general": {
         "bzlTransitiveDigest": "4+tp/h+78uQkXMfTnPIvdbOcaqvnYlXWH5QFyM7CV3w=",
-        "usagesDigest": "8268GKsH4fS/zD8H0uIVJ8aX3sKK8inMBASr+L+OqA0=",
+        "usagesDigest": "zIc1WVxfaETvmujfrmxmOY/GKpoBiLp5wnuL0Qxj3lI=",
         "recordedInputs": [
           "REPO_MAPPING:aspect_bazel_lib+,bazel_tools bazel_tools",
           "REPO_MAPPING:bazel_features+,bazel_tools bazel_tools",
@@ -730,46 +730,46 @@
           "REPO_MAPPING:rules_oci+,tar.bzl tar.bzl+"
         ],
         "generatedRepoSpecs": {
-          "distroless_cc_debian12_linux_amd64": {
+          "distroless_cc_debian13_linux_amd64": {
             "repoRuleId": "@@rules_oci+//oci/private:pull.bzl%oci_pull",
             "attributes": {
               "www_authenticate_challenges": {},
               "scheme": "https",
               "registry": "gcr.io",
-              "repository": "distroless/cc-debian12",
+              "repository": "distroless/cc-debian13",
               "identifier": "latest",
               "platform": "linux/amd64",
-              "target_name": "distroless_cc_debian12_linux_amd64",
+              "target_name": "distroless_cc_debian13_linux_amd64",
               "bazel_tags": []
             }
           },
-          "distroless_cc_debian12_linux_arm64": {
+          "distroless_cc_debian13_linux_arm64": {
             "repoRuleId": "@@rules_oci+//oci/private:pull.bzl%oci_pull",
             "attributes": {
               "www_authenticate_challenges": {},
               "scheme": "https",
               "registry": "gcr.io",
-              "repository": "distroless/cc-debian12",
+              "repository": "distroless/cc-debian13",
               "identifier": "latest",
               "platform": "linux/arm64",
-              "target_name": "distroless_cc_debian12_linux_arm64",
+              "target_name": "distroless_cc_debian13_linux_arm64",
               "bazel_tags": []
             }
           },
-          "distroless_cc_debian12": {
+          "distroless_cc_debian13": {
             "repoRuleId": "@@rules_oci+//oci/private:pull.bzl%oci_alias",
             "attributes": {
-              "target_name": "distroless_cc_debian12",
+              "target_name": "distroless_cc_debian13",
               "www_authenticate_challenges": {},
               "scheme": "https",
               "registry": "gcr.io",
-              "repository": "distroless/cc-debian12",
+              "repository": "distroless/cc-debian13",
               "identifier": "latest",
               "platforms": {
-                "@@platforms//cpu:x86_64": "@distroless_cc_debian12_linux_amd64",
-                "@@platforms//cpu:arm64": "@distroless_cc_debian12_linux_arm64"
+                "@@platforms//cpu:x86_64": "@distroless_cc_debian13_linux_amd64",
+                "@@platforms//cpu:arm64": "@distroless_cc_debian13_linux_arm64"
               },
-              "bzlmod_repository": "distroless_cc_debian12",
+              "bzlmod_repository": "distroless_cc_debian13",
               "reproducible": true
             }
           },
@@ -889,9 +889,9 @@
         },
         "moduleExtensionMetadata": {
           "explicitRootModuleDirectDeps": [
-            "distroless_cc_debian12",
-            "distroless_cc_debian12_linux_amd64",
-            "distroless_cc_debian12_linux_arm64"
+            "distroless_cc_debian13",
+            "distroless_cc_debian13_linux_amd64",
+            "distroless_cc_debian13_linux_arm64"
           ],
           "explicitRootModuleDirectDevDeps": [],
           "useAllRepos": "NO",

@@ -12,5 +12,19 @@ services:
       - "5432:5432"
     volumes:
       - causes-dev-pg:/var/lib/postgresql/data
+  # Build and load the image first:
+  #   bazel run //services/causes_api:image_load
+  causes-api:
+    image: causes-api:latest
+    ports:
+      - "50051:50051"
+    environment:
+      DATABASE_URL: postgresql://causes:causes@postgres:5432/causes
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      HONEYCOMB_API_KEY: ${HONEYCOMB_API_KEY:-}
+    depends_on:
+      - postgres
+    restart: unless-stopped
 volumes:
   causes-dev-pg:

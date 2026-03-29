@@ -3,7 +3,10 @@ load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
-exports_files(["sqlx_prepare_impl.sh"])
+exports_files([
+    "proto_gen_impl.sh",
+    "sqlx_prepare_impl.sh",
+])
 
 # Render the most recent bazel coverage report as HTML and serve it.
 # Usage: bazel coverage //... && bazel run //tools:show_coverage
@@ -79,6 +82,39 @@ sh_binary(
     srcs = ["rustfmt.sh"],
     data = [
         "@bazel_tools//tools/bash/runfiles",
+        "@rust_host_tools//:rustfmt",
+    ],
+)
+
+# Generate Rust code from proto definitions using hermetic protoc + tonic-build.
+# Usage: bazel run //tools:proto_gen
+sh_binary(
+    name = "proto_gen",
+    srcs = ["proto_gen_impl.sh"],
+    data = [
+        "//proto:proto_srcs",
+        "//tools/proto-gen:proto_gen",
+        "@bazel_tools//tools/bash/runfiles",
+        "@protobuf//:protoc",
+        "@rust_host_tools//:rustfmt",
+    ],
+)
+
+# Golden-file staleness check.  The proto_gen binary in data is instrumented
+# under `bazel coverage`, which makes collect_cc_coverage.sh try the LLVM
+# profdata path.  Override GENERATE_LLVM_LCOV so it falls through to the
+# gcov no-op path — there is no Rust coverage to collect from a shell test.
+sh_test(
+    name = "proto_gen_test",
+    srcs = ["proto_gen_impl.sh"],
+    args = ["--check"],
+    data = [
+        "//:Cargo.toml",
+        "//lib/rust/causes_proto:gen_srcs",
+        "//proto:proto_srcs",
+        "//tools/proto-gen:proto_gen",
+        "@bazel_tools//tools/bash/runfiles",
+        "@protobuf//:protoc",
         "@rust_host_tools//:rustfmt",
     ],
 )

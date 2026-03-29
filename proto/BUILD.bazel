@@ -35,7 +35,10 @@ buf_lint_test(
 filegroup(
     name = "proto_srcs",
     srcs = glob(["causes/v1/*.proto"]),
-    visibility = ["//docs:__pkg__"],
+    visibility = [
+        "//docs:__pkg__",
+        "//tools:__pkg__",
+    ],
 )
 
 # Generate Markdown reference documentation from the proto definitions.

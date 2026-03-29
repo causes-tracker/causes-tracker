@@ -9,6 +9,7 @@ mod bootstrap;
 mod config;
 mod google;
 mod grpc;
+mod interceptor;
 mod store;
 mod telemetry;
 

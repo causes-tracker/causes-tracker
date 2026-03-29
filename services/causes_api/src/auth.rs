@@ -156,9 +156,22 @@ impl<S: crate::store::Store> AuthService for AuthHandler<S> {
 
     async fn who_am_i(
         &self,
-        _request: Request<WhoAmIRequest>,
+        request: Request<WhoAmIRequest>,
     ) -> Result<Response<WhoAmIResponse>, Status> {
-        Err(Status::unimplemented("WhoAmI not yet implemented"))
+        let user_id = crate::interceptor::authenticate(&self.store, request.metadata()).await?;
+
+        let user = self
+            .store
+            .find_user_by_id(&user_id)
+            .await
+            .map_err(|e| Status::internal(format!("finding user: {e}")))?
+            .ok_or_else(|| Status::internal("authenticated user not found in database"))?;
+
+        Ok(Response::new(WhoAmIResponse {
+            user_id: user_id.as_str().to_owned(),
+            display_name: user.display_name.as_str().to_owned(),
+            email: user.email.as_str().to_owned(),
+        }))
     }
 }
 
@@ -393,5 +406,57 @@ mod tests {
             .unwrap_err();
 
         assert_eq!(err.code(), tonic::Code::PermissionDenied);
+    }
+
+    // ── WhoAmI tests ──────────────────────────────────────────────────────
+
+    fn who_am_i_request(token: &str) -> Request<WhoAmIRequest> {
+        let mut req = Request::new(WhoAmIRequest {});
+        req.metadata_mut().insert(
+            "authorization",
+            tonic::metadata::MetadataValue::try_from(format!("Bearer {token}")).unwrap(),
+        );
+        req
+    }
+
+    #[tokio::test]
+    async fn who_am_i_returns_user_info() {
+        let user_id = api_db::UserId::new();
+        let uid = user_id.clone();
+        let uid2 = user_id.clone();
+
+        let mut store = MockStore::new();
+        store
+            .expect_lookup_session()
+            .returning(move |_| Ok(Some(api_db::SessionRow::new_for_test(uid.clone(), false))));
+        store.expect_find_user_by_id().returning(move |_| {
+            Ok(Some(api_db::UserRow {
+                display_name: api_db::DisplayName::new("Alice").unwrap(),
+                email: api_db::Email::new("alice@example.com").unwrap(),
+            }))
+        });
+
+        let handler = handler_with_urls(store, "http://unused");
+        let token = "d".repeat(64);
+        let resp = handler
+            .who_am_i(who_am_i_request(&token))
+            .await
+            .expect("who_am_i failed")
+            .into_inner();
+
+        assert_eq!(resp.user_id, uid2.as_str());
+        assert_eq!(resp.display_name, "Alice");
+        assert_eq!(resp.email, "alice@example.com");
+    }
+
+    #[tokio::test]
+    async fn who_am_i_rejects_missing_token() {
+        let store = MockStore::new();
+        let handler = handler_with_urls(store, "http://unused");
+        let err = handler
+            .who_am_i(Request::new(WhoAmIRequest {}))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::Unauthenticated);
     }
 }

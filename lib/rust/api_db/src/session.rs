@@ -154,6 +154,13 @@ pub struct SessionRow {
     pub expires_at: chrono::DateTime<chrono::Utc>,
 }
 
+impl SessionRow {
+    /// Returns `true` if this session has expired.
+    pub fn is_expired(&self) -> bool {
+        self.expires_at < chrono::Utc::now()
+    }
+}
+
 struct RawUserRow {
     display_name: String,
     email: String,

@@ -302,6 +302,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "api_db",
+ "causes_proto",
  "clap",
  "dotenvy",
  "mockall",
@@ -318,6 +319,14 @@ dependencies = [
  "tracing-opentelemetry",
  "tracing-subscriber",
  "wiremock",
+]
+
+[[package]]
+name = "causes_cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
 ]
 
 [[package]]

@@ -1,0 +1,1213 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A bug tracker built to free developers from the tedium of manual bug gardening.">
+      
+      
+      
+      
+        <link rel="prev" href="../Design-Choices/">
+      
+      
+        <link rel="next" href="../Proto-Reference/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.28">
+    
+    
+      
+        <title>Architecture Decision Records - Causes</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../assets/stylesheets/modern/main.6f2fbb28.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,a=__md_scope)=>JSON.parse(t.getItem(a.pathname+"."+e)),__md_set=(e,t,a=localStorage,_=__md_scope)=>{try{a.setItem(_.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-label="Navigation"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#architecture-decision-records" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="./.." title="Causes" class="md-header__button md-logo" aria-label="Causes" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Causes
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Architecture Decision Records
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+    </div>
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="./.." title="Causes" class="md-nav__button md-logo" aria-label="Causes" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    Causes
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="./.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Manifesto/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manifesto
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Design-Choices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design Choices
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Decisions
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="././" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Decisions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#adr-001-distributed-and-replicated-data-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ADR-001: Distributed and replicated data model
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adr-002-signs-symptoms-plans-separation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ADR-002: Signs / Symptoms / Plans separation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adr-003-no-hard-dependencies-on-proprietary-or-hosted-only-web-services" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ADR-003: No hard dependencies on proprietary or hosted-only web services
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adr-004-api-first-cli-builds-on-the-same-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ADR-004: API-first; CLI builds on the same API
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adr-005-open-source-licence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ADR-005: Open source licence
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adr-006-federation-strategy-distribute-dont-federate-by-default" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ADR-006: Federation strategy — distribute, don't federate by default
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adr-007-push-notifications-grpc-streaming" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ADR-007: Push notifications — gRPC streaming
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adr-008-language-stack-open" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ADR-008: Language / stack — OPEN
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adr-009-api-specification-format-protobuf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ADR-009: API specification format — Protobuf
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adr-010-security-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ADR-010: Security model
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adr-011-build-system-bazel-buildbuddy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ADR-011: Build system — Bazel + BuildBuddy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adr-012-proto-api-conventions-typed-ids-resourcemeta-and-federation-provenance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ADR-012: Proto API conventions — typed IDs, ResourceMeta, and federation provenance
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Proto-Reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Proto Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Raw-Discussion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Raw Discussion
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#adr-001-distributed-and-replicated-data-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ADR-001: Distributed and replicated data model
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adr-002-signs-symptoms-plans-separation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ADR-002: Signs / Symptoms / Plans separation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adr-003-no-hard-dependencies-on-proprietary-or-hosted-only-web-services" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ADR-003: No hard dependencies on proprietary or hosted-only web services
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adr-004-api-first-cli-builds-on-the-same-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ADR-004: API-first; CLI builds on the same API
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adr-005-open-source-licence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ADR-005: Open source licence
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adr-006-federation-strategy-distribute-dont-federate-by-default" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ADR-006: Federation strategy — distribute, don't federate by default
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adr-007-push-notifications-grpc-streaming" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ADR-007: Push notifications — gRPC streaming
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adr-008-language-stack-open" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ADR-008: Language / stack — OPEN
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adr-009-api-specification-format-protobuf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ADR-009: API specification format — Protobuf
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adr-010-security-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ADR-010: Security model
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adr-011-build-system-bazel-buildbuddy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ADR-011: Build system — Bazel + BuildBuddy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adr-012-proto-api-conventions-typed-ids-resourcemeta-and-federation-provenance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ADR-012: Proto API conventions — typed IDs, ResourceMeta, and federation provenance
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+<h1 id="architecture-decision-records">Architecture Decision Records<a class="headerlink" href="#architecture-decision-records" title="Permanent link">&para;</a></h1>
+<p>Decisions extracted from <a href="../Raw-Discussion/">Raw-Discussion.md</a>, <a href="../Manifesto/">Manifesto.md</a>, and <a href="../Design-Choices/">Design-Choices.md</a>.
+Each record follows the format: <strong>context → decision → status → consequences</strong>.</p>
+<hr />
+<h2 id="adr-001-distributed-and-replicated-data-model">ADR-001: Distributed and replicated data model<a class="headerlink" href="#adr-001-distributed-and-replicated-data-model" title="Permanent link">&para;</a></h2>
+<p><strong>Status:</strong> Accepted</p>
+<p><strong>Context:</strong> A centralised model is simpler to build but prevents offline use, private/behind-firewall deployments, and integration with external data sources (crash databases, downstream trackers).
+The team had extensive experience with Launchpad's centralised model and its limitations.</p>
+<p><strong>Decision:</strong> Support both distributed and replicated operation.
+Not all data sets need to be replicated everywhere (e.g. crash reports may be too voluminous), but the architecture must accommodate local repositories that sync with a remote.
+Replication is pull-based: instances initiate outbound connections to fetch from upstreams.
+This means instances do not need to be publicly reachable; any instance behind NAT can replicate from a public upstream.</p>
+<p><strong>Consequences:</strong> Increased implementation complexity.
+Conflict resolution and eventual consistency must be designed in from the start.
+Enables offline-first operation and private deployments without a separate codebase.
+Pull-based replication also enables GitHub integration: a Causes instance can pull issue and PR data from GitHub's API and represent it in the Signs/Symptoms/Plans model.</p>
+<hr />
+<h2 id="adr-002-signs-symptoms-plans-separation">ADR-002: Signs / Symptoms / Plans separation<a class="headerlink" href="#adr-002-signs-symptoms-plans-separation" title="Permanent link">&para;</a></h2>
+<p><strong>Status:</strong> Accepted</p>
+<p><strong>Context:</strong> Traditional bug trackers conflate machine-gathered crash data (signs), human-reported issues (symptoms), and proposed fixes (plans) into a single "bug" entity.
+This causes friction: duplicating two symptoms because they share a fix loses the ability to triangulate the problem if the fix turns out to be wrong.</p>
+<p><strong>Decision:</strong> Model these as three distinct entity types.
+Signs are machine-oriented and typically processed in aggregate.
+Symptoms are human-authored and discussion-heavy.
+Plans are developer-authored proposals for change, linked to one or more signs or symptoms.</p>
+<p><strong>Consequences:</strong> Richer data model but more cognitive overhead for users new to the system.
+The UI must guide users to the right entity type.
+See Manifesto.md for the full rationale.</p>
+<hr />
+<h2 id="adr-003-no-hard-dependencies-on-proprietary-or-hosted-only-web-services">ADR-003: No hard dependencies on proprietary or hosted-only web services<a class="headerlink" href="#adr-003-no-hard-dependencies-on-proprietary-or-hosted-only-web-services" title="Permanent link">&para;</a></h2>
+<p><strong>Status:</strong> Accepted</p>
+<p><strong>Context:</strong> The project must support private/air-gapped deployments.
+Any dependency on an external hosted service (e.g. a specific SMTP relay, a cloud push service) would prevent this.</p>
+<p><strong>Decision:</strong> Only use components for which a fully offline or self-hosted implementation exists.
+The reference implementation must be deployable with no external service dependencies beyond standard protocols (HTTP, SMTP).</p>
+<p><strong>Consequences:</strong> Excludes some convenient hosted services.
+Pushes toward standard protocols (Atom, SMTP, webhooks) over proprietary APIs.</p>
+<hr />
+<h2 id="adr-004-api-first-cli-builds-on-the-same-api">ADR-004: API-first; CLI builds on the same API<a class="headerlink" href="#adr-004-api-first-cli-builds-on-the-same-api" title="Permanent link">&para;</a></h2>
+<p><strong>Status:</strong> Accepted</p>
+<p><strong>Context:</strong> Keeping the CLI and HTTP API as separate code paths leads to divergence and duplication.</p>
+<p><strong>Decision:</strong> The CLI is a client of the same local HTTP API that remote clients use.
+The HTTP daemon provides API services; the CLI calls it.
+This keeps layers clean and makes the API a first-class deliverable.</p>
+<p><strong>Consequences:</strong> The HTTP daemon must be running for CLI operations, or the CLI must embed the same logic.
+Local-only mode needs consideration.</p>
+<hr />
+<h2 id="adr-005-open-source-licence">ADR-005: Open source licence<a class="headerlink" href="#adr-005-open-source-licence" title="Permanent link">&para;</a></h2>
+<p><strong>Status:</strong> Accepted</p>
+<p><strong>Context:</strong> The team has day jobs and no interest in competing commercially with Atlassian, GitHub, Linear, etc.</p>
+<p><strong>Decision:</strong> Apache 2.0.
+Apache 2.0 is preferred over MIT because it includes an explicit patent grant, which protects contributors and users from patent claims on the covered code.</p>
+<p><strong>Consequences:</strong> No commercial restrictions.
+Anyone can fork and self-host.
+The patent grant is a meaningful protection as the project grows.</p>
+<hr />
+<h2 id="adr-006-federation-strategy-distribute-dont-federate-by-default">ADR-006: Federation strategy — distribute, don't federate by default<a class="headerlink" href="#adr-006-federation-strategy-distribute-dont-federate-by-default" title="Permanent link">&para;</a></h2>
+<p><strong>Status:</strong> Accepted (with caveats)</p>
+<p><strong>Context:</strong> Full peer-to-peer federation (as in ActivityPub) is complex and hard to get right.
+The team discussed whether upstream/downstream relationships (e.g. a distro tracking upstream bugs) require true federation or can be handled by asymmetric replication.</p>
+<p><strong>Decision:</strong> Default to distribution (pull everything from a remote into a local repository).
+True federation (pushing selected data upstream) is supported but not the primary model.
+Downstream chooses what to push upstream; upstream can pull everything if desired.</p>
+<p><strong>GitHub integration is required for incremental adoption.</strong>
+Projects will not migrate from GitHub unless Causes can pull from GitHub's issue and PR data and represent it in the Signs/Symptoms/Plans model.
+The pull-based replication model (ADR-001) applies here too: a Causes instance pulls from the GitHub API rather than requiring GitHub to push to it.</p>
+<p><strong>Consequences:</strong> Simpler than full federation.
+Downstream operators have control.
+Does not preclude ActivityPub-style federation in the future.
+GitHub is the de-facto centre of gravity for open source; treating it as a first-class upstream source is necessary for adoption.</p>
+<hr />
+<h2 id="adr-007-push-notifications-grpc-streaming">ADR-007: Push notifications — gRPC streaming<a class="headerlink" href="#adr-007-push-notifications-grpc-streaming" title="Permanent link">&para;</a></h2>
+<p><strong>Status:</strong> Supersedes the original WebSub decision</p>
+<p><strong>Context:</strong> The original design used PubSubHubbub (PSHB, later WebSub) for server-to-server push, motivated by sublinear fan-out at large subscriber counts.
+Realistic instance counts make sublinear scaling unnecessary.
+A subsequent revision replaced WebSub with webhooks and SSE, but webhooks require the receiver to have a public URL — incompatible with the all-behind-NAT deployment goal (ADR-010).
+Since all connections in the system are client-initiated outbound, gRPC streaming is the natural fit: the client opens a stream to the server and receives a push of events over it.</p>
+<p><strong>Decision:</strong> Use gRPC streaming for all server-push between non-browser parties.</p>
+<ul>
+<li><strong>CLI → instance:</strong> gRPC server streaming for real-time event delivery; unary gRPC for commands.</li>
+<li><strong>BFF → instance:</strong> gRPC server streaming for events the BFF fans out to browser clients; unary gRPC for API calls.</li>
+<li><strong>Federated instances:</strong> gRPC bidi streaming; the downstream instance opens the connection to upstream and both parties can push changes.
+  This is the natural expression of the pull-based replication model (ADR-001).</li>
+<li><strong>Microservices → instance:</strong> gRPC unary or server streaming depending on the operation.</li>
+<li><strong>Browser → BFF → instance:</strong> The BFF converts the gRPC event stream from the instance into SSE for the browser.
+  SSE is the only non-gRPC protocol in the system, confined to the BFF↔browser edge.</li>
+</ul>
+<p>Webhooks are removed from the core model.
+They may be offered as an optional outbound integration mechanism for external tools that cannot speak gRPC, but are not load-bearing.</p>
+<p><strong>Consequences:</strong> One protocol (gRPC) for all non-browser communication; all types defined in proto.
+No webhook delivery infrastructure (retry queues, signature verification, endpoint management).
+All connections are client-initiated outbound.
+Components that are intentionally public-facing still need a reachable endpoint: an upstream instance accepting federation connections, and a BFF serving internet users.
+Private downstream-only instances (company mirrors, local dev) need no public endpoint at all.
+The BFF is the single SSE conversion point; all other streaming is typed gRPC.</p>
+<hr />
+<h2 id="adr-008-language-stack-open">ADR-008: Language / stack — OPEN<a class="headerlink" href="#adr-008-language-stack-open" title="Permanent link">&para;</a></h2>
+<p><strong>Status:</strong> Open — decision required before implementation</p>
+<p><strong>Context:</strong> Discussions in 2012–2013 mentioned Haskell, Clojure, Python, and PyPy as possibilities.
+No decision was recorded.
+The <code>.gitignore</code> in this repo suggests Haskell/Cabal was considered at some point.</p>
+<p><strong>Decision:</strong> <em>Not yet made.</em></p>
+<p><strong>Options to consider:</strong></p>
+<ul>
+<li><strong>Python</strong> (broad contributor base, good web frameworks, fast prototyping)</li>
+<li><strong>Go</strong> (easy deployment as a single binary, strong concurrency story, good for API servers)</li>
+<li><strong>Rust</strong> (performance, safety, single binary — but steeper learning curve)</li>
+<li><strong>Haskell</strong> (original preference of some contributors — strong type safety, but small contributor pool)</li>
+<li><strong>TypeScript/Node</strong> (large ecosystem, full-stack possibility)</li>
+</ul>
+<p><strong>Criteria:</strong> Easy for contributors to onboard, produces easily-deployed binaries or containers, has mature web framework and test ecosystem.
+The architecture must support components in different languages communicating over the shared proto API (ADR-009); the initial language choice must not prevent per-component rewrites in faster languages later.</p>
+<hr />
+<h2 id="adr-009-api-specification-format-protobuf">ADR-009: API specification format — Protobuf<a class="headerlink" href="#adr-009-api-specification-format-protobuf" title="Permanent link">&para;</a></h2>
+<p><strong>Status:</strong> Accepted — reversible (2-way door)</p>
+<p><strong>Context:</strong> The design specifies a RESTful JSON API.
+Protobuf provides a language-agnostic schema with strong typing and multi-language code generation, which fits the distributed, multi-implementation nature of the project.
+Because components may be implemented in different languages (see ADR-008), the proto definition is the contract at component boundaries — language is an implementation detail per component.</p>
+<p><strong>Decision:</strong> Define the API in <code>.proto</code> files.
+Generate an OpenAPI spec as a published artifact via <code>protoc-gen-openapi</code> for third-party integrations and documentation.
+The choice of server-side RPC framework (Connect, grpc-gateway, tonic, etc.) is left to ADR-008 once the backend language is known.</p>
+<p><strong>Client types and their protocols (see also ADR-007):</strong></p>
+<ul>
+<li><strong>BFF → instance:</strong> The only path for human browser sessions (see ADR-010).
+  gRPC for API calls and server streaming for events; the BFF converts the event stream to SSE for browsers.
+  The BFF and instance may be bundled in one binary but are structurally distinct layers.</li>
+<li><strong>CLI → instance:</strong> gRPC with API tokens obtained via OIDC Device Flow (see ADR-010).
+  gRPC server streaming for real-time event delivery (e.g. watching a live analysis job).</li>
+<li><strong>Microservice → instance</strong> (GitHub connector, analysis tasks, etc.): gRPC with API tokens.
+  These services initiate outbound connections; neither party needs to be publicly reachable.</li>
+<li><strong>MCP server → instance:</strong> gRPC with pre-configured API tokens.
+  A local MCP server adapts the instance's API for LLM tool use; gRPC streaming delivers live change events.</li>
+<li><strong>Federated instance ↔ instance:</strong> gRPC bidi streaming; downstream initiates, both sides push.</li>
+</ul>
+<p><strong>Consequences:</strong> Component boundaries defined by proto services make per-component language rewrites possible without changing callers.
+gRPC streaming handles all real-time push to non-browser clients; SSE is confined to the BFF→browser edge only (see ADR-007).
+OpenAPI is a generated artifact, not the source of truth.
+If a specific RPC framework proves problematic, proto definitions remain valid and the framework can be swapped.</p>
+<hr />
+<h2 id="adr-010-security-model">ADR-010: Security model<a class="headerlink" href="#adr-010-security-model" title="Permanent link">&para;</a></h2>
+<p><strong>Status:</strong> Partially decided — transport, authentication, and several sub-areas sketched; authorisation model and several implementation details open</p>
+<p><strong>Context:</strong> The original docs have no mention of authentication, authorisation, or security hardening.
+Causes handles sensitive data (security vulnerability disclosures, private plans) so the security model is load-bearing, not an afterthought.
+Instances may be behind NAT; different instances will not share a private CA, ruling out SPIFFE/SPIRE-style workload identity for cross-instance machine authentication.
+The federated, distributed nature of the system creates unusual requirements around identity, trust, and data sovereignty.</p>
+<hr />
+<p><strong>Decided:</strong></p>
+<p><strong>Transport:</strong> HTTPS mandatory for any networked deployment.
+When the BFF and instance run in the same binary, the gRPC between them is in-process (no TLS needed).
+When they are separate processes on the same host, loopback is acceptable without TLS.
+When they are on separate hosts, TLS is required.</p>
+<p><strong>Human authentication — OIDC Device Flow by default:</strong> The user is directed to a public IdP URL (e.g. <code>github.com/login/device</code>); the BFF or instance polls for the token.
+No redirect to the BFF or instance is needed, so this works whether or not either is publicly reachable.
+Device flow is the default for both browser sessions (via BFF) and CLI.
+Redirect-based OIDC social login is an optional enhancement for deployments with a public URL, not a baseline requirement.</p>
+<p>When device flow completes the IdP returns an ID token to the <em>instance</em> (not to the user's client).
+The instance extracts the stable <code>(iss, sub)</code> pair from the ID token — not the email address, which can change and must not be used as a primary identifier.
+The instance maps <code>(iss, sub)</code> to a local user record, creating one on first login for open instances (admin-approval mode is available for closed instances).
+The instance then issues its own opaque session token to the client; the IdP token is held internally and never transmitted to the client.
+The instance's token is subject to the HMAC replay protection described below and to its own revocation list.
+Revocation at the IdP (e.g. a user revoking a GitHub OAuth grant) does not automatically cascade to the instance session; the instance's own revocation is the control plane.
+A user may link multiple social identities (different IdPs) to a single local account via an explicit admin or user action; the <code>(iss, sub)</code> index supports this naturally.</p>
+<p><strong>Browser access — BFF only:</strong> Browsers do not connect directly to the instance.
+The BFF may be bundled in the same binary as the instance but is a structurally distinct layer.
+The BFF holds a service-account API token for the instance; the browser authenticates with the BFF via device flow.
+Neither the BFF nor the instance is assumed to have a public URL.</p>
+<p><strong>Service-to-service authentication — API tokens:</strong> Microservices, the MCP server, and the BFF authenticate to the instance with pre-issued API tokens.
+No SPIFFE/SPIRE: different Causes instances will not share a private CA, making shared PKI infrastructure impractical at the $10/month target.</p>
+<p>Token auth is hardened as follows:</p>
+<ul>
+<li><strong>Scoping:</strong> tokens are issued with explicit permission scopes (e.g. read-only, write, admin); the server rejects operations outside a token's scope.</li>
+<li><strong>Expiry:</strong> tokens have a configurable expiry; long-lived tokens require an explicit admin decision and are logged as such.</li>
+<li><strong>Opaque values:</strong> tokens are opaque random strings, not self-describing JWTs. Claims are resolved server-side on each request, so a revoked token cannot be verified offline.</li>
+<li><strong>Revocation:</strong> the server maintains a revocation list checked on every request. Revoked tokens are rejected immediately, not at expiry.</li>
+<li><strong>Rotation:</strong> a new token can be issued before the old one expires; a configurable overlap window allows zero-downtime rotation.</li>
+</ul>
+<p><strong>Replay protection at the gRPC layer:</strong>
+Bearer tokens alone are vulnerable to replay: a captured request can be retransmitted.
+Timestamp metadata alone is insufficient: an attacker who captures a request can replace the timestamp with a fresh one, since nothing binds the timestamp to the token.
+The solution is HMAC request signing so that the timestamp and request ID cannot be altered without invalidating the signature.</p>
+<p>Each API token has an associated signing secret (a symmetric key stored server-side alongside the token; never transmitted).</p>
+<p>For every authenticated gRPC call the client interceptor computes:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>HMAC-SHA256(signing_secret, request-id || timestamp)
+</span></code></pre></div>
+<p>and sends three metadata fields (RFC 6648 deprecated <code>x-</code> prefixes; these use an application namespace instead):</p>
+<ul>
+<li><code>causes-request-id</code> — a UUID generated per call.</li>
+<li><code>causes-timestamp</code> — current Unix time in seconds.</li>
+<li><code>causes-signature</code> — the hex-encoded HMAC.</li>
+</ul>
+<p>The server interceptor, applied to all authenticated endpoints:</p>
+<ol>
+<li>Looks up the token, retrieves its signing secret.</li>
+<li>Recomputes the HMAC over the received request-id and timestamp; rejects if the signature does not match.</li>
+<li>Rejects if the timestamp is outside a configurable window of the server's clock (default ±30 seconds).</li>
+<li>Rejects if the request-id has been seen within the same window (short-lived ring buffer of recent IDs).</li>
+</ol>
+<p>Because both fields are covered by the HMAC, an attacker cannot modify either without knowing the signing secret.
+The window limits the replay surface even for unmodified captures.</p>
+<p>For streaming RPCs the stream handshake is signed as above; individual messages within an established stream carry a per-stream sequence number.
+The server rejects duplicate or out-of-order sequence numbers within a stream.</p>
+<p><strong>The instance as a mini authorization server:</strong>
+The instance implements a subset of OAuth 2.0 (RFC 6749) including the device authorization grant (RFC 8628), token introspection (RFC 7662), and token revocation (RFC 7009).
+It acts as an authorization server for all clients — both human users (who authenticate against external IdPs and receive an instance-issued token) and services (which authenticate directly against the instance).
+This means every token in the system — human or service — is issued and managed by the instance using the same mechanisms.</p>
+<p><strong>Service account sessions:</strong> Services (connectors, the BFF, background tasks) authenticate to the instance with service session tokens issued via the instance's own device authorization endpoint.
+No token copying is required; services self-register by initiating a device flow and an admin approves via CLI or web UI.</p>
+<p>Provisioning flow:
+1. The service starts and calls the instance's device authorization endpoint, presenting a service name and description.
+2. The instance returns a <code>user_code</code> and <code>verification_uri</code> pointing to the instance's own approval interface.
+3. The service logs these to stdout (e.g. <code>Visit http://instance/device and enter code XXXX-YYYY to authorise this service</code>).
+4. An admin with CLI or web frontend access approves the pending request (<code>causes auth approve XXXX-YYYY</code> or equivalent web UI action).
+5. The service polls the instance token endpoint until approval; the instance issues a service session token.
+6. The service stores the token; subsequent restarts reuse it without human intervention.</p>
+<p>Service sessions are distinguished from user sessions by a <code>session_type</code> field set at creation and immutable thereafter.
+Different policies apply: service sessions have longer or no expiry by default, carry no browser-cookie attributes, and are not subject to user-facing re-authentication prompts.
+Service sessions carry: service name, description, and the identity of the admin who approved them.
+The audit log records the session type alongside the identity for every action.
+Service sessions can be revoked by any instance admin; the service re-provisions automatically on its next startup by repeating the device flow.</p>
+<hr />
+<p><strong>Sketched — detail required before implementation:</strong></p>
+<p><strong>Authorisation model:</strong> Role-based with per-project ACLs.
+Proposed default roles: anonymous (read public data only), authenticated user, developer (can create plans), project maintainer, security-team member (sees embargoed content), instance admin.
+Instance admins can define custom roles with specific permission sets.
+Role assignment: instance admin for global roles; project maintainer for project-scoped roles.
+No privilege escalation: a maintainer can grant up to but not exceeding their own permission level.
+<em>Open: exact permission matrix, API-level enforcement, and the role definition API.</em></p>
+<p><strong>Federation trust and remote identity:</strong>
+Trust between instances is established explicitly by an administrator; there is no automatic trust.</p>
+<p><em>Instance identity:</em>
+Each instance has a stable <code>instance_id</code> (UUID v4) generated at first bootstrap and written to its configuration.
+The <code>instance_id</code> is independent of the contact URL — if an instance moves domains its identity is unchanged.
+Each instance's local trust registry maps <code>instance_id → contact_url</code> for each trusted peer.</p>
+<p><em>Trust establishment:</em>
+The admin adds the upstream's contact URL.
+The downstream connects over TLS; PKI establishes the upstream's server identity — no out-of-band fingerprint step is required.
+The downstream then initiates the device authorization flow against the upstream to register as a federated service account (see "The instance as a mini authorization server").
+An admin on the upstream approves via CLI or web UI; the upstream issues a service session token and returns its <code>instance_id</code>.
+Subsequent federation API calls are authenticated by this service account; the authenticated channel is the trust anchor for all content received from that upstream.</p>
+<p><em>Federation authorisation:</em>
+All connections are initiated outbound by the connecting instance, but the receiving instance maintains a service account record for each remote instance even though it never connects back.
+This record is the hook for authorisation: roles on the service account control what the remote instance may do.
+Proposed permission axes: subscription scope (which projects may be replicated), publication permission (may the remote instance push resources here), and publication scope (which projects may receive pushed resources).
+Roles are assigned by an admin when approving the device flow registration, and can be updated at any time without re-establishing the connection.
+A downstream with publication permission pushes resources over the same outbound connection it uses for subscription; the upstream does not need to initiate any connection to receive pushed content.</p>
+<p><em>Worked example — private company instance and public open-source instance:</em>
+The company operates a private instance; the open-source project operates a public instance.
+The company registers a service account on the public instance with subscription permission (to receive community signs and symptoms) and publication permission scoped to the project's plan namespace.
+The company creates plans internally, linking them to public symptoms; plans originate on the private instance and their journals are authoritative there.
+When ready to share, the company pushes selected plans to the public instance.
+Community members discuss the published plans on the public instance; those comments are new resources originating on the public instance.
+The company's instance polls the public instance for new journal entries on its published resources, receiving community discussion back without the public instance needing to initiate any connection.</p>
+<p><em>Remote identities:</em>
+Users from another instance are represented as <code>(instance_id, local_user_id)</code> pairs.
+Only a display name is stored locally; email addresses and other personal data are not replicated across instance boundaries.
+If the remote instance is unreachable, previously stored display names remain available; further resolution fails gracefully.</p>
+<p><em>Provenance:</em>
+Every federated resource carries a provenance record:
+- <code>origin_instance_id</code>: the <code>instance_id</code> of the instance where the resource was created.
+- <code>origin_id</code>: the resource's local identifier on the origin instance.
+- <code>received_from</code>: the <code>instance_id</code> of the direct upstream that delivered this copy.
+- <code>relay_hops</code>: ordered list of <code>instance_id</code>s between origin and <code>received_from</code> (empty when <code>received_from == origin_instance_id</code>).</p>
+<p><code>(origin_instance_id, origin_id)</code> is the globally stable identifier for a resource, independent of relay path.
+If the same resource arrives via multiple paths, it is stored once and deduplicated on this key; all observed <code>received_from</code> values are retained so revoking one relay does not discard the resource.
+Provenance fields are informational — trust flows from the authenticated service account of <code>received_from</code>, not from the provenance record itself.</p>
+<p><em>Resource journal:</em>
+Every resource (sign, symptom, plan, and related entities) has an append-only journal of versions.
+Each journal entry records:
+- <code>version</code>: monotone per-resource sequence number, set by the origin instance.
+- <code>at</code>: timestamp.
+- <code>by</code>: federated identity <code>(instance_id, local_user_id)</code> of the author.
+- <code>op</code>: one of <code>create | update | delete | undelete</code>.
+- <code>snapshot</code>: full resource state at this version.
+- <code>provenance</code>: as above.</p>
+<p>Deletes are logical — a <code>delete</code> entry is appended; content is not physically removed.
+Edits are only authored on the origin instance; downstream instances are read replicas.
+<em>Provisional: once a resource is published to an external instance, there may be value in allowing authorised contributors on that instance to propose journal entries (e.g. community members improving a published bug report).
+This would require a protocol for the external instance to submit proposed entries to the origin for acceptance or rejection.
+Deferred pending implementation experience.</em>
+The journal is the replication unit: a downstream requests entries with <code>version &gt; N</code>, enabling incremental catch-up without a full re-sync.
+The journal also supports abuse handling: previous versions of edited or deleted content remain recoverable by instance admins.
+The journal gives a precise meaning to "deletion across federation boundaries": a downstream that has replicated a resource retains its journal entries even after the origin issues a <code>delete</code> entry.</p>
+<p>In the UI, instances are displayed by hostname only (e.g. <code>causes.example.org</code>), with the scheme and path stripped.
+No additional slug or display name field is required; the hostname is sufficiently human-readable for admin views and attribution labels.</p>
+<p><em>Open: key rotation after upstream compromise, revocation of federation trust.</em></p>
+<p><strong>Private disclosure workflow:</strong>
+Signs, symptoms, and plans may be marked embargoed at creation time by any authenticated user, or promoted to embargoed by a security-team member after the fact.</p>
+<p>Embargoed content:
+- Is not federated to any downstream instance, regardless of federation configuration.
+- Is not visible to users without the security-team or project-maintainer role.
+- Does not appear in search results, feeds, notifications, or public API responses.</p>
+<p>Embargo lifecycle:
+1. Reporter marks content embargoed (or a security-team member does so after the fact).
+2. Security team triages and investigates; embargoed plans are created linked to the embargoed symptom.
+3. Fix is developed. The plan may reference a private branch or external patch tracker.
+4. A project maintainer or security-team lead lifts the embargo. All affected content becomes visible simultaneously.
+5. Federation of the previously embargoed content proceeds normally after disclosure.</p>
+<p>Default embargo period: 90 days, configurable per project.
+Extensions require an explicit action by a maintainer or security-team lead; silent expiry is not permitted.
+<em>Deferred: CVE assignment integration, coordinated multi-project disclosure.</em></p>
+<p><strong>Personal data handling:</strong>
+Causes stores display names, email addresses (from IdP tokens), user-generated content, and audit logs.
+The GitHub connector imports data from GitHub's API that may include email addresses and real names.</p>
+<p>The software must:
+- Not expose email addresses in general API responses; email addresses are stored for authentication and visible only in explicit admin views.
+- Support account deletion: personal data is removed and user-generated content is deleted or reassigned to an anonymous placeholder.
+  Content already federated to downstream instances cannot be guaranteed erased there; the software must surface this caveat to the user at deletion time.
+- Support user data export so a user can retrieve all content they have created.
+- Allow operators to configure a policy URL or policy text shown to users at account-creation time.
+  This is especially important for social-login flows, which have no device-flow interstitial where a consent step can naturally appear.</p>
+<p><strong>Operating an instance:</strong>
+GDPR compliance obligations — lawful basis, data processing agreements, and handling subject access requests — rest with the operator of each instance, not with the Causes project.
+Operators must provide a privacy policy and present it to users at sign-up; the software provides the mechanism (the configurable policy text/URL above) but does not supply the policy itself.
+Operators must inform users in their privacy policy that content federated to other instances cannot be guaranteed erased on deletion.
+Operators are responsible for configuring audit log retention appropriate to their jurisdiction and risk appetite.
+Operators are responsible for data residency; the software imposes no constraint on where it is deployed.</p>
+<p><strong>Resistance to information harvesting:</strong>
+Email addresses must not be visible to unauthenticated users.
+Authenticated users see email addresses only where explicitly required (e.g. admin user management), never in bug comments or general API responses.
+The API returns opaque user identifiers in all public-facing responses; email resolution occurs only server-side.
+In federated contexts, remote instances receive only the opaque federated identifier and display name of local users.
+Authentication endpoints must be rate-limited to resist enumeration.
+Failed authentication returns the same error regardless of whether the account exists.</p>
+<p><strong>New instance bootstrap:</strong>
+First startup generates a one-time setup token, prints it to stdout, and expires it after first use or after a configurable timeout.
+This token is used to create the initial instance admin account.
+Secure defaults: fresh instances start with anonymous access disabled, no open federation, and no connectors configured.
+The instance refuses to start with an invalid or incomplete security configuration.</p>
+<p><strong>Configuration recovery:</strong>
+If the admin loses access: an emergency recovery token is generated at install time, stored separately from the database (e.g. written to a file at first boot), and usable once to regain admin access.
+Its use always generates an audit log entry.
+Non-secret configuration must be exportable for documentation and DR planning.
+Secret files are excluded from configuration exports by path convention; operators back them up separately with appropriate access controls.</p>
+<p><strong>Disaster recovery:</strong>
+Periodic database backup and point-in-time restore must be supported out of the box.
+Default RPO: 24 hours for small deployments (daily backup).
+Default RTO: time to restore from backup on equivalent hardware — no HA requirement at the $10/month scale.
+Federated data may be partially recoverable from upstream instances after a restore; the system must document which data is local-only (higher DR risk) versus federated (potentially recoverable from upstream).
+Operators running larger deployments can implement HA at the database layer without application changes.</p>
+<p><strong>Connector credential management:</strong>
+Connectors hold external credentials (e.g. a GitHub App private key or personal access token) and a service session token for the instance.
+All secrets are stored as plaintext in documented file paths with restricted permissions (readable only by the process user).
+This is deliberate: Causes does not implement its own encryption at rest.
+Operators who require stronger secret management (k8s Secrets, Vault, encrypted filesystems) can provide secrets via files — the same interface works with all of them.
+Credential rotation: admins can update credential files and signal the connector to reload without service interruption.
+Connectors must request only the minimum permissions needed from the external service.
+GitHub connector specifically: GitHub App is preferred over personal access tokens (scoped permissions, no user-account dependency, rotation via private key rather than user secret).
+All connector API calls are logged with the connector's identity.</p>
+<p><strong>Consequences:</strong> The BFF requirement means there is no deployment mode that exposes the instance API directly to browsers.
+The BFF and instance can run in the same binary to keep deployment simple; the structural separation matters for security reasoning.
+Device flow as the universal default means social login is an enhancement, not a dependency.
+The embargo model requires the federation layer to inspect content sensitivity before replicating — federation cannot be a simple log replay.</p>
+<hr />
+<h2 id="adr-011-build-system-bazel-buildbuddy">ADR-011: Build system — Bazel + BuildBuddy<a class="headerlink" href="#adr-011-build-system-bazel-buildbuddy" title="Permanent link">&para;</a></h2>
+<p><strong>Status:</strong> Accepted</p>
+<p><strong>Context:</strong> The repository will contain at least three distinct build targets: a TypeScript web UI, a CLI (command-line API client), and a backend server in a memory-safe systems language (Go or Rust, per ADR-008).
+Builds must work efficiently on developer machines (Windows, macOS, Linux) and in CI (GitHub Actions).
+Remote caching is required to keep CI fast as the codebase grows.
+The system must remain usable by both human contributors and AI coding agents.</p>
+<p>Options evaluated: Bazel + BuildBuddy, Buck2, Nx, Moon, Earthly, Gradle.
+Earthly was abandoned by its maintainers in mid-2025.
+Gradle has no genuine build-graph support for Go or Rust.
+Buck2 has a small external community and no managed caching offering.
+Moon (v2.0, February 2026) has first-class polyglot support but only ~79 contributors versus Bazel's 1000+; too new for a project that values stability.
+Nx is well-suited to TypeScript-primary monorepos but has no Rust plugin as of early 2026.</p>
+<p><strong>Decision:</strong> Use <a href="https://bazel.build">Bazel</a> as the build system with <a href="https://www.buildbuddy.io">BuildBuddy</a> for remote caching and build observability.
+Use <a href="https://github.com/bazelbuild/bazelisk">Bazelisk</a> to pin and auto-install the correct Bazel version — contributors never install Bazel directly.
+Use <a href="https://github.com/bazel-contrib/bazel-gazelle">Gazelle</a> to auto-generate and maintain <code>BUILD</code> files for Go targets (eliminates the main maintenance burden for Go).
+Use <code>rules_ts</code> for TypeScript and <code>rules_rust</code> for Rust if Rust is chosen (ADR-008).</p>
+<p><strong>Windows strategy:</strong> <code>rules_rust</code> disables its own Windows CI tests due to lack of maintainer expertise.
+Windows developers building Rust targets must use a Dev Container (VSCode Remote Containers or GitHub Codespaces) which provides a Linux environment.
+Windows developers working only on TypeScript targets may build natively.
+If the backend language decision (ADR-008) lands on Go rather than Rust, the Windows constraint disappears — <code>rules_go</code> is CI-tested on Windows.</p>
+<p><strong>Remote caching:</strong> BuildBuddy free tier (10 users, 100 GB cache transfer/month, up to 80 remote execution cores) is sufficient for early development.
+Self-hosted <code>bazel-remote</code> is an alternative if the free tier is outgrown or data residency is a concern.</p>
+<p><strong>Consequences:</strong> Bazel's hermetic, reproducible builds make CI reliable and agent-friendly — any machine produces identical outputs.
+BUILD file authoring has a learning curve; Gazelle reduces this significantly for Go.
+<code>MODULE.bazel</code> (bzlmod) is the current dependency management approach; some rulesets still have rough edges with bzlmod.
+If scale demands it in future (remote execution, very large codebase), the same Bazel infrastructure scales without a migration.</p>
+<hr />
+<h2 id="adr-012-proto-api-conventions-typed-ids-resourcemeta-and-federation-provenance">ADR-012: Proto API conventions — typed IDs, ResourceMeta, and federation provenance<a class="headerlink" href="#adr-012-proto-api-conventions-typed-ids-resourcemeta-and-federation-provenance" title="Permanent link">&para;</a></h2>
+<p><strong>Status:</strong> Accepted</p>
+<p><strong>Context:</strong> The Causes API is defined in Protocol Buffers.
+The API must support federation: resources created on one instance can be replicated to others, and downstream instances must be able to create relationships between resources without write access to either resource's origin instance.
+Identifier fields must carry enough type information to prevent cross-domain mistakes and to appear safely in URL path segments.
+Common resource metadata (id, timestamps, embargo flag, origin) must be defined once and shared rather than duplicated across message types.
+Federation provenance has two distinct aspects — stable origin identity and per-entry transit path — that must not be conflated.</p>
+<p><strong>Decision — domain-narrowing wrappers:</strong>
+Where the domain of a field is narrower than its protobuf primitive type, use a named wrapper message rather than the primitive directly.
+Each wrapper contains a single field carrying the underlying value (e.g. <code>string value = 1;</code>).
+The wrapper type name documents the constraint and prevents cross-domain assignment at compile time.</p>
+<p>Examples:
+- <code>SignId</code>, <code>PlanId</code>, <code>UserId</code> and every other identifier field: a field typed <code>SignId</code> cannot accidentally receive a <code>PlanId</code>.
+  All identifier values must conform to the URL-safe alphabet: ASCII letters (A-Z, a-z), digits (0-9), hyphens (-), and underscores (_).
+  This ensures any ID can appear literally in a URL path segment without percent-encoding.
+- Markdown body fields: a <code>Markdown</code> wrapper distinguishes fields whose string content is interpreted as Markdown from plain-text strings, enabling renderers and validators to select the correct code path without inspecting field names.</p>
+<p>Language-specific generated code enforces value constraints at construction time.</p>
+<p>When a field must carry one of several typed values (e.g. a Comment's parent may be a Sign, Symptom, or Plan), use proto3 <code>oneof</code> with a distinct typed field per case.
+There is no exception to the wrapper rule: even when the underlying encoding is identical, the distinct type names preserve semantics and enable static checking.</p>
+<p><strong>Decision — ResourceMeta:</strong>
+All top-level resources (Sign, Symptom, Plan, Comment, Annotation, and link types) embed a single <code>ResourceMeta meta = 1;</code> field rather than repeating id, project_id, timestamps, embargo flag, and origin individually.
+This eliminates drift between resource types and gives readers a single place to look for common fields.</p>
+<p><strong>Decision — federation provenance split:</strong>
+Two concepts that were previously conflated in a single provenance field are now separated:</p>
+<ul>
+<li>
+<p><code>ResourceOrigin</code> (carried on <code>ResourceMeta.origin</code>): the stable, immutable identity of where a resource was created — instance ID and local resource ID on that instance.
+  Absent for resources created on this instance.
+  Never changes across journal entries.
+  Used for deduplication when the same resource arrives via multiple inbound paths.</p>
+</li>
+<li>
+<p><code>ReplicationPath</code> (carried on <code>JournalEntry.replication_path</code>): the transit path for a specific journal entry — which upstream delivered it and which relay hops it traversed.
+  Per-entry: can differ across entries for the same resource if entries arrive via different relay paths.
+  Absent for locally-authored entries.</p>
+</li>
+</ul>
+<p><strong>Decision — link objects for relationships:</strong>
+Many-to-many relationships between resources (Plan↔Sign, Plan↔Symptom) and ordering dependencies between Plans are stored as independent link objects (<code>PlanSignLink</code>, <code>PlanSymptomLink</code>, <code>PlanDependency</code>) in <code>link.proto</code>.
+This allows a downstream instance to record a local link without requiring write access to either linked resource.
+Link objects carry their own embargo flag; the server enforces the invariant that a link is embargoed whenever either linked resource is embargoed.</p>
+<p><strong>Decision — Annotation vs Comment:</strong>
+Machine-generated or connector-supplied structured data on a Sign is stored as an <code>Annotation</code> (in <code>annotation.proto</code>) rather than a <code>Comment</code>.
+Annotations carry a binary <code>content</code> field and an <code>annotation_type</code> string (convention: <code>"domain/version"</code>) that identifies the content schema.
+Human narrative discussion belongs in <code>Comment</code> messages.
+Comments may be attached to Signs as well as Symptoms and Plans.</p>
+<p><strong>Decision — project_id is local filing metadata:</strong>
+<code>ResourceMeta.project_id</code> is always a local identifier on the storing instance.
+It is not part of the stable resource identity — <code>ResourceOrigin</code> provides that.
+Project structure is never replicated; there is no globally stable project identity.</p>
+<p>Project mapping is the responsibility of the connection originator: the instance that establishes the federation connection.
+For a downstream pushing resources to an upstream, the downstream (connection originator) translates its local project_id to the upstream's project_id before serialising the snapshot.
+For a downstream pulling resources from an upstream, the downstream (connection originator) translates the upstream's project_id to its own local project_id as it stores the received snapshots.
+In both cases the snapshot arrives at the storing instance already containing the correct local project_id; no rewriting on ingest is required.</p>
+<p>This invariant holds transitively: in a chain of instances, each connection originator manages only the mapping between its own project IDs and its direct neighbour's.
+No instance learns about the project structure of non-adjacent instances.</p>
+<p><strong>Consequences:</strong> The typed-wrapper approach adds message nesting versus plain strings, but the type-safety and constraint-documentation benefits justify the cost.
+The <code>ResourceMeta</code> embedding pattern requires all resource messages to reserve field 1; this is a stable convention that Gazelle and code generators can enforce.
+The <code>ResourceOrigin</code>/<code>ReplicationPath</code> split makes the data model more explicit at the cost of two separate fields where one existed before; the clarity is worth it.
+Link objects add an extra round-trip to create a relationship but are the only approach that is consistent with the federation trust model.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate":null,"base":"..","features":[],"search":"../assets/javascripts/workers/search.e2d2d235.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.c2b142ea.min.js"></script>
+      
+    
+  </body>
+</html>

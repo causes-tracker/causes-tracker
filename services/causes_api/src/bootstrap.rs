@@ -106,55 +106,23 @@ mod tests {
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer, Request, ResponseTemplate};
 
-    // ── FakeStore ──────────────────────────────────────────────────────────
-
-    struct FakeStore {
-        count: i64,
-        created: Mutex<Vec<String>>,
-    }
-
-    impl FakeStore {
-        fn empty() -> Self {
-            Self {
-                count: 0,
-                created: Mutex::new(vec![]),
-            }
-        }
-
-        fn with_users(n: i64) -> Self {
-            Self {
-                count: n,
-                created: Mutex::new(vec![]),
-            }
-        }
-
-        fn admins_created(&self) -> Vec<String> {
-            self.created.lock().unwrap().clone()
-        }
-    }
-
-    impl Store for FakeStore {
-        async fn migrate(&self) -> anyhow::Result<()> {
-            Ok(())
-        }
-
-        async fn user_count(&self) -> anyhow::Result<i64> {
-            Ok(self.count)
-        }
-
-        async fn create_admin(
-            &self,
-            _display_name: &api_db::DisplayName,
-            email: &api_db::Email,
-            _auth_provider: &api_db::AuthProvider,
-            _subject: &api_db::Subject,
-        ) -> anyhow::Result<api_db::UserId> {
-            self.created.lock().unwrap().push(email.to_string());
-            Ok(api_db::UserId::new())
-        }
-    }
+    use crate::store::MockStore;
 
     // ── Helpers ────────────────────────────────────────────────────────────
+
+    /// A `MockStore` whose `user_count` returns 0 and `create_admin` records
+    /// the email in the shared vec.
+    fn empty_store(created: Arc<Mutex<Vec<String>>>) -> MockStore {
+        let mut store = MockStore::new();
+        store.expect_user_count().returning(|| Ok(0));
+        store
+            .expect_create_admin()
+            .returning(move |_, email: &api_db::Email, _, _| {
+                created.lock().unwrap().push(email.to_string());
+                Ok(api_db::UserId::new())
+            });
+        store
+    }
 
     fn test_cfg() -> Config {
         use clap::Parser;
@@ -175,7 +143,9 @@ mod tests {
 
     #[tokio::test]
     async fn returns_false_when_users_exist() {
-        let store = FakeStore::with_users(1);
+        let mut store = MockStore::new();
+        store.expect_user_count().returning(|| Ok(1));
+
         let cfg = test_cfg();
         let client = reqwest::Client::new();
 
@@ -192,12 +162,13 @@ mod tests {
         .expect("run_with_urls failed");
 
         assert_eq!(result, BootstrapResult::AlreadyBootstrapped);
-        assert!(store.admins_created().is_empty());
     }
 
     #[tokio::test]
     async fn errors_when_both_credentials_missing() {
-        let store = FakeStore::empty();
+        let mut store = MockStore::new();
+        store.expect_user_count().returning(|| Ok(0));
+
         let cfg = no_creds_cfg();
         let client = reqwest::Client::new();
 
@@ -218,7 +189,9 @@ mod tests {
     #[tokio::test]
     async fn errors_when_client_id_missing() {
         use clap::Parser;
-        let store = FakeStore::empty();
+        let mut store = MockStore::new();
+        store.expect_user_count().returning(|| Ok(0));
+
         let cfg = Config::parse_from([
             "causes_api",
             "--database-url=postgresql://unused",
@@ -243,7 +216,9 @@ mod tests {
     #[tokio::test]
     async fn errors_when_client_secret_missing() {
         use clap::Parser;
-        let store = FakeStore::empty();
+        let mut store = MockStore::new();
+        store.expect_user_count().returning(|| Ok(0));
+
         let cfg = Config::parse_from([
             "causes_api",
             "--database-url=postgresql://unused",
@@ -300,7 +275,8 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let store = FakeStore::empty();
+        let created = Arc::new(Mutex::new(vec![]));
+        let store = empty_store(created.clone());
         let cfg = test_cfg();
         let client = reqwest::Client::new();
         let base = mock_server.uri();
@@ -317,7 +293,10 @@ mod tests {
         .expect("run_with_urls failed");
 
         assert_eq!(result, BootstrapResult::AdminCreated);
-        assert_eq!(store.admins_created(), vec!["admin@example.com"]);
+        assert_eq!(
+            *created.lock().unwrap(),
+            vec!["admin@example.com".to_string()]
+        );
     }
 
     // ── poll_for_token tests ───────────────────────────────────────────────

@@ -80,34 +80,17 @@ async fn startup(
 
 #[cfg(test)]
 mod tests {
-    use super::{config, main_inner, store};
-
-    struct FakeDb;
-
-    impl store::Store for FakeDb {
-        async fn migrate(&self) -> anyhow::Result<()> {
-            Ok(())
-        }
-
-        async fn user_count(&self) -> anyhow::Result<i64> {
-            // Return > 0 so bootstrap short-circuits.
-            Ok(1)
-        }
-
-        async fn create_admin(
-            &self,
-            _display_name: &api_db::DisplayName,
-            _email: &api_db::Email,
-            _auth_provider: &api_db::AuthProvider,
-            _subject: &api_db::Subject,
-        ) -> anyhow::Result<api_db::UserId> {
-            unreachable!("bootstrap short-circuits when user_count > 0")
-        }
-    }
+    use super::{config, main_inner};
+    use crate::store::MockStore;
 
     /// Exercises main_inner through startup and then shuts down cleanly.
     #[tokio::test]
     async fn startup_migrates_and_binds() {
+        let mut db = MockStore::new();
+        db.expect_migrate().returning(|| Ok(()));
+        // Return > 0 so bootstrap short-circuits.
+        db.expect_user_count().returning(|| Ok(1));
+
         let cfg = config::Config {
             database_url: "unused".to_string(),
             google_client_id: String::new(),
@@ -117,9 +100,10 @@ mod tests {
             bind_addr: "127.0.0.1:0".to_string(),
         };
         let (tx, rx) = tokio::sync::oneshot::channel::<()>();
-        let handle = tokio::spawn(main_inner(cfg, FakeDb, async {
-            rx.await.ok();
-        }));
+        let handle: tokio::task::JoinHandle<anyhow::Result<()>> =
+            tokio::spawn(main_inner(cfg, db, async {
+                rx.await.ok();
+            }));
         // Give the server a moment to bind, then signal shutdown.
         tokio::task::yield_now().await;
         tx.send(()).expect("receiver dropped");

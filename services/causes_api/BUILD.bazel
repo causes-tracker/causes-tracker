@@ -53,3 +53,9 @@ oci_load(
     image = ":image",
     repo_tags = ["causes-api:latest"],
 )
+
+filegroup(
+    name = "image_tarball",
+    srcs = [":image_load"],
+    output_group = "tarball",
+)

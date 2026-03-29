@@ -1,5 +1,12 @@
 # Causes — Claude instructions
 
+## Security
+
+Always apply least privilege, even in MVPs and dev environments.
+Never suggest broad permissions (e.g. `AdministratorAccess`, `*` resource) as a shortcut.
+Scope IAM policies, security groups, and credentials to exactly what is needed.
+If a managed policy has gaps, add scoped inline statements — do not escalate to a wider policy.
+
 ## Markdown style
 
 All `.md` files use **sentence-per-line** formatting:
@@ -10,7 +17,7 @@ List item continuation sentences are indented to align with the list marker.
 ## Build system
 
 This project uses [Bazel](https://bazel.build) exclusively.
-**Never use native tooling (`cargo`, `rustc`, `psql`, `yamllint`, etc.) directly.**
+**Never use native tooling (`cargo`, `rustc`, `psql`, `tofu`, `terraform`, `yamllint`, etc.) directly.**
 Use the Bazel-wrapped equivalents:
 
 ```sh
@@ -19,6 +26,7 @@ bazel test //...                      # run all tests + lint
 bazel run //:format                   # format all source files in-place
 bazel run //:format.check             # check formatting without changes (what CI runs)
 bazel run //infra/postgres:psql -- …  # hermetic psql
+bazel run //infra:tofu -- …           # hermetic OpenTofu (auto-cds into infra/terraform)
 bazel run //tools:sqlx -- …           # hermetic sqlx-cli
 bazel run //tools:cargo -- …          # hermetic cargo (metadata only, not compilation)
 ```

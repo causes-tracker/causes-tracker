@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM pending_logins WHERE nonce = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "81acd694e9b6c8a0eb10d03e13f7e27e1d1fd813964139c5d0d71c70f53d1826"
+}

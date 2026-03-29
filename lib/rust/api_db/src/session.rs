@@ -121,6 +121,17 @@ pub async fn find_user_by_id(pool: &DbPool, user_id: &UserId) -> anyhow::Result<
     row.map(RawUserRow::try_into).transpose()
 }
 
+/// Delete expired sessions.
+/// Called periodically to garbage-collect sessions past their `expires_at`.
+pub async fn gc_expired_sessions(pool: &DbPool) -> anyhow::Result<u64> {
+    let result = sqlx::query!("DELETE FROM sessions WHERE expires_at < now()")
+        .execute(&pool.0)
+        .await
+        .context("garbage-collecting expired sessions")?;
+
+    Ok(result.rows_affected())
+}
+
 // ── Internal types ────────────────────────────────────────────────────────
 
 struct RawSessionRow {

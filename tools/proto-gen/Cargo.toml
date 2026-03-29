@@ -1,0 +1,9 @@
+[package]
+name = "proto-gen"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+tonic-prost-build.workspace = true

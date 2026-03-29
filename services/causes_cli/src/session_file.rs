@@ -3,20 +3,15 @@ use std::path::PathBuf;
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
 
-/// On-disk session state stored in `~/.config/causes/session.json`.
+/// On-disk session state stored in `<config_dir>/causes/session.json`.
 #[derive(Serialize, Deserialize)]
 pub struct SessionFile {
     pub session_token: String,
     pub server: String,
 }
 
-fn session_path() -> anyhow::Result<PathBuf> {
-    let config_dir = dirs();
-    std::fs::create_dir_all(&config_dir).context("creating config directory")?;
-    Ok(config_dir.join("session.json"))
-}
-
-fn dirs() -> PathBuf {
+/// Default config directory: `$XDG_CONFIG_HOME/causes` or `~/.config/causes`.
+pub fn default_config_dir() -> PathBuf {
     std::env::var("XDG_CONFIG_HOME")
         .map(PathBuf::from)
         .unwrap_or_else(|_| {
@@ -26,8 +21,12 @@ fn dirs() -> PathBuf {
         .join("causes")
 }
 
-pub fn load() -> anyhow::Result<Option<SessionFile>> {
-    let path = session_path()?;
+fn session_path(config_dir: &std::path::Path) -> PathBuf {
+    config_dir.join("session.json")
+}
+
+pub fn load(config_dir: &std::path::Path) -> anyhow::Result<Option<SessionFile>> {
+    let path = session_path(config_dir);
     if !path.exists() {
         return Ok(None);
     }
@@ -36,8 +35,9 @@ pub fn load() -> anyhow::Result<Option<SessionFile>> {
     Ok(Some(session))
 }
 
-pub fn save(session: &SessionFile) -> anyhow::Result<()> {
-    let path = session_path()?;
+pub fn save(config_dir: &std::path::Path, session: &SessionFile) -> anyhow::Result<()> {
+    std::fs::create_dir_all(config_dir).context("creating config directory")?;
+    let path = session_path(config_dir);
     let content = serde_json::to_string_pretty(session).context("serialising session")?;
     std::fs::write(&path, content).context("writing session file")?;
     Ok(())
@@ -47,18 +47,21 @@ pub fn save(session: &SessionFile) -> anyhow::Result<()> {
 mod tests {
     use super::*;
 
+    fn test_dir(name: &str) -> PathBuf {
+        std::env::temp_dir().join(format!("causes-{name}-{}", std::process::id()))
+    }
+
     #[test]
     fn round_trip_save_and_load() {
-        let dir = std::env::temp_dir().join(format!("causes-test-{}", std::process::id()));
-        std::env::set_var("XDG_CONFIG_HOME", &dir);
+        let dir = test_dir("roundtrip");
 
         let session = SessionFile {
             session_token: "abc123".to_string(),
             server: "http://localhost:50051".to_string(),
         };
 
-        save(&session).expect("save failed");
-        let loaded = load().expect("load failed").expect("no session file");
+        save(&dir, &session).expect("save failed");
+        let loaded = load(&dir).expect("load failed").expect("no session file");
 
         assert_eq!(loaded.session_token, "abc123");
         assert_eq!(loaded.server, "http://localhost:50051");
@@ -68,10 +71,9 @@ mod tests {
 
     #[test]
     fn load_returns_none_when_missing() {
-        let dir = std::env::temp_dir().join(format!("causes-test-missing-{}", std::process::id()));
-        std::env::set_var("XDG_CONFIG_HOME", &dir);
+        let dir = test_dir("missing");
 
-        let loaded = load().expect("load failed");
+        let loaded = load(&dir).expect("load failed");
         assert!(loaded.is_none());
 
         std::fs::remove_dir_all(&dir).ok();

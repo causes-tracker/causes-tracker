@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO pending_logins (nonce, device_code, interval_secs, created_at, expires_at) VALUES ($1, $2, $3, now(), $4)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Int4",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "3b299f36c53534ee8aee0593405dc220b068ff9c4a33f9dd9b0b4b7135dbb73b"
+}

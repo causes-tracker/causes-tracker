@@ -30,6 +30,17 @@ pub trait Store: Send + 'static {
         &self,
         user_id: &api_db::UserId,
     ) -> anyhow::Result<Option<api_db::UserRow>>;
+    async fn create_pending_login(
+        &self,
+        device_code: &str,
+        interval_secs: i32,
+        duration: std::time::Duration,
+    ) -> anyhow::Result<api_db::LoginNonce>;
+    async fn lookup_pending_login(
+        &self,
+        nonce: &api_db::LoginNonce,
+    ) -> anyhow::Result<Option<api_db::PendingLoginRow>>;
+    async fn delete_pending_login(&self, nonce: &api_db::LoginNonce) -> anyhow::Result<()>;
 }
 
 impl Store for api_db::DbPool {
@@ -79,5 +90,25 @@ impl Store for api_db::DbPool {
         user_id: &api_db::UserId,
     ) -> anyhow::Result<Option<api_db::UserRow>> {
         api_db::find_user_by_id(self, user_id).await
+    }
+
+    async fn create_pending_login(
+        &self,
+        device_code: &str,
+        interval_secs: i32,
+        duration: std::time::Duration,
+    ) -> anyhow::Result<api_db::LoginNonce> {
+        api_db::create_pending_login(self, device_code, interval_secs, duration).await
+    }
+
+    async fn lookup_pending_login(
+        &self,
+        nonce: &api_db::LoginNonce,
+    ) -> anyhow::Result<Option<api_db::PendingLoginRow>> {
+        api_db::lookup_pending_login(self, nonce).await
+    }
+
+    async fn delete_pending_login(&self, nonce: &api_db::LoginNonce) -> anyhow::Result<()> {
+        api_db::delete_pending_login(self, nonce).await
     }
 }

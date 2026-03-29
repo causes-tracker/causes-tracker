@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT device_code, interval_secs, expires_at FROM pending_logins WHERE nonce = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "device_code",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "interval_secs",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "expires_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "f94aae39d629cb3563ccdc35cc21a6b6cfe29d4d35568b41beb026345c1e9707"
+}

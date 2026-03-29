@@ -1,6 +1,7 @@
 use clap::Parser;
 
 mod auth;
+mod session_file;
 
 /// Command-line interface for a Causes instance.
 ///

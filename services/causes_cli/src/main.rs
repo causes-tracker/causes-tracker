@@ -1,5 +1,7 @@
 use clap::Parser;
 
+mod auth;
+
 /// Command-line interface for a Causes instance.
 ///
 /// Authenticate and interact with a Causes API server.
@@ -18,21 +20,16 @@ struct Cli {
 
 #[derive(clap::Subcommand, Debug)]
 enum Command {
-    /// Placeholder — subcommands will be added in follow-up PRs.
-    #[command(hide = true)]
-    Noop,
+    /// Manage authentication.
+    Auth(auth::AuthArgs),
 }
 
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Command::Noop => {
-            println!("causes-cli connected to {}", cli.server);
-        }
+        Command::Auth(args) => auth::run(&cli.server, args),
     }
-
-    Ok(())
 }
 
 #[cfg(test)]
@@ -41,25 +38,25 @@ mod tests {
     use clap::CommandFactory;
 
     #[test]
-    fn cli_parses_defaults() {
-        let cli = Cli::parse_from(["causes", "noop"]);
-        assert_eq!(cli.server, "http://[::1]:50051");
+    fn cli_parses_auth_subcommand() {
+        // Just verify it parses without panicking; auth subcommands
+        // will be tested in their own module.
+        let result = Cli::try_parse_from(["causes", "auth"]);
+        // "auth" alone should fail because it requires a sub-subcommand.
+        assert!(result.is_err());
     }
 
     #[test]
-    fn cli_accepts_server_override() {
-        let cli = Cli::parse_from(["causes", "--server", "http://example.com:9090", "noop"]);
-        assert_eq!(cli.server, "http://example.com:9090");
-    }
-
-    #[test]
-    fn cli_help_does_not_panic() {
-        // Verify the help text renders without panicking.
+    fn cli_help_contains_auth_and_default_server() {
         let mut cmd = Cli::command();
         let mut buf = Vec::new();
-        cmd.write_help(&mut buf).expect("writing help");
+        cmd.write_long_help(&mut buf).expect("writing help");
         let help = String::from_utf8(buf).expect("help is valid UTF-8");
-        assert!(help.contains("Causes API server"));
+        assert!(help.contains("auth"), "help should mention auth subcommand");
+        assert!(
+            help.contains("[::1]:50051"),
+            "help should show default server"
+        );
     }
 
     #[test]

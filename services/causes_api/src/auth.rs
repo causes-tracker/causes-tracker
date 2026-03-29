@@ -46,6 +46,7 @@ const PENDING_LOGIN_DURATION: Duration = Duration::from_secs(10 * 60);
 
 #[tonic::async_trait]
 impl<S: crate::store::Store> AuthService for AuthHandler<S> {
+    #[tracing::instrument(skip(self, _request))]
     async fn start_login(
         &self,
         _request: Request<StartLoginRequest>,
@@ -80,6 +81,7 @@ impl<S: crate::store::Store> AuthService for AuthHandler<S> {
         }))
     }
 
+    #[tracing::instrument(skip(self, request))]
     async fn complete_login(
         &self,
         request: Request<CompleteLoginRequest>,
@@ -124,9 +126,15 @@ impl<S: crate::store::Store> AuthService for AuthHandler<S> {
                 .await
                 .map_err(|e| Status::internal(format!("validating id_token: {e}")))?;
 
+                // Canonicalise the issuer the same way bootstrap does when
+                // storing it, so the lookup matches regardless of whether
+                // Google returns a bare hostname or a full URL.
+                let issuer = api_db::AuthProvider::new(&claims.iss)
+                    .map_err(|e| Status::internal(format!("invalid issuer: {e}")))?;
+
                 let user_id = self
                     .store
-                    .find_user_by_identity(&claims.iss, &claims.sub)
+                    .find_user_by_identity(issuer.as_str(), &claims.sub)
                     .await
                     .map_err(|e| Status::internal(format!("looking up user: {e}")))?
                     .ok_or_else(|| {
@@ -154,6 +162,7 @@ impl<S: crate::store::Store> AuthService for AuthHandler<S> {
         }
     }
 
+    #[tracing::instrument(skip(self, request))]
     async fn who_am_i(
         &self,
         request: Request<WhoAmIRequest>,

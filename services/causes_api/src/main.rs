@@ -4,6 +4,7 @@ use anyhow::Context;
 use clap::Parser;
 use tracing::{Instrument as _, info, info_span};
 
+mod auth;
 mod bootstrap;
 mod config;
 mod google;
@@ -43,13 +44,13 @@ async fn main_inner(
         &cfg.honeycomb_endpoint,
     );
 
-    startup(&cfg, db, shutdown)
+    startup(cfg, db, shutdown)
         .instrument(info_span!("startup"))
         .await
 }
 
 async fn startup(
-    cfg: &config::Config,
+    cfg: config::Config,
     db: impl store::Store,
     shutdown: impl Future<Output = ()> + Send + 'static,
 ) -> anyhow::Result<()> {
@@ -58,22 +59,26 @@ async fn startup(
     info!("database ready");
 
     let http_client = reqwest::Client::new();
-    bootstrap::run(&db, cfg, &http_client)
+    bootstrap::run(&db, &cfg, &http_client)
         .await
         .context("bootstrap failed")?;
 
     let addr = cfg.bind_addr.parse().context("parsing BIND_ADDR")?;
     let (_health_reporter, health_svc) = grpc::health_service().await;
 
+    let db = std::sync::Arc::new(db);
+    let auth_svc = causes_proto::auth_service_server::AuthServiceServer::new(
+        auth::AuthHandler::new(db, std::sync::Arc::new(cfg), http_client),
+    );
+
     info!(%addr, "gRPC server listening");
 
     tonic::transport::Server::builder()
         .add_service(health_svc)
+        .add_service(auth_svc)
         .serve_with_shutdown(addr, shutdown)
         .await
         .context("gRPC server error")?;
-
-    drop(db);
 
     Ok(())
 }

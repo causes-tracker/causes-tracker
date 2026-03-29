@@ -190,6 +190,57 @@ pub async fn poll_for_token(
     }
 }
 
+/// Result of a single token-endpoint poll attempt.
+pub enum TokenPollResult {
+    /// The user has not yet completed sign-in.
+    Pending,
+    /// The server asked us to slow down — the caller should increase the interval.
+    SlowDown,
+    /// The token endpoint returned an id_token.
+    Ready(TokenResponse),
+}
+
+/// Make a single attempt to exchange the device code for a token.
+/// Unlike `poll_for_token`, this does NOT loop or sleep.
+pub async fn try_token_once(
+    client: &reqwest::Client,
+    client_id: &str,
+    client_secret: &str,
+    device_code: &str,
+    token_url: &str,
+) -> anyhow::Result<TokenPollResult> {
+    let resp = client
+        .post(token_url)
+        .form(&[
+            ("client_id", client_id),
+            ("client_secret", client_secret),
+            ("device_code", device_code),
+            ("grant_type", "urn:ietf:params:oauth:grant-type:device_code"),
+        ])
+        .send()
+        .await
+        .context("polling token endpoint")?;
+
+    let status = resp.status();
+    let body: serde_json::Value = resp.json().await.context("parsing token poll response")?;
+
+    if status.is_success() {
+        let raw: RawTokenResponse =
+            serde_json::from_value(body).context("deserialising token response")?;
+        return Ok(TokenPollResult::Ready(raw.try_into()?));
+    }
+
+    match body
+        .get("error")
+        .and_then(|v| v.as_str())
+        .unwrap_or("unknown")
+    {
+        "authorization_pending" => Ok(TokenPollResult::Pending),
+        "slow_down" => Ok(TokenPollResult::SlowDown),
+        other => anyhow::bail!("token endpoint error: {other}"),
+    }
+}
+
 pub async fn validate_id_token(
     client: &reqwest::Client,
     id_token: &str,

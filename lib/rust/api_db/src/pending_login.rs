@@ -121,6 +121,27 @@ pub struct PendingLoginRow {
     pub expires_at: chrono::DateTime<chrono::Utc>,
 }
 
+impl PendingLoginRow {
+    /// Returns `true` if this pending login has expired.
+    pub fn is_expired(&self) -> bool {
+        self.expires_at < chrono::Utc::now()
+    }
+
+    /// Create a `PendingLoginRow` that expires `duration` from now.
+    /// Intended for tests that need to construct mock rows.
+    pub fn new_expiring_in(
+        device_code: String,
+        interval_secs: i32,
+        duration: std::time::Duration,
+    ) -> Self {
+        Self {
+            device_code,
+            interval_secs,
+            expires_at: chrono::Utc::now() + duration,
+        }
+    }
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────
 
 #[cfg(test)]

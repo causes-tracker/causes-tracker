@@ -34,6 +34,11 @@ Log in to a Causes instance via the device authorization flow.
 The server drives the entire OAuth flow — the CLI just displays a code and polls for completion.
 On success, the session token is saved to `~/.local/share/causes/session.json` (or `$XDG_DATA_HOME/causes/session.json`).
 
+### `auth whoami`
+
+Show the currently authenticated user.
+Reads the stored session token and calls the server's WhoAmI RPC.
+
 ## Session storage
 
 The session token is stored in `$XDG_DATA_HOME/causes/session.json` (default `~/.local/share/causes/session.json`).

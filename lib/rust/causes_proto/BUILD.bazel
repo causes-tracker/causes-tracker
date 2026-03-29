@@ -1,0 +1,18 @@
+load("@rules_rs//rs:rust_library.bzl", "rust_library")
+
+rust_library(
+    name = "causes_proto",
+    srcs = glob(["src/**/*.rs"]),
+    visibility = ["//visibility:public"],
+    deps = [
+        "@crates//:prost",
+        "@crates//:tonic",
+        "@crates//:tonic-prost",
+    ],
+)
+
+filegroup(
+    name = "gen_srcs",
+    srcs = glob(["src/generated/**"]),
+    visibility = ["//tools:__pkg__"],
+)

@@ -1,0 +1,66 @@
+// Authentication service: polling-based device flow login and session identity.
+syntax = "proto3";
+
+package causes.v1;
+
+// AuthService handles human authentication via the server-driven
+// Google Device Authorization Grant (RFC 8628).  The client never
+// holds the OAuth client secret — the server drives the entire flow.
+//
+// Login is two RPCs (not streaming) so that pending state survives
+// server restarts — the database holds device-flow state between polls.
+service AuthService {
+  // StartLogin initiates a device-flow login.  The server contacts the
+  // IdP and returns a user code and verification URL for the human to
+  // complete in a browser, plus a nonce for polling.
+  rpc StartLogin(StartLoginRequest) returns (StartLoginResponse);
+
+  // CompleteLogin polls for login completion.  The client calls this
+  // repeatedly with the nonce from StartLogin until the server returns
+  // a session token or an error.
+  rpc CompleteLogin(CompleteLoginRequest) returns (CompleteLoginResponse);
+
+  // WhoAmI returns the identity of the currently authenticated caller.
+  rpc WhoAmI(WhoAmIRequest) returns (WhoAmIResponse);
+}
+
+message StartLoginRequest {}
+
+message StartLoginResponse {
+  // Opaque nonce used to poll CompleteLogin.
+  string nonce = 1;
+  // Human-readable code to enter at the verification URL.
+  string user_code = 2;
+  // URL where the user completes sign-in.
+  string verification_url = 3;
+  // Suggested polling interval in seconds.
+  int32 interval_secs = 4;
+}
+
+message CompleteLoginRequest {
+  string nonce = 1;
+}
+
+message CompleteLoginResponse {
+  oneof result {
+    // The user has not yet completed sign-in.
+    Pending pending = 1;
+    // Login succeeded; the session token is ready.
+    SessionCreated session_created = 2;
+  }
+}
+
+// Empty — signals the caller should retry after interval_secs.
+message Pending {}
+
+message SessionCreated {
+  string session_token = 1;
+}
+
+message WhoAmIRequest {}
+
+message WhoAmIResponse {
+  string user_id = 1;
+  string display_name = 2;
+  string email = 3;
+}

@@ -3,6 +3,7 @@ members = [
   "lib/rust/api_db",
   "lib/rust/causes_proto",
   "services/causes_api",
+  "services/causes_cli",
   "tools/proto-gen",
   "tools/sqlx-cli",
 ]

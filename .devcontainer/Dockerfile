@@ -1,5 +1,9 @@
 FROM mcr.microsoft.com/devcontainers/base:ubuntu-24.04
 
+# The base image ships binutils-gold as the default linker, which is deprecated
+# and emits warnings.  Switch back to the standard BFD linker.
+RUN update-alternatives --set ld /usr/bin/ld.bfd
+
 # Install Python 3.12 (needed to bootstrap rules_python targets locally)
 RUN apt-get update \
     && apt-get install -y --no-install-recommends python3.12 python3-pip python3-venv git-delta \

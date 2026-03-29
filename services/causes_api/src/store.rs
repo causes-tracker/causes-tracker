@@ -12,6 +12,24 @@ pub trait Store: Send + 'static {
         auth_provider: &api_db::AuthProvider,
         subject: &api_db::Subject,
     ) -> anyhow::Result<api_db::UserId>;
+    async fn create_session(
+        &self,
+        user_id: &api_db::UserId,
+        duration: std::time::Duration,
+    ) -> anyhow::Result<api_db::SessionToken>;
+    async fn lookup_session(
+        &self,
+        token: &api_db::SessionToken,
+    ) -> anyhow::Result<Option<api_db::SessionRow>>;
+    async fn find_user_by_identity(
+        &self,
+        issuer: &str,
+        subject: &str,
+    ) -> anyhow::Result<Option<api_db::UserId>>;
+    async fn find_user_by_id(
+        &self,
+        user_id: &api_db::UserId,
+    ) -> anyhow::Result<Option<api_db::UserRow>>;
 }
 
 impl Store for api_db::DbPool {
@@ -31,5 +49,35 @@ impl Store for api_db::DbPool {
         subject: &api_db::Subject,
     ) -> anyhow::Result<api_db::UserId> {
         api_db::create_admin(self, display_name, email, auth_provider, subject).await
+    }
+
+    async fn create_session(
+        &self,
+        user_id: &api_db::UserId,
+        duration: std::time::Duration,
+    ) -> anyhow::Result<api_db::SessionToken> {
+        api_db::create_session(self, user_id, duration).await
+    }
+
+    async fn lookup_session(
+        &self,
+        token: &api_db::SessionToken,
+    ) -> anyhow::Result<Option<api_db::SessionRow>> {
+        api_db::lookup_session(self, token).await
+    }
+
+    async fn find_user_by_identity(
+        &self,
+        issuer: &str,
+        subject: &str,
+    ) -> anyhow::Result<Option<api_db::UserId>> {
+        api_db::find_user_by_identity(self, issuer, subject).await
+    }
+
+    async fn find_user_by_id(
+        &self,
+        user_id: &api_db::UserId,
+    ) -> anyhow::Result<Option<api_db::UserRow>> {
+        api_db::find_user_by_id(self, user_id).await
     }
 }

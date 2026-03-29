@@ -6,6 +6,7 @@ license.workspace = true
 
 [dependencies]
 api_db = { path = "../../lib/rust/api_db" }
+causes_proto = { path = "../../lib/rust/causes_proto" }
 tokio.workspace = true
 tonic.workspace = true
 tonic-health.workspace = true

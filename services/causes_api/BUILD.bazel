@@ -8,6 +8,7 @@ rust_binary(
     srcs = glob(["src/**/*.rs"]),
     deps = [
         "//lib/rust/api_db",
+        "//lib/rust/causes_proto",
         "@crates//:anyhow",
         "@crates//:clap",
         "@crates//:dotenvy",

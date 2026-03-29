@@ -1,5 +1,9 @@
 FROM mcr.microsoft.com/devcontainers/base:ubuntu-24.04
 
+# The base image ships the deprecated gold linker, which causes warnings when
+# detected by build tools.  Remove the binaries; ld already points to ld.bfd.
+RUN rm -f /usr/bin/x86_64-linux-gnu-ld.gold /usr/bin/ld.gold
+
 # Install Python 3.12 (needed to bootstrap rules_python targets locally)
 RUN apt-get update \
     && apt-get install -y --no-install-recommends python3.12 python3-pip python3-venv git-delta \

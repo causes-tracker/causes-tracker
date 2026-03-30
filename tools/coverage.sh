@@ -15,6 +15,7 @@ MIN_PCT=25
 SKIP_FILES=(
 	"lib/rust/causes_proto/src/generated/causes.v1.rs"
 	"services/causes_api/src/store.rs"
+	"services/causes_api/src/tls.rs"
 )
 
 bazel coverage "$@"

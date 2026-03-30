@@ -41,6 +41,12 @@ CLI flags, environment variables, `--help` text, API endpoints, and documentatio
 Internal code (traits, modules, functions, DB schema) can land before its callers — that is normal incremental development.
 Use `#[cfg]` attributes, feature flags, or simply defer adding the user-facing interface to the commit that adds the implementation.
 
+## Testing
+
+Tests must never mutate global process state.
+In particular, never call `std::env::set_var` in tests — it is unsound in multithreaded programs (Rust 2024 marks it `unsafe`) and causes flaky failures when tests run in parallel.
+If code reads environment variables, refactor it to accept the value as a parameter so tests can pass it directly.
+
 ## Commit discipline
 
 Each commit must do exactly one thing.

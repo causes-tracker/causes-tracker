@@ -34,6 +34,13 @@ bazel run //tools:cargo -- …          # hermetic cargo (metadata only, not com
 Lint checks are Bazel test targets included in `//...`.
 There is no separate lint command.
 
+## Incremental development
+
+When building a feature incrementally across multiple commits, do not expose new **user-facing** interfaces until the feature is ready.
+CLI flags, environment variables, `--help` text, API endpoints, and documentation should not be visible to users until the implementing code lands in the same or a prior commit.
+Internal code (traits, modules, functions, DB schema) can land before its callers — that is normal incremental development.
+Use `#[cfg]` attributes, feature flags, or simply defer adding the user-facing interface to the commit that adds the implementation.
+
 ## Commit discipline
 
 Each commit must do exactly one thing.

@@ -20,6 +20,12 @@ bazel run //services/causes_cli -- --help
 The `--server` flag (env: `CAUSES_SERVER`) sets the API server address.
 It defaults to `http://[::1]:50051` for local development.
 
+Authentication commands are grouped under the `auth` subcommand:
+
+```sh
+bazel run //services/causes_cli -- auth --help
+```
+
 ## Environment variables
 
 | Variable | Default | Description |

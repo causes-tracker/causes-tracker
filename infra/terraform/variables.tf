@@ -36,3 +36,15 @@ variable "honeycomb_endpoint" {
   type        = string
   default     = "https://api.honeycomb.io:443"
 }
+
+variable "tls_domain" {
+  description = "Domain for automatic TLS via Let's Encrypt. When empty, TLS is disabled and the server listens on port 50051 (plain HTTP/2)."
+  type        = string
+  default     = ""
+}
+
+variable "tls_acme_email" {
+  description = "Contact email for Let's Encrypt certificate notifications."
+  type        = string
+  default     = ""
+}

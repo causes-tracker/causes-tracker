@@ -1,6 +1,6 @@
 # ── EC2 t3.nano (x86_64) ─────────────────────────────────────────────────────
 #
-# Runs the causes-api container behind a Cloudflare Tunnel (no inbound ports).
+# Runs the causes-api container with direct TLS termination via rustls-acme.
 # ~$4.70/month in ap-southeast-2.
 
 data "aws_ssm_parameter" "al2023_x86_64" {
@@ -40,7 +40,13 @@ resource "aws_security_group" "causes_api" {
     cidr_blocks = [var.ssh_allow_cidr]
   }
 
-  # gRPC traffic arrives via Cloudflare Tunnel (no inbound rule needed).
+  ingress {
+    description = "HTTPS / gRPC (TLS-ALPN-01 + h2)"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 
   egress {
     from_port   = 0
@@ -91,6 +97,25 @@ resource "aws_s3_bucket_public_access_block" "images" {
   restrict_public_buckets = true
 }
 
+# ── Persistent EBS volume for TLS certificate cache ──────────────────────────
+#
+# Survives instance replacement (tofu apply -replace=aws_instance.causes_api)
+# so Let's Encrypt certs are reused.  Without this, a fresh cert would be
+# issued on every deploy — LE rate-limits to 5 per domain per week.
+
+resource "aws_ebs_volume" "certs" {
+  availability_zone = data.aws_availability_zones.available.names[0]
+  size              = 1 # GiB — certs are tiny
+  type              = "gp3"
+  tags              = { Name = "causes-certs" }
+}
+
+resource "aws_volume_attachment" "certs" {
+  device_name = "/dev/xvdf"
+  volume_id   = aws_ebs_volume.certs.id
+  instance_id = aws_instance.causes_api.id
+}
+
 resource "aws_instance" "causes_api" {
   ami                         = data.aws_ssm_parameter.al2023_x86_64.value
   instance_type               = "t3.nano"
@@ -113,24 +138,43 @@ resource "aws_instance" "causes_api" {
     docker load < /tmp/causes-api.tar
     rm /tmp/causes-api.tar
 
-    # Pull the DB password from Secrets Manager
+    # Pull the DB password from Secrets Manager and build DATABASE_URL.
+    # The RDS-managed password may contain shell-special and URI-special
+    # characters, so we URL-encode it via jq @uri.
     DB_SECRET=$(aws secretsmanager get-secret-value \
       --secret-id "${aws_rds_cluster.causes.master_user_secret[0].secret_arn}" \
       --query SecretString --output text)
     DB_USER=$(echo "$DB_SECRET" | jq -r .username)
-    DB_PASS=$(echo "$DB_SECRET" | jq -r .password)
+    DB_PASS=$(echo "$DB_SECRET" | jq -r '.password | @uri')
     DB_HOST="${aws_rds_cluster.causes.endpoint}"
     DB_PORT="${aws_rds_cluster.causes.port}"
     DATABASE_URL="postgresql://$DB_USER:$DB_PASS@$DB_HOST:$DB_PORT/causes"
 
+    # Mount the persistent EBS volume for TLS cert cache.
+    # Format only if not already formatted (first attach).
+    while [ ! -e /dev/xvdf ]; do sleep 1; done
+    if ! blkid /dev/xvdf; then
+      mkfs.ext4 /dev/xvdf
+    fi
+    mkdir -p /var/lib/causes/certs
+    mount /dev/xvdf /var/lib/causes/certs
+    echo '/dev/xvdf /var/lib/causes/certs ext4 defaults,nofail 0 2' >> /etc/fstab
+
+    # Allow binding port 443 without root.
+    sysctl -w net.ipv4.ip_unprivileged_port_start=0
+
     # Start causes-api
     docker run -d --name causes-api --restart unless-stopped \
-      -p 50051:50051 \
+      -p 443:443 \
+      -v /var/lib/causes/certs:/var/lib/causes/certs \
       -e DATABASE_URL="$DATABASE_URL" \
       -e GOOGLE_CLIENT_ID="${var.google_client_id}" \
       -e GOOGLE_CLIENT_SECRET="${var.google_client_secret}" \
       -e HONEYCOMB_API_KEY="${var.honeycomb_api_key}" \
       -e HONEYCOMB_ENDPOINT="${var.honeycomb_endpoint}" \
+      -e TLS_DOMAIN="${var.tls_domain}" \
+      -e TLS_ACME_EMAIL="${var.tls_acme_email}" \
+      -e TLS_CERT_CACHE_DIR="/var/lib/causes/certs" \
       causes-api:latest
   USERDATA
 

@@ -12,6 +12,7 @@ mod grpc;
 mod interceptor;
 mod store;
 mod telemetry;
+mod tls;
 
 /// Production entry point for the Causes API service.
 #[tokio::main]
@@ -64,9 +65,6 @@ async fn startup(
         .await
         .context("bootstrap failed")?;
 
-    let addr = cfg.bind_addr.parse().context("parsing BIND_ADDR")?;
-    let (_health_reporter, health_svc) = grpc::health_service().await;
-
     let db = std::sync::Arc::new(db);
 
     // Background GC: clean up expired sessions and abandoned pending logins.
@@ -87,18 +85,26 @@ async fn startup(
         }
     });
 
-    let auth_svc = causes_proto::auth_service_server::AuthServiceServer::new(
-        auth::AuthHandler::new(db, std::sync::Arc::new(cfg), http_client),
-    );
+    if cfg.tls_domain.is_some() {
+        tls::serve_with_acme(std::sync::Arc::new(cfg), db, http_client, shutdown)
+            .await
+            .context("TLS gRPC server error")?;
+    } else {
+        let addr = cfg.bind_addr.parse().context("parsing BIND_ADDR")?;
+        let (_health_reporter, health_svc) = grpc::health_service().await;
+        let auth_svc = causes_proto::auth_service_server::AuthServiceServer::new(
+            auth::AuthHandler::new(db, std::sync::Arc::new(cfg), http_client),
+        );
 
-    info!(%addr, "gRPC server listening");
+        info!(%addr, "gRPC server listening (plain HTTP/2)");
 
-    tonic::transport::Server::builder()
-        .add_service(health_svc)
-        .add_service(auth_svc)
-        .serve_with_shutdown(addr, shutdown)
-        .await
-        .context("gRPC server error")?;
+        tonic::transport::Server::builder()
+            .add_service(health_svc)
+            .add_service(auth_svc)
+            .serve_with_shutdown(addr, shutdown)
+            .await
+            .context("gRPC server error")?;
+    }
 
     Ok(())
 }
@@ -123,6 +129,9 @@ mod tests {
             honeycomb_api_key: None,
             honeycomb_endpoint: "https://api.honeycomb.io:443".to_string(),
             bind_addr: "127.0.0.1:0".to_string(),
+            tls_domain: None,
+            tls_acme_email: None,
+            tls_cert_cache_dir: "/tmp/certs".to_string(),
         };
         let (tx, rx) = tokio::sync::oneshot::channel::<()>();
         let handle: tokio::task::JoinHandle<anyhow::Result<()>> =

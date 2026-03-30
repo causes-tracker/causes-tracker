@@ -34,9 +34,27 @@ pub struct Config {
     )]
     pub honeycomb_endpoint: String,
 
-    /// gRPC listen address.
+    /// gRPC listen address (used when TLS_DOMAIN is not set).
     #[arg(long, env = "BIND_ADDR", default_value = "[::]:50051")]
     pub bind_addr: String,
+
+    /// Domain for automatic TLS via Let's Encrypt (e.g. "causes.example.com").
+    /// When set, the server listens on port 443 with auto-renewing certificates.
+    /// When unset, the server runs plain HTTP/2 on BIND_ADDR (dev mode).
+    #[arg(long, env = "TLS_DOMAIN")]
+    pub tls_domain: Option<String>,
+
+    /// ACME contact email for Let's Encrypt certificate notifications.
+    #[arg(long, env = "TLS_ACME_EMAIL")]
+    pub tls_acme_email: Option<String>,
+
+    /// Directory to cache TLS certificates.  Must persist across restarts.
+    #[arg(
+        long,
+        env = "TLS_CERT_CACHE_DIR",
+        default_value = "/var/lib/causes/certs"
+    )]
+    pub tls_cert_cache_dir: String,
 }
 
 #[cfg(test)]
@@ -48,6 +66,9 @@ mod tests {
         let cfg = Config::parse_from(["causes_api", "--database-url=postgresql://test"]);
         assert_eq!(cfg.bind_addr, "[::]:50051");
         assert!(cfg.honeycomb_api_key.is_none());
+        assert!(cfg.tls_domain.is_none());
+        assert!(cfg.tls_acme_email.is_none());
+        assert_eq!(cfg.tls_cert_cache_dir, "/var/lib/causes/certs");
     }
 
     #[test]

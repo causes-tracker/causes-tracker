@@ -10,11 +10,12 @@ set -euo pipefail
 REPORT="bazel-out/_coverage/_coverage_report.dat"
 MIN_PCT=25
 
-# Files excluded from the per-file coverage threshold (thin delegation layers
-# that can only be exercised by integration tests with external services).
+# Files excluded from the per-file coverage threshold.
+# "Hard to test" is NOT a valid reason — only exclude files where the code
+# is entirely constrained by the type system with no alternative implementations.
 SKIP_FILES=(
-	"lib/rust/causes_proto/src/generated/causes.v1.rs"
-	"services/causes_api/src/store.rs"
+	"lib/rust/causes_proto/src/generated/causes.v1.rs" # machine-generated
+	"services/causes_api/src/store.rs"                 # trait delegation to api_db
 )
 
 bazel coverage "$@"

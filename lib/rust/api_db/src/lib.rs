@@ -3,6 +3,9 @@ mod db;
 mod pending_login;
 mod session;
 
+/// Re-export chrono types used in public structs (e.g. `SessionRow.expires_at`).
+pub use sqlx::types::chrono;
+
 pub use admin::{AuthProvider, DisplayName, Email, Subject, UserId, create_admin, user_count};
 pub use db::DbPool;
 pub use pending_login::{

@@ -17,6 +17,9 @@ pub struct AuthArgs {
 pub enum AuthCommand {
     /// Log in to a Causes instance via device authorization flow.
     Login,
+    /// Show the currently authenticated user.
+    #[command(name = "whoami")]
+    WhoAmI,
 }
 
 pub fn run(server: &str, args: AuthArgs) -> anyhow::Result<()> {
@@ -24,6 +27,7 @@ pub fn run(server: &str, args: AuthArgs) -> anyhow::Result<()> {
     let data_dir = session_file::default_data_dir();
     match args.command {
         AuthCommand::Login => rt.block_on(login(server, &data_dir)),
+        AuthCommand::WhoAmI => rt.block_on(whoami(server, &data_dir)),
     }
 }
 
@@ -81,6 +85,43 @@ async fn login(server: &str, data_dir: &std::path::Path) -> anyhow::Result<()> {
     }
 }
 
+async fn whoami(server: &str, data_dir: &std::path::Path) -> anyhow::Result<()> {
+    let session = session_file::load(data_dir)?
+        .ok_or_else(|| anyhow::anyhow!("not logged in — run `causes auth login` first"))?;
+
+    if session.server != server {
+        anyhow::bail!(
+            "session is for {} but --server is {}; re-run login or set --server",
+            session.server,
+            server,
+        );
+    }
+
+    let mut client = AuthServiceClient::connect(server.to_owned())
+        .await
+        .context("connecting to server")?;
+
+    let mut req = tonic::Request::new(causes_proto::WhoAmIRequest {});
+    req.metadata_mut().insert(
+        "authorization",
+        format!("Bearer {}", session.session_token)
+            .parse()
+            .context("invalid session token")?,
+    );
+
+    let resp = client
+        .who_am_i(req)
+        .await
+        .context("WhoAmI RPC failed")?
+        .into_inner();
+
+    println!("User ID:      {}", resp.user_id);
+    println!("Display name: {}", resp.display_name);
+    println!("Email:        {}", resp.email);
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use crate::Cli;
@@ -94,6 +135,12 @@ mod tests {
     #[test]
     fn auth_login_parses() {
         let cli = Cli::parse_from(["causes", "auth", "login"]);
+        assert!(matches!(cli.command, crate::Command::Auth(_)));
+    }
+
+    #[test]
+    fn auth_whoami_parses() {
+        let cli = Cli::parse_from(["causes", "auth", "whoami"]);
         assert!(matches!(cli.command, crate::Command::Auth(_)));
     }
 
@@ -153,19 +200,21 @@ mod tests {
             &self,
             _req: tonic::Request<WhoAmIRequest>,
         ) -> Result<tonic::Response<WhoAmIResponse>, tonic::Status> {
-            unimplemented!()
+            Ok(tonic::Response::new(WhoAmIResponse {
+                user_id: "uid-42".to_string(),
+                display_name: "Test User".to_string(),
+                email: "test@example.com".to_string(),
+            }))
         }
     }
 
-    #[tokio::test]
-    async fn login_flow_polls_and_saves_token() {
-        let mock = Arc::new(MockAuthService::new());
-
+    async fn start_mock_server() -> String {
         let port = {
             let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
             listener.local_addr().unwrap().port()
         };
 
+        let mock = Arc::new(MockAuthService::new());
         tokio::spawn(async move {
             tonic::transport::Server::builder()
                 .add_service(AuthServiceServer::from_arc(mock))
@@ -175,10 +224,18 @@ mod tests {
         });
 
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        format!("http://127.0.0.1:{port}")
+    }
 
-        let dir = std::env::temp_dir().join(format!("causes-login-test-{}", std::process::id()));
+    fn test_dir(name: &str) -> std::path::PathBuf {
+        std::env::temp_dir().join(format!("causes-{name}-{}", std::process::id()))
+    }
 
-        let server_url = format!("http://127.0.0.1:{port}");
+    #[tokio::test]
+    async fn login_flow_polls_and_saves_token() {
+        let server_url = start_mock_server().await;
+        let dir = test_dir("login");
+
         super::login(&server_url, &dir).await.expect("login failed");
 
         let session = crate::session_file::load(&dir)
@@ -186,6 +243,37 @@ mod tests {
             .expect("no session saved");
         assert_eq!(session.session_token, "d".repeat(64));
         assert_eq!(session.server, server_url);
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn whoami_returns_user_info() {
+        let server_url = start_mock_server().await;
+        let dir = test_dir("whoami");
+
+        crate::session_file::save(
+            &dir,
+            &crate::session_file::SessionFile {
+                session_token: "e".repeat(64),
+                server: server_url.clone(),
+            },
+        )
+        .expect("save failed");
+
+        super::whoami(&server_url, &dir)
+            .await
+            .expect("whoami failed");
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn whoami_rejects_when_not_logged_in() {
+        let dir = test_dir("whoami-nologin");
+
+        let err = super::whoami("http://127.0.0.1:1", &dir).await.unwrap_err();
+        assert!(err.to_string().contains("not logged in"));
 
         std::fs::remove_dir_all(&dir).ok();
     }

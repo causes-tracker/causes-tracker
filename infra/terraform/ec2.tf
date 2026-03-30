@@ -1,6 +1,6 @@
 # ── EC2 t3.nano (x86_64) ─────────────────────────────────────────────────────
 #
-# Runs the causes-api container behind a Cloudflare Tunnel (no inbound ports).
+# Runs the causes-api container with direct TLS termination via rustls-acme.
 # ~$4.70/month in ap-southeast-2.
 
 data "aws_ssm_parameter" "al2023_x86_64" {
@@ -40,7 +40,13 @@ resource "aws_security_group" "causes_api" {
     cidr_blocks = [var.ssh_allow_cidr]
   }
 
-  # gRPC traffic arrives via Cloudflare Tunnel (no inbound rule needed).
+  ingress {
+    description = "HTTPS / gRPC (TLS-ALPN-01 + h2)"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 
   egress {
     from_port   = 0
@@ -113,24 +119,36 @@ resource "aws_instance" "causes_api" {
     docker load < /tmp/causes-api.tar
     rm /tmp/causes-api.tar
 
-    # Pull the DB password from Secrets Manager
+    # Pull the DB password from Secrets Manager and build DATABASE_URL.
+    # The RDS-managed password may contain shell-special and URI-special
+    # characters, so we URL-encode it via jq @uri.
     DB_SECRET=$(aws secretsmanager get-secret-value \
       --secret-id "${aws_rds_cluster.causes.master_user_secret[0].secret_arn}" \
       --query SecretString --output text)
     DB_USER=$(echo "$DB_SECRET" | jq -r .username)
-    DB_PASS=$(echo "$DB_SECRET" | jq -r .password)
+    DB_PASS=$(echo "$DB_SECRET" | jq -r '.password | @uri')
     DB_HOST="${aws_rds_cluster.causes.endpoint}"
     DB_PORT="${aws_rds_cluster.causes.port}"
     DATABASE_URL="postgresql://$DB_USER:$DB_PASS@$DB_HOST:$DB_PORT/causes"
 
+    # Cert cache directory (persists across container restarts).
+    mkdir -p /var/lib/causes/certs
+
+    # Allow binding port 443 without root.
+    sysctl -w net.ipv4.ip_unprivileged_port_start=0
+
     # Start causes-api
     docker run -d --name causes-api --restart unless-stopped \
-      -p 50051:50051 \
+      -p 443:443 \
+      -v /var/lib/causes/certs:/var/lib/causes/certs \
       -e DATABASE_URL="$DATABASE_URL" \
       -e GOOGLE_CLIENT_ID="${var.google_client_id}" \
       -e GOOGLE_CLIENT_SECRET="${var.google_client_secret}" \
       -e HONEYCOMB_API_KEY="${var.honeycomb_api_key}" \
       -e HONEYCOMB_ENDPOINT="${var.honeycomb_endpoint}" \
+      -e TLS_DOMAIN="${var.tls_domain}" \
+      -e TLS_ACME_EMAIL="${var.tls_acme_email}" \
+      -e TLS_CERT_CACHE_DIR="/var/lib/causes/certs" \
       causes-api:latest
   USERDATA
 

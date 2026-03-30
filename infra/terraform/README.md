@@ -130,43 +130,106 @@ Set in `terraform.tfvars` (gitignored).
 | `google_client_secret` | yes | — | Google OAuth 2.0 Client Secret |
 | `honeycomb_api_key` | no | `""` | Honeycomb API key; when empty, tracing is disabled |
 | `honeycomb_endpoint` | no | `https://api.honeycomb.io:443` | OTLP endpoint; use `https://api.eu1.honeycomb.io:443` for EU |
+| `tls_domain` | no | `""` | Domain for automatic TLS (e.g. `causes.example.com`); when empty, TLS is disabled |
+| `tls_acme_email` | no | `""` | Contact email for Let's Encrypt certificate notifications |
+
+## Enabling TLS
+
+To serve gRPC over TLS with automatic Let's Encrypt certificates:
+
+1. Create a DNS A record pointing your domain at the Elastic IP:
+
+   ```sh
+   bazel --quiet run //infra:tofu -- output -raw ec2_public_ip
+   ```
+
+2. Add to `terraform.tfvars`:
+
+   ```hcl
+   tls_domain     = "causes.example.com"
+   tls_acme_email = "admin@example.com"
+   ```
+
+3. Apply and recreate the instance:
+
+   ```sh
+   bazel run //infra:tofu -- apply -replace=aws_instance.causes_api
+   ```
+
+The server obtains a certificate on first start (~30 seconds) and auto-renews before expiry.
+Certificates are cached in a Docker volume at `/var/lib/causes/certs` so they survive container restarts.
 
 ## IAM permissions for the OpenTofu operator
 
 These are the AWS permissions your own account (or CI role) needs to run `tofu plan`, `tofu apply`, and `tofu destroy`.
 They are separate from the IAM roles that tofu creates for the EC2 instance.
 
-### Plan
+### Plan, apply, and destroy
+
+Attach these read-only managed policies:
 
 | AWS managed policy | Why |
 |---|---|
 | `AmazonVPCReadOnlyAccess` | Read AZs, VPCs, subnets, security groups |
 | `AmazonRDSReadOnlyAccess` | Read DB subnet groups, clusters, instances |
-| `AmazonEC2ReadOnlyAccess` | Read instances, EIPs, key pairs |
+| `AmazonEC2ReadOnlyAccess` | Read instances, EIPs, key pairs, EBS volumes |
 | `AmazonS3ReadOnlyAccess` | Read S3 buckets |
 | `IAMReadOnlyAccess` | Read IAM roles, policies, instance profiles |
 
-### Apply and destroy
-
-| AWS managed policy | Why |
-|---|---|
-| `AmazonVPCFullAccess` | Create/delete VPC, subnets, security groups, internet gateways, route tables |
-| `AmazonRDSFullAccess` | Create/delete DB subnet groups, clusters, instances; includes `iam:CreateServiceLinkedRole` for `rds.amazonaws.com` |
-| `AmazonEC2FullAccess` | Create/delete instances, EIPs, key pairs, security groups |
-| `AmazonS3FullAccess` | Create/delete S3 buckets and objects |
-| `IAMFullAccess` | Create/delete IAM roles, policies, instance profiles |
-
-`AmazonRDSFullAccess` does not grant Secrets Manager access.
-`manage_master_user_password = true` causes RDS to create and manage a secret on the caller's behalf.
-The managed policies have gaps.
-Attach this inline policy to cover them:
+For apply and destroy, attach this inline policy:
 
 ```json
 {
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "ManageRdsManagedSecret",
+      "Sid": "Vpc",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:CreateVpc", "ec2:DeleteVpc", "ec2:ModifyVpcAttribute",
+        "ec2:CreateSubnet", "ec2:DeleteSubnet",
+        "ec2:CreateInternetGateway", "ec2:DeleteInternetGateway",
+        "ec2:AttachInternetGateway", "ec2:DetachInternetGateway",
+        "ec2:CreateRouteTable", "ec2:DeleteRouteTable",
+        "ec2:CreateRoute", "ec2:DeleteRoute",
+        "ec2:AssociateRouteTable", "ec2:DisassociateRouteTable",
+        "ec2:CreateSecurityGroup", "ec2:DeleteSecurityGroup",
+        "ec2:AuthorizeSecurityGroupIngress", "ec2:RevokeSecurityGroupIngress",
+        "ec2:AuthorizeSecurityGroupEgress", "ec2:RevokeSecurityGroupEgress",
+        "ec2:CreateTags"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "Ec2",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:ImportKeyPair", "ec2:DeleteKeyPair",
+        "ec2:RunInstances", "ec2:TerminateInstances",
+        "ec2:StopInstances", "ec2:StartInstances",
+        "ec2:ModifyInstanceAttribute",
+        "ec2:AllocateAddress", "ec2:ReleaseAddress",
+        "ec2:AssociateAddress", "ec2:DisassociateAddress",
+        "ec2:CreateVolume", "ec2:DeleteVolume",
+        "ec2:AttachVolume", "ec2:DetachVolume"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "Rds",
+      "Effect": "Allow",
+      "Action": [
+        "rds:CreateDBSubnetGroup", "rds:DeleteDBSubnetGroup",
+        "rds:ModifyDBSubnetGroup",
+        "rds:CreateDBCluster", "rds:DeleteDBCluster",
+        "rds:ModifyDBCluster",
+        "rds:CreateDBInstance", "rds:DeleteDBInstance",
+        "rds:AddTagsToResource", "rds:RemoveTagsFromResource"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "RdsManagedSecret",
       "Effect": "Allow",
       "Action": [
         "secretsmanager:CreateSecret",
@@ -177,31 +240,53 @@ Attach this inline policy to cover them:
       "Resource": "arn:aws:secretsmanager:*:*:secret:rds!cluster-*"
     },
     {
-      "Sid": "ReadPublicAmiParams",
+      "Sid": "RdsServiceLinkedRole",
+      "Effect": "Allow",
+      "Action": "iam:CreateServiceLinkedRole",
+      "Resource": "arn:aws:iam::*:role/aws-service-role/rds.amazonaws.com/*",
+      "Condition": {
+        "StringEquals": { "iam:AWSServiceName": "rds.amazonaws.com" }
+      }
+    },
+    {
+      "Sid": "S3",
+      "Effect": "Allow",
+      "Action": [
+        "s3:CreateBucket", "s3:DeleteBucket",
+        "s3:PutBucketVersioning", "s3:GetBucketVersioning",
+        "s3:PutBucketPublicAccessBlock", "s3:GetBucketPublicAccessBlock",
+        "s3:PutBucketTagging", "s3:GetBucketTagging",
+        "s3:PutObject", "s3:GetObject", "s3:DeleteObject"
+      ],
+      "Resource": ["arn:aws:s3:::causes-images-*", "arn:aws:s3:::causes-images-*/*"]
+    },
+    {
+      "Sid": "Iam",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateRole", "iam:DeleteRole", "iam:GetRole",
+        "iam:PutRolePolicy", "iam:DeleteRolePolicy", "iam:GetRolePolicy",
+        "iam:ListRolePolicies", "iam:ListAttachedRolePolicies",
+        "iam:ListInstanceProfilesForRole",
+        "iam:CreateInstanceProfile", "iam:DeleteInstanceProfile",
+        "iam:GetInstanceProfile",
+        "iam:AddRoleToInstanceProfile", "iam:RemoveRoleFromInstanceProfile",
+        "iam:PassRole", "iam:TagRole"
+      ],
+      "Resource": [
+        "arn:aws:iam::*:role/causes-*",
+        "arn:aws:iam::*:instance-profile/causes-*"
+      ]
+    },
+    {
+      "Sid": "SsmAmiLookup",
       "Effect": "Allow",
       "Action": "ssm:GetParameter",
       "Resource": "arn:aws:ssm:*::parameter/aws/service/ami-amazon-linux-latest/*"
-    },
-    {
-      "Sid": "Ec2ManagedPolicyGaps",
-      "Effect": "Allow",
-      "Action": [
-        "ec2:ImportKeyPair",
-        "ec2:RunInstances",
-        "ec2:StopInstances",
-        "ec2:StartInstances",
-        "ec2:TerminateInstances",
-        "ec2:AllocateAddress",
-        "ec2:ReleaseAddress",
-        "ec2:AssociateAddress",
-        "ec2:DisassociateAddress",
-        "ec2:ModifyInstanceAttribute"
-      ],
-      "Resource": "*"
     }
   ]
 }
 ```
 
 If no Aurora cluster has ever been created in the AWS account, the RDS service-linked role (`AWSServiceRoleForRDS`) may not exist yet.
-`AmazonRDSFullAccess` includes `iam:CreateServiceLinkedRole` scoped to `rds.amazonaws.com`, so the first `tofu apply` creates it automatically.
+The `RdsServiceLinkedRole` statement above creates it on first `tofu apply`.

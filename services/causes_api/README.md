@@ -51,7 +51,10 @@ Input devices** before running the service for the first time.
 | `GOOGLE_CLIENT_SECRET` | bootstrap only | — | OAuth client secret paired with the above |
 | `HONEYCOMB_API_KEY` | no | — | Honeycomb API key; when absent, traces are not exported |
 | `HONEYCOMB_ENDPOINT` | no | `https://api.honeycomb.io:443` | OTLP endpoint; use `https://api.eu1.honeycomb.io:443` for EU |
-| `BIND_ADDR` | no | `[::]:50051` | gRPC listen address |
+| `BIND_ADDR` | no | `[::]:50051` | gRPC listen address (used when `TLS_DOMAIN` is unset) |
+| `TLS_DOMAIN` | no | — | Domain for automatic TLS via Let's Encrypt (e.g. `causes.example.com`). When set, the server listens on port 443. |
+| `TLS_ACME_EMAIL` | no | — | Contact email for Let's Encrypt certificate notifications |
+| `TLS_CERT_CACHE_DIR` | no | `/var/lib/causes/certs` | Directory to cache TLS certificates; must persist across restarts |
 
 `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are required for the bootstrap
 flow and will also be required for Google social login once that is implemented.
@@ -101,6 +104,47 @@ DATABASE_URL=postgresql://causes:causes@localhost:5432/causes \
 ```sh
 bazel test //services/causes_api:causes_api_test
 ```
+
+## TLS (production)
+
+When `TLS_DOMAIN` is set, the server automatically obtains and renews a
+Let's Encrypt certificate using the ACME TLS-ALPN-01 challenge.
+gRPC and ACME challenges share port 443 via ALPN negotiation.
+
+### Setup
+
+1. Point a DNS A record for your domain at the EC2 Elastic IP:
+
+   ```sh
+   bazel --quiet run //infra:tofu -- output -raw ec2_public_ip
+   ```
+
+2. Set the Terraform variables and apply:
+
+   ```sh
+   # In infra/terraform/terraform.tfvars:
+   tls_domain     = "causes.example.com"
+   tls_acme_email = "admin@example.com"
+   ```
+
+   ```sh
+   bazel run //infra:tofu -- apply
+   ```
+
+3. The first certificate issuance takes ~30 seconds after the server starts.
+   Subsequent renewals happen automatically ~30 days before expiry.
+
+### Local development
+
+Leave `TLS_DOMAIN` unset — the server runs plain HTTP/2 on `BIND_ADDR`
+(default `[::]:50051`).
+No certificates, no port 443, no change from before.
+
+### Certificate cache
+
+Certificates are cached in `TLS_CERT_CACHE_DIR` (default `/var/lib/causes/certs`).
+On EC2, this is backed by a persistent EBS volume that survives instance replacement (`tofu apply -replace=aws_instance.causes_api`).
+Without persistence, a new cert would be issued on every deploy — Let's Encrypt rate-limits to 5 per domain per week.
 
 ## Troubleshooting bootstrap
 

@@ -1,5 +1,11 @@
 [workspace]
-members = ["lib/rust/api_db", "services/causes_api", "tools/sqlx-cli"]
+members = [
+  "lib/rust/api_db",
+  "lib/rust/causes_proto",
+  "services/causes_api",
+  "tools/proto-gen",
+  "tools/sqlx-cli",
+]
 resolver = "2"
 
 [workspace.package]
@@ -41,5 +47,8 @@ dotenvy = "0.15"
 uuid = { version = "1", features = ["v4"] }
 url = "2"
 email_address = "0.2"
+prost = "0.14"
+tonic-prost = "0.14"
+tonic-prost-build = "0.14"
 mockall = "0.14"
 wiremock = "0.6"

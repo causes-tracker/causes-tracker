@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT device_code, interval_secs FROM pending_logins WHERE nonce = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "device_code",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "interval_secs",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "45ee51fb863f70b23bd4a530742c098b1c9f08f0ed638b882c344dc3ae5ebcf5"
+}

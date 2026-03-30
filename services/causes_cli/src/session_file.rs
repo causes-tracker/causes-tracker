@@ -3,11 +3,11 @@ use std::path::PathBuf;
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
 
-/// On-disk session state stored in `<data_dir>/session.json`.
+/// On-disk session token for a single server.
+/// Stored in `<data_dir>/<sanitised_host>.json`.
 #[derive(Serialize, Deserialize)]
 pub struct SessionFile {
     pub session_token: String,
-    pub server: String,
 }
 
 /// Default data directory for session tokens and credentials.
@@ -23,12 +23,29 @@ pub fn default_data_dir() -> PathBuf {
         .join("causes")
 }
 
-fn session_path(config_dir: &std::path::Path) -> PathBuf {
-    config_dir.join("session.json")
+/// Derive a filesystem-safe filename from a server URL.
+fn session_filename(server: &str) -> String {
+    let sanitised: String = server
+        .trim_start_matches("http://")
+        .trim_start_matches("https://")
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '.' || c == '-' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    format!("{sanitised}.json")
 }
 
-pub fn load(config_dir: &std::path::Path) -> anyhow::Result<Option<SessionFile>> {
-    let path = session_path(config_dir);
+fn session_path(data_dir: &std::path::Path, server: &str) -> PathBuf {
+    data_dir.join(session_filename(server))
+}
+
+pub fn load(data_dir: &std::path::Path, server: &str) -> anyhow::Result<Option<SessionFile>> {
+    let path = session_path(data_dir, server);
     if !path.exists() {
         return Ok(None);
     }
@@ -37,9 +54,9 @@ pub fn load(config_dir: &std::path::Path) -> anyhow::Result<Option<SessionFile>>
     Ok(Some(session))
 }
 
-pub fn save(config_dir: &std::path::Path, session: &SessionFile) -> anyhow::Result<()> {
-    std::fs::create_dir_all(config_dir).context("creating config directory")?;
-    let path = session_path(config_dir);
+pub fn save(data_dir: &std::path::Path, server: &str, session: &SessionFile) -> anyhow::Result<()> {
+    std::fs::create_dir_all(data_dir).context("creating data directory")?;
+    let path = session_path(data_dir, server);
     let content = serde_json::to_string_pretty(session).context("serialising session")?;
     std::fs::write(&path, content).context("writing session file")?;
     Ok(())
@@ -54,30 +71,68 @@ mod tests {
     }
 
     #[test]
+    fn session_filename_sanitises_url() {
+        assert_eq!(
+            session_filename("https://causes.example.com"),
+            "causes.example.com.json"
+        );
+        assert_eq!(session_filename("http://[::1]:50051"), "___1__50051.json");
+        assert_eq!(
+            session_filename("https://my-host.io:443"),
+            "my-host.io_443.json"
+        );
+    }
+
+    #[test]
     fn round_trip_save_and_load() {
         let dir = test_dir("roundtrip");
-
+        let server = "http://localhost:50051";
         let session = SessionFile {
             session_token: "abc123".to_string(),
-            server: "http://localhost:50051".to_string(),
         };
-
-        save(&dir, &session).expect("save failed");
-        let loaded = load(&dir).expect("load failed").expect("no session file");
-
+        save(&dir, server, &session).expect("save failed");
+        let loaded = load(&dir, server)
+            .expect("load failed")
+            .expect("no session file");
         assert_eq!(loaded.session_token, "abc123");
-        assert_eq!(loaded.server, "http://localhost:50051");
+        std::fs::remove_dir_all(&dir).ok();
+    }
 
+    #[test]
+    fn different_servers_have_different_files() {
+        let dir = test_dir("multi-server");
+        save(
+            &dir,
+            "http://server-a:50051",
+            &SessionFile {
+                session_token: "token-a".to_string(),
+            },
+        )
+        .expect("save a failed");
+        save(
+            &dir,
+            "http://server-b:50051",
+            &SessionFile {
+                session_token: "token-b".to_string(),
+            },
+        )
+        .expect("save b failed");
+        let a = load(&dir, "http://server-a:50051")
+            .expect("load a failed")
+            .expect("no session for a");
+        let b = load(&dir, "http://server-b:50051")
+            .expect("load b failed")
+            .expect("no session for b");
+        assert_eq!(a.session_token, "token-a");
+        assert_eq!(b.session_token, "token-b");
         std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
     fn load_returns_none_when_missing() {
         let dir = test_dir("missing");
-
-        let loaded = load(&dir).expect("load failed");
+        let loaded = load(&dir, "http://nonexistent:1234").expect("load failed");
         assert!(loaded.is_none());
-
         std::fs::remove_dir_all(&dir).ok();
     }
 }

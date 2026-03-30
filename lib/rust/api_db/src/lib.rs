@@ -6,5 +6,5 @@ pub use admin::{AuthProvider, DisplayName, Email, Subject, UserId, create_admin,
 pub use db::DbPool;
 pub use session::{
     SessionRow, SessionToken, UserRow, create_session, find_user_by_id, find_user_by_identity,
-    lookup_session,
+    gc_expired_sessions, lookup_session,
 };

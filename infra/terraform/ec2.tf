@@ -97,6 +97,25 @@ resource "aws_s3_bucket_public_access_block" "images" {
   restrict_public_buckets = true
 }
 
+# ── Persistent EBS volume for TLS certificate cache ──────────────────────────
+#
+# Survives instance replacement (tofu apply -replace=aws_instance.causes_api)
+# so Let's Encrypt certs are reused.  Without this, a fresh cert would be
+# issued on every deploy — LE rate-limits to 5 per domain per week.
+
+resource "aws_ebs_volume" "certs" {
+  availability_zone = data.aws_availability_zones.available.names[0]
+  size              = 1 # GiB — certs are tiny
+  type              = "gp3"
+  tags              = { Name = "causes-certs" }
+}
+
+resource "aws_volume_attachment" "certs" {
+  device_name = "/dev/xvdf"
+  volume_id   = aws_ebs_volume.certs.id
+  instance_id = aws_instance.causes_api.id
+}
+
 resource "aws_instance" "causes_api" {
   ami                         = data.aws_ssm_parameter.al2023_x86_64.value
   instance_type               = "t3.nano"
@@ -131,8 +150,15 @@ resource "aws_instance" "causes_api" {
     DB_PORT="${aws_rds_cluster.causes.port}"
     DATABASE_URL="postgresql://$DB_USER:$DB_PASS@$DB_HOST:$DB_PORT/causes"
 
-    # Cert cache directory (persists across container restarts).
+    # Mount the persistent EBS volume for TLS cert cache.
+    # Format only if not already formatted (first attach).
+    while [ ! -e /dev/xvdf ]; do sleep 1; done
+    if ! blkid /dev/xvdf; then
+      mkfs.ext4 /dev/xvdf
+    fi
     mkdir -p /var/lib/causes/certs
+    mount /dev/xvdf /var/lib/causes/certs
+    echo '/dev/xvdf /var/lib/causes/certs ext4 defaults,nofail 0 2' >> /etc/fstab
 
     # Allow binding port 443 without root.
     sysctl -w net.ipv4.ip_unprivileged_port_start=0

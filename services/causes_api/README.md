@@ -51,7 +51,10 @@ Input devices** before running the service for the first time.
 | `GOOGLE_CLIENT_SECRET` | bootstrap only | — | OAuth client secret paired with the above |
 | `HONEYCOMB_API_KEY` | no | — | Honeycomb API key; when absent, traces are not exported |
 | `HONEYCOMB_ENDPOINT` | no | `https://api.honeycomb.io:443` | OTLP endpoint; use `https://api.eu1.honeycomb.io:443` for EU |
-| `BIND_ADDR` | no | `[::]:50051` | gRPC listen address |
+| `BIND_ADDR` | no | `[::]:50051` | gRPC listen address (used when `TLS_DOMAIN` is unset) |
+| `TLS_DOMAIN` | no | — | Domain for automatic TLS via Let's Encrypt (e.g. `causes.example.com`). When set, the server listens on port 443. |
+| `TLS_ACME_EMAIL` | no | — | Contact email for Let's Encrypt certificate notifications |
+| `TLS_CERT_CACHE_DIR` | no | `/var/lib/causes/certs` | Directory to cache TLS certificates; must persist across restarts |
 
 `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are required for the bootstrap
 flow and will also be required for Google social login once that is implemented.
@@ -95,6 +98,15 @@ DATABASE_URL=postgresql://causes:causes@localhost:5432/causes \
   bazel run //tools:sqlx -- migrate run \
   --source lib/rust/api_db/migrations
 ```
+
+## TLS (production)
+
+When `TLS_DOMAIN` is set, the server automatically obtains and renews a
+Let's Encrypt certificate using the ACME TLS-ALPN-01 challenge.
+gRPC and ACME challenges share port 443 via ALPN negotiation.
+
+For local development, leave `TLS_DOMAIN` unset — the server runs plain
+HTTP/2 on `BIND_ADDR` (default `[::]:50051`).
 
 ## Running tests
 

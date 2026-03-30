@@ -104,6 +104,9 @@ mod tests {
             honeycomb_api_key: None,
             honeycomb_endpoint: "https://api.honeycomb.io:443".to_string(),
             bind_addr: "127.0.0.1:0".to_string(),
+            tls_domain: None,
+            tls_acme_email: None,
+            tls_cert_cache_dir: "/tmp/certs".to_string(),
         };
         let (tx, rx) = tokio::sync::oneshot::channel::<()>();
         let handle: tokio::task::JoinHandle<anyhow::Result<()>> =

@@ -26,6 +26,13 @@ sh_binary(
     ],
 )
 
+# Build, upload, and deploy the causes-api container image in one step.
+# Usage: bazel run //infra:deploy
+sh_binary(
+    name = "deploy",
+    srcs = ["deploy.sh"],
+)
+
 markdown_lint_test(
     name = "pymarkdown",
     srcs = ["terraform/README.md"],

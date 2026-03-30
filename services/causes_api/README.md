@@ -114,6 +114,26 @@ HTTP/2 on `BIND_ADDR` (default `[::]:50051`).
 bazel test //services/causes_api:causes_api_test
 ```
 
+## TLS
+
+When `TLS_DOMAIN` is set, the server automatically obtains and renews a
+Let's Encrypt certificate using the ACME TLS-ALPN-01 challenge.
+gRPC and ACME challenges share port 443 via ALPN negotiation.
+The first certificate issuance takes ~30 seconds after the server starts.
+Subsequent renewals happen automatically ~30 days before expiry.
+
+When `TLS_DOMAIN` is unset, the server runs plain HTTP/2 on `BIND_ADDR`
+(default `[::]:50051`) with no TLS.
+
+### Certificate cache
+
+Certificates are cached in `TLS_CERT_CACHE_DIR` (default `/var/lib/causes/certs`).
+This directory must persist across restarts — without it, a new certificate
+would be issued on every start.
+Let's Encrypt rate-limits to 5 certificates per domain per week.
+
+For the causes-tracker AWS deployment, see [infra/terraform/README.md](../../infra/terraform/README.md#enabling-tls) for setup instructions.
+
 ## Troubleshooting bootstrap
 
 **Bootstrap didn't trigger / no device code was printed:**

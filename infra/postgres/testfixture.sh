@@ -25,16 +25,20 @@ pg_start() {
 		-U postgres --auth=trust >/dev/null
 
 	# Start the server listening on TCP only (no Unix socket needed in tests).
+	# Use mmap for dynamic shared memory so nothing lands in /dev/shm.
+	# Ephemeral test instances that crash leave POSIX segments behind in
+	# /dev/shm; with mmap the segments live inside PGDATA and vanish when
+	# TEST_TMPDIR is cleaned up.
 	local pglog="${TEST_TMPDIR}/pg.log"
 	"$PGBIN/pg_ctl" start -D "$PGDATA" -l "$pglog" \
-		-o "-p ${PGPORT} -h 127.0.0.1 -k ''" \
+		-o "-p ${PGPORT} -h 127.0.0.1 -k '' -c dynamic_shared_memory_type=mmap" \
 		--wait
 
-	trap 'pg_stop' EXIT
+	trap 'pg_stop' EXIT INT TERM
 }
 
 pg_stop() {
 	if [[ -n "${PGBIN:-}" && -n "${PGDATA:-}" ]]; then
-		"$PGBIN/pg_ctl" stop -D "$PGDATA" -m fast -q 2>/dev/null || true
+		"$PGBIN/pg_ctl" stop -D "$PGDATA" -m immediate -q 2>/dev/null || true
 	fi
 }

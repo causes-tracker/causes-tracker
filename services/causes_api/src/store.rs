@@ -2,7 +2,8 @@
 /// Implemented by [`api_db::DbPool`] in production; in tests, use
 /// [`mockall::automock`]-generated `MockStore`.
 #[cfg_attr(test, mockall::automock)]
-pub trait Store: Send + 'static {
+#[tonic::async_trait]
+pub trait Store: Send + Sync + 'static {
     async fn migrate(&self) -> anyhow::Result<()>;
     async fn user_count(&self) -> anyhow::Result<i64>;
     async fn create_admin(
@@ -40,8 +41,11 @@ pub trait Store: Send + 'static {
         nonce: &api_db::LoginNonce,
     ) -> anyhow::Result<Option<api_db::PendingLoginRow>>;
     async fn delete_pending_login(&self, nonce: &api_db::LoginNonce) -> anyhow::Result<()>;
+    async fn gc_pending_logins(&self, max_age: std::time::Duration) -> anyhow::Result<u64>;
+    async fn gc_expired_sessions(&self) -> anyhow::Result<u64>;
 }
 
+#[tonic::async_trait]
 impl Store for api_db::DbPool {
     async fn migrate(&self) -> anyhow::Result<()> {
         api_db::DbPool::migrate(self).await
@@ -108,5 +112,13 @@ impl Store for api_db::DbPool {
 
     async fn delete_pending_login(&self, nonce: &api_db::LoginNonce) -> anyhow::Result<()> {
         api_db::delete_pending_login(self, nonce).await
+    }
+
+    async fn gc_pending_logins(&self, max_age: std::time::Duration) -> anyhow::Result<u64> {
+        api_db::gc_pending_logins(self, max_age).await
+    }
+
+    async fn gc_expired_sessions(&self) -> anyhow::Result<u64> {
+        api_db::gc_expired_sessions(self).await
     }
 }

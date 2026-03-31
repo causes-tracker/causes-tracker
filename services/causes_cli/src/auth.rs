@@ -70,9 +70,9 @@ async fn login(server: &str, data_dir: &std::path::Path) -> anyhow::Result<()> {
             Some(complete_login_response::Result::SessionCreated(sc)) => {
                 session_file::save(
                     data_dir,
+                    server,
                     &SessionFile {
                         session_token: sc.session_token,
-                        server: server.to_owned(),
                     },
                 )?;
                 println!("Login successful. Session saved.");
@@ -86,16 +86,8 @@ async fn login(server: &str, data_dir: &std::path::Path) -> anyhow::Result<()> {
 }
 
 async fn whoami(server: &str, data_dir: &std::path::Path) -> anyhow::Result<()> {
-    let session = session_file::load(data_dir)?
+    let session = session_file::load(data_dir, server)?
         .ok_or_else(|| anyhow::anyhow!("not logged in — run `causes auth login` first"))?;
-
-    if session.server != server {
-        anyhow::bail!(
-            "session is for {} but --server is {}; re-run login or set --server",
-            session.server,
-            server,
-        );
-    }
 
     let mut client = AuthServiceClient::connect(server.to_owned())
         .await
@@ -238,11 +230,10 @@ mod tests {
 
         super::login(&server_url, &dir).await.expect("login failed");
 
-        let session = crate::session_file::load(&dir)
+        let session = crate::session_file::load(&dir, &server_url)
             .expect("load failed")
             .expect("no session saved");
         assert_eq!(session.session_token, "d".repeat(64));
-        assert_eq!(session.server, server_url);
 
         std::fs::remove_dir_all(&dir).ok();
     }
@@ -254,9 +245,9 @@ mod tests {
 
         crate::session_file::save(
             &dir,
+            &server_url,
             &crate::session_file::SessionFile {
                 session_token: "e".repeat(64),
-                server: server_url.clone(),
             },
         )
         .expect("save failed");

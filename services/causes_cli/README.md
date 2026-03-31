@@ -32,7 +32,7 @@ bazel run //services/causes_cli -- auth --help
 
 Log in to a Causes instance via the device authorization flow.
 The server drives the entire OAuth flow — the CLI just displays a code and polls for completion.
-On success, the session token is saved to `~/.local/share/causes/session.json` (or `$XDG_DATA_HOME/causes/session.json`).
+On success, the session token is saved under `~/.local/share/causes/` (or `$XDG_DATA_HOME/causes/`).
 
 ### `auth whoami`
 
@@ -41,8 +41,8 @@ Reads the stored session token and calls the server's WhoAmI RPC.
 
 ## Session storage
 
-The session token is stored in `$XDG_DATA_HOME/causes/session.json` (default `~/.local/share/causes/session.json`).
-The file contains the token and the server address it was issued for.
+Each server has its own session file, stored in `$XDG_DATA_HOME/causes/` (default `~/.local/share/causes/`).
+The filename is derived from the server URL (e.g. `causes.example.com.json`).
 Per the XDG Base Directory spec, credentials belong in `XDG_DATA_HOME`, not `XDG_CONFIG_HOME`.
 
 ## Environment variables

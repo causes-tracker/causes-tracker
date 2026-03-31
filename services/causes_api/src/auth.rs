@@ -120,14 +120,29 @@ impl<S: crate::store::Store> AuthService for AuthHandler<S> {
                 let issuer = api_db::AuthProvider::new(&claims.iss)
                     .map_err(|e| Status::internal(format!("invalid issuer: {e}")))?;
 
-                let user_id = self
+                let user_id = match self
                     .store
                     .find_user_by_identity(issuer.as_str(), &claims.sub)
                     .await
                     .map_err(|e| Status::internal(format!("looking up user: {e}")))?
-                    .ok_or_else(|| {
-                        Status::permission_denied("no local account for this identity")
-                    })?;
+                {
+                    Some(uid) => uid,
+                    None => {
+                        let display_name = api_db::DisplayName::new(&claims.name)
+                            .map_err(|e| Status::internal(format!("invalid display name: {e}")))?;
+                        let email = api_db::Email::new(&claims.email)
+                            .map_err(|e| Status::internal(format!("invalid email: {e}")))?;
+                        let subject = api_db::Subject::new(&claims.sub)
+                            .map_err(|e| Status::internal(format!("invalid subject: {e}")))?;
+
+                        info!("provisioning new user for {}", claims.email);
+
+                        self.store
+                            .create_user(&display_name, &email, &issuer, &subject)
+                            .await
+                            .map_err(|e| Status::internal(format!("provisioning user: {e}")))?
+                    }
+                };
 
                 // Delete nonce before creating session: if interrupted between
                 // the two, the user has no session but the nonce is consumed —
@@ -363,7 +378,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn complete_login_rejects_unknown_identity() {
+    async fn complete_login_provisions_new_user_on_first_login() {
         let server = MockServer::start().await;
         Mock::given(method("POST"))
             .and(path("/token"))
@@ -376,13 +391,18 @@ mod tests {
         Mock::given(method("GET"))
             .and(path("/tokeninfo"))
             .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-                "sub": "unknown-sub",
-                "email": "nobody@example.com",
-                "name": "Nobody",
+                "sub": "new-sub",
+                "email": "newcomer@example.com",
+                "name": "New User",
                 "iss": "accounts.google.com"
             })))
             .mount(&server)
             .await;
+
+        let new_user_id = api_db::UserId::new();
+        let uid = new_user_id.clone();
+        let token = api_db::SessionToken::from_raw("f".repeat(64)).unwrap();
+        let tok = token.clone();
 
         let mut store = MockStore::new();
         store.expect_lookup_pending_login().returning(|_| {
@@ -394,16 +414,29 @@ mod tests {
         store
             .expect_find_user_by_identity()
             .returning(|_, _| Ok(None));
+        store
+            .expect_create_user()
+            .returning(move |_, _, _, _| Ok(uid.clone()));
+        store
+            .expect_create_session()
+            .returning(move |_, _| Ok(tok.clone()));
+        store.expect_delete_pending_login().returning(|_| Ok(()));
 
         let handler = handler_with_urls(store, &server.uri());
-        let err = handler
+        let resp = handler
             .complete_login(Request::new(CompleteLoginRequest {
                 nonce: "f".repeat(64),
             }))
             .await
-            .unwrap_err();
+            .expect("complete_login failed")
+            .into_inner();
 
-        assert_eq!(err.code(), tonic::Code::PermissionDenied);
+        match resp.result {
+            Some(complete_login_response::Result::SessionCreated(sc)) => {
+                assert_eq!(sc.session_token, "f".repeat(64));
+            }
+            other => panic!("expected SessionCreated, got {other:?}"),
+        }
     }
 
     // ── WhoAmI tests ──────────────────────────────────────────────────────

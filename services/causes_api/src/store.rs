@@ -13,6 +13,13 @@ pub trait Store: Send + Sync + 'static {
         auth_provider: &api_db::AuthProvider,
         subject: &api_db::Subject,
     ) -> anyhow::Result<api_db::UserId>;
+    async fn create_user(
+        &self,
+        display_name: &api_db::DisplayName,
+        email: &api_db::Email,
+        auth_provider: &api_db::AuthProvider,
+        subject: &api_db::Subject,
+    ) -> anyhow::Result<api_db::UserId>;
     async fn create_session(
         &self,
         user_id: &api_db::UserId,
@@ -63,6 +70,16 @@ impl Store for api_db::DbPool {
         subject: &api_db::Subject,
     ) -> anyhow::Result<api_db::UserId> {
         api_db::create_admin(self, display_name, email, auth_provider, subject).await
+    }
+
+    async fn create_user(
+        &self,
+        display_name: &api_db::DisplayName,
+        email: &api_db::Email,
+        auth_provider: &api_db::AuthProvider,
+        subject: &api_db::Subject,
+    ) -> anyhow::Result<api_db::UserId> {
+        api_db::create_user(self, display_name, email, auth_provider, subject).await
     }
 
     async fn create_session(

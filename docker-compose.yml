@@ -2,7 +2,9 @@ services:
   postgres:
     # Pin by digest; update when upgrading pgvector or PostgreSQL.
     # Current: pgvector 0.8.0 on PostgreSQL 17 (bookworm).
-    # To update: docker pull pgvector/pgvector:pg17 && docker inspect --format='{{index .RepoDigests 0}}' pgvector/pgvector:pg17
+    # To update:
+    #   docker pull pgvector/pgvector:pg17
+    #   docker inspect --format='{{index .RepoDigests 0}}' pgvector/pgvector:pg17
     image: pgvector/pgvector:pg17@sha256:4d015894147ed169e4d2b2e14505cb99333c868e75663f586c217ba786c800d1
     environment:
       POSTGRES_USER: causes

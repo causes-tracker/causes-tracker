@@ -209,6 +209,45 @@ pub async fn create_admin(
     Ok(user_id)
 }
 
+/// Insert a new user (no roles) and return the generated user id.
+///
+/// Unlike [`create_admin`], this does **not** insert any `role_assignments`.
+/// The caller is responsible for granting roles separately.
+pub async fn create_user(
+    pool: &DbPool,
+    display_name: &DisplayName,
+    email: &Email,
+    auth_provider: &AuthProvider,
+    subject: &Subject,
+) -> anyhow::Result<UserId> {
+    let user_id = UserId::new();
+    let mut tx = pool.0.begin().await.context("beginning transaction")?;
+
+    sqlx::query!(
+        "INSERT INTO users (id, display_name, email, auth_provider) VALUES ($1, $2, $3, $4)",
+        user_id.as_str(),
+        display_name.as_str(),
+        email.as_str(),
+        auth_provider.as_str(),
+    )
+    .execute(&mut *tx)
+    .await
+    .context("inserting user")?;
+
+    sqlx::query!(
+        "INSERT INTO external_identities (issuer, subject, user_id) VALUES ($1, $2, $3)",
+        auth_provider.as_str(),
+        subject.as_str(),
+        user_id.as_str(),
+    )
+    .execute(&mut *tx)
+    .await
+    .context("inserting external_identity")?;
+
+    tx.commit().await.context("committing transaction")?;
+    Ok(user_id)
+}
+
 // ── Tests ──────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -374,6 +413,39 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(role, "instance-admin");
+    }
+
+    #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
+    async fn create_user_inserts_rows_without_role(pool: sqlx::PgPool) {
+        let pool = DbPool(pool);
+
+        let user_id = create_user(
+            &pool,
+            &DisplayName::new("New User").unwrap(),
+            &Email::new("new@example.com").unwrap(),
+            &AuthProvider::new("accounts.google.com").unwrap(),
+            &Subject::new("new-sub-99").unwrap(),
+        )
+        .await
+        .expect("create_user failed");
+
+        let ext_count: Option<i64> = sqlx::query_scalar!(
+            "SELECT COUNT(*) FROM external_identities WHERE user_id = $1",
+            user_id.as_str(),
+        )
+        .fetch_one(&pool.0)
+        .await
+        .unwrap();
+        assert_eq!(ext_count.unwrap_or(0), 1);
+
+        let role = sqlx::query_scalar!(
+            "SELECT role FROM role_assignments WHERE user_id = $1",
+            user_id.as_str(),
+        )
+        .fetch_optional(&pool.0)
+        .await
+        .unwrap();
+        assert!(role.is_none(), "expected no role_assignments");
     }
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]

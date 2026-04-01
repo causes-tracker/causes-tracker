@@ -99,15 +99,6 @@ DATABASE_URL=postgresql://causes:causes@localhost:5432/causes \
   --source lib/rust/api_db/migrations
 ```
 
-## TLS (production)
-
-When `TLS_DOMAIN` is set, the server automatically obtains and renews a
-Let's Encrypt certificate using the ACME TLS-ALPN-01 challenge.
-gRPC and ACME challenges share port 443 via ALPN negotiation.
-
-For local development, leave `TLS_DOMAIN` unset — the server runs plain
-HTTP/2 on `BIND_ADDR` (default `[::]:50051`).
-
 ## Running tests
 
 ```sh

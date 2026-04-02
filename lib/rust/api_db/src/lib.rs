@@ -1,6 +1,7 @@
 mod admin;
 mod db;
 mod pending_login;
+mod role;
 mod session;
 
 /// Re-export chrono types used in public structs (e.g. `SessionRow.expires_at`).
@@ -14,6 +15,7 @@ pub use pending_login::{
     LoginNonce, PendingLoginRow, create_pending_login, delete_pending_login, gc_pending_logins,
     lookup_pending_login,
 };
+pub use role::{ProjectId, Role};
 pub use session::{
     SessionRow, SessionToken, UserRow, create_session, find_user_by_id, find_user_by_identity,
     gc_expired_sessions, lookup_session,

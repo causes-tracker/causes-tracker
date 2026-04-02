@@ -51,6 +51,21 @@ pub trait Store: Send + Sync + 'static {
     async fn delete_pending_login(&self, nonce: &api_db::LoginNonce) -> anyhow::Result<()>;
     async fn gc_pending_logins(&self, max_age: std::time::Duration) -> anyhow::Result<u64>;
     async fn gc_expired_sessions(&self) -> anyhow::Result<u64>;
+    async fn get_user_roles(
+        &self,
+        user_id: &api_db::UserId,
+    ) -> anyhow::Result<Vec<api_db::RoleAssignment>>;
+    async fn get_user_project_roles(
+        &self,
+        user_id: &api_db::UserId,
+        project_id: &api_db::ProjectId,
+    ) -> anyhow::Result<Vec<api_db::Role>>;
+    async fn assign_role(
+        &self,
+        user_id: &api_db::UserId,
+        project_id: &Option<api_db::ProjectId>,
+        role: api_db::Role,
+    ) -> anyhow::Result<()>;
 }
 
 #[tonic::async_trait]
@@ -139,5 +154,29 @@ impl Store for api_db::DbPool {
 
     async fn gc_expired_sessions(&self) -> anyhow::Result<u64> {
         api_db::gc_expired_sessions(self).await
+    }
+
+    async fn get_user_roles(
+        &self,
+        user_id: &api_db::UserId,
+    ) -> anyhow::Result<Vec<api_db::RoleAssignment>> {
+        api_db::get_user_roles(self, user_id).await
+    }
+
+    async fn get_user_project_roles(
+        &self,
+        user_id: &api_db::UserId,
+        project_id: &api_db::ProjectId,
+    ) -> anyhow::Result<Vec<api_db::Role>> {
+        api_db::get_user_project_roles(self, user_id, project_id).await
+    }
+
+    async fn assign_role(
+        &self,
+        user_id: &api_db::UserId,
+        project_id: &Option<api_db::ProjectId>,
+        role: api_db::Role,
+    ) -> anyhow::Result<()> {
+        api_db::assign_role(self, user_id, project_id, role).await
     }
 }

@@ -25,12 +25,16 @@ pub async fn router<S: crate::store::Store>(
     http_client: reqwest::Client,
 ) -> tonic::transport::server::Router {
     let (_health_reporter, health_svc) = health_service().await;
+    let admin_svc = causes_proto::admin_service_server::AdminServiceServer::new(
+        crate::admin_service::AdminHandler::new(db.clone()),
+    );
     let auth_svc = causes_proto::auth_service_server::AuthServiceServer::new(
         crate::auth::AuthHandler::new(db, cfg, http_client),
     );
 
     tonic::transport::Server::builder()
         .add_service(health_svc)
+        .add_service(admin_svc)
         .add_service(auth_svc)
 }
 

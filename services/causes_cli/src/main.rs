@@ -1,5 +1,6 @@
 use clap::Parser;
 
+mod admin;
 mod auth;
 mod session_file;
 
@@ -21,6 +22,8 @@ struct Cli {
 
 #[derive(clap::Subcommand, Debug)]
 enum Command {
+    /// Instance administration (requires admin session).
+    Admin(admin::AdminArgs),
     /// Manage authentication.
     Auth(auth::AuthArgs),
 }
@@ -31,6 +34,7 @@ async fn main() -> anyhow::Result<()> {
     let data_dir = session_file::default_data_dir();
 
     match cli.command {
+        Command::Admin(args) => admin::run(&cli.server, &data_dir, args).await,
         Command::Auth(args) => auth::run(&cli.server, &data_dir, args).await,
     }
 }

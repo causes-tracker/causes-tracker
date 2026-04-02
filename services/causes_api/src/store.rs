@@ -39,6 +39,7 @@ pub trait Store: Send + Sync + 'static {
         &self,
         user_id: &api_db::UserId,
     ) -> anyhow::Result<Option<api_db::UserRow>>;
+    async fn find_user_by_email(&self, email: &str) -> anyhow::Result<Option<api_db::UserId>>;
     async fn create_pending_login(
         &self,
         device_code: &str,
@@ -70,6 +71,10 @@ pub trait Store: Send + Sync + 'static {
         project_id: &Option<api_db::ProjectId>,
         role: api_db::Role,
     ) -> anyhow::Result<()>;
+    async fn find_project_id_by_name(
+        &self,
+        name: &str,
+    ) -> anyhow::Result<Option<api_db::ProjectId>>;
 }
 
 #[tonic::async_trait]
@@ -133,6 +138,10 @@ impl Store for api_db::DbPool {
         api_db::find_user_by_id(self, user_id).await
     }
 
+    async fn find_user_by_email(&self, email: &str) -> anyhow::Result<Option<api_db::UserId>> {
+        api_db::find_user_by_email(self, email).await
+    }
+
     async fn create_pending_login(
         &self,
         device_code: &str,
@@ -189,5 +198,12 @@ impl Store for api_db::DbPool {
         role: api_db::Role,
     ) -> anyhow::Result<()> {
         api_db::assign_role(self, user_id, project_id, role).await
+    }
+
+    async fn find_project_id_by_name(
+        &self,
+        name: &str,
+    ) -> anyhow::Result<Option<api_db::ProjectId>> {
+        api_db::find_project_id_by_name(self, name).await
     }
 }

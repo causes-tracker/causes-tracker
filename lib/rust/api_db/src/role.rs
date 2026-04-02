@@ -378,4 +378,24 @@ mod tests {
         assert_eq!(roles.len(), 2);
         let _ = project_a;
     }
+
+    #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
+    async fn assign_role_rejects_missing_project(pool: sqlx::PgPool) {
+        let pool = DbPool(pool);
+        let user_id = seed_admin(&pool).await;
+        let bogus_project = ProjectId::new(uuid::Uuid::new_v4().to_string()).unwrap();
+
+        let err = assign_role(
+            &pool,
+            &user_id,
+            &Some(bogus_project),
+            Role::ProjectMaintainer,
+        )
+        .await;
+
+        assert!(
+            err.is_err(),
+            "FK should reject role for nonexistent project"
+        );
+    }
 }

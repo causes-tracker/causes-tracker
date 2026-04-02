@@ -1,0 +1,30 @@
+// Administrative operations restricted to instance-admin.
+syntax = "proto3";
+
+package causes.v1;
+
+// AdminService provides instance-level administration.
+// All RPCs require an unrestricted instance-admin session.
+service AdminService {
+  // Assign a role to a user. Idempotent.
+  rpc GrantRole(GrantRoleRequest) returns (GrantRoleResponse);
+}
+
+// Predefined roles from ADR-010.
+enum Role {
+  ROLE_UNSPECIFIED = 0;
+  ROLE_INSTANCE_ADMIN = 1;
+  ROLE_DEVELOPER = 2;
+  ROLE_PROJECT_MAINTAINER = 3;
+  ROLE_SECURITY_TEAM = 4;
+}
+
+message GrantRoleRequest {
+  // Email address of the user to grant the role to.
+  string email = 1;
+  Role role = 2;
+  // Project name (slug) for project-scoped roles. Empty for instance-level roles.
+  string project = 3;
+}
+
+message GrantRoleResponse {}

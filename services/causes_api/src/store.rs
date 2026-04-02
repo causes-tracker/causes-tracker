@@ -75,6 +75,25 @@ pub trait Store: Send + Sync + 'static {
         &self,
         name: &str,
     ) -> anyhow::Result<Option<api_db::ProjectId>>;
+    async fn create_project(
+        &self,
+        name: &api_db::ProjectName,
+        description: &str,
+        visibility: api_db::ProjectVisibility,
+        embargoed_by_default: bool,
+        creator_user_id: &api_db::UserId,
+    ) -> anyhow::Result<api_db::ProjectId>;
+    async fn get_project(
+        &self,
+        project_id: &api_db::ProjectId,
+    ) -> anyhow::Result<Option<api_db::ProjectRow>>;
+    async fn list_projects(&self) -> anyhow::Result<Vec<api_db::ProjectRow>>;
+    async fn rename_project(
+        &self,
+        project_id: &api_db::ProjectId,
+        new_name: &api_db::ProjectName,
+    ) -> anyhow::Result<bool>;
+    async fn delete_project(&self, project_id: &api_db::ProjectId) -> anyhow::Result<bool>;
 }
 
 #[tonic::async_trait]
@@ -205,5 +224,47 @@ impl Store for api_db::DbPool {
         name: &str,
     ) -> anyhow::Result<Option<api_db::ProjectId>> {
         api_db::find_project_id_by_name(self, name).await
+    }
+
+    async fn create_project(
+        &self,
+        name: &api_db::ProjectName,
+        description: &str,
+        visibility: api_db::ProjectVisibility,
+        embargoed_by_default: bool,
+        creator_user_id: &api_db::UserId,
+    ) -> anyhow::Result<api_db::ProjectId> {
+        api_db::create_project(
+            self,
+            name,
+            description,
+            visibility,
+            embargoed_by_default,
+            creator_user_id,
+        )
+        .await
+    }
+
+    async fn get_project(
+        &self,
+        project_id: &api_db::ProjectId,
+    ) -> anyhow::Result<Option<api_db::ProjectRow>> {
+        api_db::get_project(self, project_id).await
+    }
+
+    async fn list_projects(&self) -> anyhow::Result<Vec<api_db::ProjectRow>> {
+        api_db::list_projects(self).await
+    }
+
+    async fn rename_project(
+        &self,
+        project_id: &api_db::ProjectId,
+        new_name: &api_db::ProjectName,
+    ) -> anyhow::Result<bool> {
+        api_db::rename_project(self, project_id, new_name).await
+    }
+
+    async fn delete_project(&self, project_id: &api_db::ProjectId) -> anyhow::Result<bool> {
+        api_db::delete_project(self, project_id).await
     }
 }

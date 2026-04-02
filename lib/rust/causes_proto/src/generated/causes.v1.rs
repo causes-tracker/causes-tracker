@@ -20,6 +20,11 @@ pub struct StartLoginResponse {
 pub struct CompleteLoginRequest {
     #[prost(string, tag = "1")]
     pub nonce: ::prost::alloc::string::String,
+    /// If true, create an unrestricted session with full admin powers.
+    /// Default (false) creates a restricted session — admin roles are suppressed.
+    /// See services/causes_api/README.md "Session types" for the threat model.
+    #[prost(bool, tag = "2")]
+    pub admin: bool,
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct CompleteLoginResponse {
@@ -56,6 +61,9 @@ pub struct WhoAmIResponse {
     pub display_name: ::prost::alloc::string::String,
     #[prost(string, tag = "3")]
     pub email: ::prost::alloc::string::String,
+    /// True if this session has unrestricted (admin) powers.
+    #[prost(bool, tag = "4")]
+    pub admin: bool,
 }
 /// Generated client implementations.
 pub mod auth_service_client {

@@ -4,15 +4,26 @@ use tonic::Status;
 
 use crate::store::Store;
 
+/// Result of successful authentication.
+///
+/// Carries both the user identity and whether this session is restricted.
+/// Restricted sessions suppress elevated roles (e.g. instance-admin) when
+/// checked by authorization helpers.
+#[derive(Debug)]
+pub struct AuthenticatedCaller {
+    pub user_id: api_db::UserId,
+    pub restricted: bool,
+}
+
 /// Extract the bearer token from request metadata, validate the session,
-/// and return the authenticated `UserId`.
+/// and return the authenticated caller with their restriction status.
 ///
 /// Called explicitly by authenticated RPC handlers. Unauthenticated RPCs
 /// (StartLogin, CompleteLogin, health) simply don't call this.
 pub async fn authenticate<S: Store>(
     store: &Arc<S>,
     metadata: &tonic::metadata::MetadataMap,
-) -> Result<api_db::UserId, Status> {
+) -> Result<AuthenticatedCaller, Status> {
     let token_str = metadata
         .get("authorization")
         .ok_or_else(|| Status::unauthenticated("missing authorization header"))?
@@ -36,7 +47,10 @@ pub async fn authenticate<S: Store>(
         return Err(Status::unauthenticated("session has expired"));
     }
 
-    Ok(session.user_id)
+    Ok(AuthenticatedCaller {
+        user_id: session.user_id,
+        restricted: session.restricted,
+    })
 }
 
 #[cfg(test)]
@@ -115,7 +129,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn valid_token_returns_user_id() {
+    async fn valid_token_returns_caller() {
         let user_id = api_db::UserId::new();
         let uid = user_id.clone();
         let mut store = MockStore::new();
@@ -129,7 +143,28 @@ mod tests {
         let store = Arc::new(store);
 
         let md = metadata_with_bearer(&"c".repeat(64));
-        let result = authenticate(&store, &md).await.unwrap();
-        assert_eq!(result, user_id);
+        let caller = authenticate(&store, &md).await.unwrap();
+        assert_eq!(caller.user_id, user_id);
+        assert!(caller.restricted);
+    }
+
+    #[tokio::test]
+    async fn unrestricted_session_returns_restricted_false() {
+        let user_id = api_db::UserId::new();
+        let uid = user_id.clone();
+        let mut store = MockStore::new();
+        store.expect_lookup_session().returning(move |_| {
+            Ok(Some(api_db::SessionRow {
+                user_id: uid.clone(),
+                expires_at: api_db::chrono::Utc::now() + std::time::Duration::from_secs(3600),
+                restricted: false,
+            }))
+        });
+        let store = Arc::new(store);
+
+        let md = metadata_with_bearer(&"d".repeat(64));
+        let caller = authenticate(&store, &md).await.unwrap();
+        assert_eq!(caller.user_id, user_id);
+        assert!(!caller.restricted);
     }
 }

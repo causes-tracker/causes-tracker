@@ -1,6 +1,7 @@
 mod admin;
 mod db;
 mod pending_login;
+mod project;
 mod role;
 mod session;
 
@@ -14,6 +15,10 @@ pub use db::DbPool;
 pub use pending_login::{
     LoginNonce, PendingLoginRow, create_pending_login, delete_pending_login, gc_pending_logins,
     lookup_pending_login,
+};
+pub use project::{
+    ProjectName, ProjectRow, ProjectVisibility, create_project, delete_project, get_project,
+    list_projects, rename_project,
 };
 pub use role::{
     ProjectId, Role, RoleAssignment, assign_role, get_user_instance_roles, get_user_project_roles,

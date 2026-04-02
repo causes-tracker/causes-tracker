@@ -96,6 +96,7 @@ sh_binary(
         "//tools/proto-gen:proto_gen",
         "@bazel_tools//tools/bash/runfiles",
         "@protobuf//:protoc",
+        "@protobuf//:well_known_type_protos",
         "@rust_host_tools//:rustfmt",
     ],
 )
@@ -115,6 +116,7 @@ sh_test(
         "//tools/proto-gen:proto_gen",
         "@bazel_tools//tools/bash/runfiles",
         "@protobuf//:protoc",
+        "@protobuf//:well_known_type_protos",
         "@rust_host_tools//:rustfmt",
     ],
 )

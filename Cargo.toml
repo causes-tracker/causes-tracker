@@ -53,6 +53,7 @@ uuid = { version = "1", features = ["v4"] }
 url = "2"
 email_address = "0.2"
 prost = "0.14"
+prost-types = "0.14"
 tonic-prost = "0.14"
 tonic-prost-build = "0.14"
 rustls-acme = { version = "0.15", features = ["tokio"] }

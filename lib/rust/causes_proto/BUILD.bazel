@@ -6,6 +6,7 @@ rust_library(
     visibility = ["//visibility:public"],
     deps = [
         "@crates//:prost",
+        "@crates//:prost-types",
         "@crates//:tonic",
         "@crates//:tonic-prost",
     ],

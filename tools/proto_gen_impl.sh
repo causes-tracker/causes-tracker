@@ -39,6 +39,12 @@ export LLVM_PROFILE_FILE=/dev/null
 export PROTOC
 PROTOC="$(rlocation protobuf+/protoc)"
 
+# Well-known types (google/protobuf/*.proto) bundled with the protobuf module.
+# Find one WKT file and derive the root include directory.
+WKT_FILE="$(rlocation protobuf+/src/google/protobuf/timestamp.proto)"
+export PROTO_GEN_WKT_DIR
+PROTO_GEN_WKT_DIR="${WKT_FILE%/google/protobuf/timestamp.proto}"
+
 PROTO_GEN="$(rlocation _main/tools/proto-gen/proto_gen)"
 RUSTFMT="$(rlocation rust_host_tools/bin/rustfmt)"
 

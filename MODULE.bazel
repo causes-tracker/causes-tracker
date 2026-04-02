@@ -6,7 +6,7 @@ module(
 # rules_go is required by Gazelle even before any Go code exists.
 # It does not download a Go toolchain until a Go target is built.
 bazel_dep(name = "rules_go", version = "0.60.0")
-bazel_dep(name = "gazelle", version = "0.47.0")
+bazel_dep(name = "gazelle", version = "0.48.0")
 bazel_dep(name = "rules_python", version = "1.9.0")
 bazel_dep(name = "rules_shell", version = "0.6.1")
 bazel_dep(name = "aspect_rules_js", version = "3.0.3")

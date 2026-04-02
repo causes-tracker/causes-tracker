@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT user_id, expires_at FROM sessions WHERE token = $1",
+  "query": "SELECT user_id, expires_at, restricted FROM sessions WHERE token = $1",
   "describe": {
     "columns": [
       {
@@ -12,6 +12,11 @@
         "ordinal": 1,
         "name": "expires_at",
         "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 2,
+        "name": "restricted",
+        "type_info": "Bool"
       }
     ],
     "parameters": {
@@ -21,8 +26,9 @@
     },
     "nullable": [
       false,
+      false,
       false
     ]
   },
-  "hash": "ac05486826ddb2f463691ba981b2f488b3ef44f16680081aab3a3a24ae769f49"
+  "hash": "fd0750de1aa279049d711e4cb530a6375715139c20c1bf8cd59c6d277e6cc5ff"
 }

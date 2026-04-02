@@ -24,6 +24,7 @@ pub trait Store: Send + Sync + 'static {
         &self,
         user_id: &api_db::UserId,
         duration: std::time::Duration,
+        restricted: bool,
     ) -> anyhow::Result<api_db::SessionToken>;
     async fn lookup_session(
         &self,
@@ -86,8 +87,9 @@ impl Store for api_db::DbPool {
         &self,
         user_id: &api_db::UserId,
         duration: std::time::Duration,
+        restricted: bool,
     ) -> anyhow::Result<api_db::SessionToken> {
-        api_db::create_session(self, user_id, duration).await
+        api_db::create_session(self, user_id, duration, restricted).await
     }
 
     async fn lookup_session(

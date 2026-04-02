@@ -46,20 +46,25 @@ impl std::fmt::Display for SessionToken {
 // ── Public API ────────────────────────────────────────────────────────────
 
 /// Create a new session for the given user, valid for `duration`.
+///
+/// When `restricted` is true, authorization helpers suppress elevated roles
+/// (e.g. instance-admin) for this session.
 pub async fn create_session(
     pool: &DbPool,
     user_id: &UserId,
     duration: std::time::Duration,
+    restricted: bool,
 ) -> anyhow::Result<SessionToken> {
     let token = SessionToken::generate();
     let expires_at = chrono::Utc::now() + duration;
 
     sqlx::query!(
-        "INSERT INTO sessions (token, user_id, created_at, expires_at) \
-         VALUES ($1, $2, now(), $3)",
+        "INSERT INTO sessions (token, user_id, created_at, expires_at, restricted) \
+         VALUES ($1, $2, now(), $3, $4)",
         token.as_str(),
         user_id.as_str(),
         expires_at,
+        restricted,
     )
     .execute(&pool.0)
     .await
@@ -76,7 +81,7 @@ pub async fn lookup_session(
 ) -> anyhow::Result<Option<SessionRow>> {
     let row = sqlx::query_as!(
         RawSessionRow,
-        "SELECT user_id, expires_at FROM sessions WHERE token = $1",
+        "SELECT user_id, expires_at, restricted FROM sessions WHERE token = $1",
         token.as_str(),
     )
     .fetch_optional(&pool.0)
@@ -137,6 +142,7 @@ pub async fn gc_expired_sessions(pool: &DbPool) -> anyhow::Result<u64> {
 struct RawSessionRow {
     user_id: String,
     expires_at: chrono::DateTime<chrono::Utc>,
+    restricted: bool,
 }
 
 impl RawSessionRow {
@@ -144,6 +150,7 @@ impl RawSessionRow {
         Ok(SessionRow {
             user_id: UserId::from_existing(self.user_id),
             expires_at: self.expires_at,
+            restricted: self.restricted,
         })
     }
 }
@@ -152,6 +159,8 @@ impl RawSessionRow {
 pub struct SessionRow {
     pub user_id: UserId,
     pub expires_at: chrono::DateTime<chrono::Utc>,
+    /// When true, elevated roles (e.g. instance-admin) are suppressed.
+    pub restricted: bool,
 }
 
 impl SessionRow {
@@ -234,7 +243,7 @@ mod tests {
         let pool = DbPool(pool);
         let user_id = seed_admin(&pool).await;
 
-        let token = create_session(&pool, &user_id, std::time::Duration::from_secs(3600))
+        let token = create_session(&pool, &user_id, std::time::Duration::from_secs(3600), true)
             .await
             .expect("create_session failed");
 
@@ -245,6 +254,25 @@ mod tests {
 
         assert_eq!(row.user_id, user_id);
         assert!(row.expires_at > chrono::Utc::now());
+        assert!(row.restricted);
+    }
+
+    #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
+    async fn create_unrestricted_session(pool: sqlx::PgPool) {
+        let pool = DbPool(pool);
+        let user_id = seed_admin(&pool).await;
+
+        let token = create_session(&pool, &user_id, std::time::Duration::from_secs(3600), false)
+            .await
+            .expect("create_session failed");
+
+        let row = lookup_session(&pool, &token)
+            .await
+            .expect("lookup_session failed")
+            .expect("session not found");
+
+        assert_eq!(row.user_id, user_id);
+        assert!(!row.restricted);
     }
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]

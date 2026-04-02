@@ -152,7 +152,7 @@ impl<S: crate::store::Store> AuthService for AuthHandler<S> {
 
                 let session_token = self
                     .store
-                    .create_session(&user_id, SESSION_DURATION)
+                    .create_session(&user_id, SESSION_DURATION, true)
                     .await
                     .map_err(|e| Status::internal(format!("creating session: {e}")))?;
 
@@ -326,7 +326,7 @@ mod tests {
             .returning(move |_, _| Ok(Some(uid.clone())));
         store
             .expect_create_session()
-            .returning(move |_, _| Ok(tok.clone()));
+            .returning(move |_, _, _| Ok(tok.clone()));
         store.expect_delete_pending_login().returning(|_| Ok(()));
 
         let handler = handler_with_urls(store, &server.uri());
@@ -419,7 +419,7 @@ mod tests {
             .returning(move |_, _, _, _| Ok(uid.clone()));
         store
             .expect_create_session()
-            .returning(move |_, _| Ok(tok.clone()));
+            .returning(move |_, _, _| Ok(tok.clone()));
         store.expect_delete_pending_login().returning(|_| Ok(()));
 
         let handler = handler_with_urls(store, &server.uri());
@@ -461,6 +461,7 @@ mod tests {
             Ok(Some(api_db::SessionRow {
                 user_id: uid.clone(),
                 expires_at: api_db::chrono::Utc::now() + std::time::Duration::from_secs(3600),
+                restricted: true,
             }))
         });
         store.expect_find_user_by_id().returning(move |_| {

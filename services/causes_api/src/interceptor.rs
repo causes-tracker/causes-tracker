@@ -103,6 +103,7 @@ mod tests {
             Ok(Some(api_db::SessionRow {
                 user_id: api_db::UserId::new(),
                 expires_at: api_db::chrono::Utc::now() - std::time::Duration::from_secs(1),
+                restricted: true,
             }))
         });
         let store = Arc::new(store);
@@ -122,6 +123,7 @@ mod tests {
             Ok(Some(api_db::SessionRow {
                 user_id: uid.clone(),
                 expires_at: api_db::chrono::Utc::now() + std::time::Duration::from_secs(3600),
+                restricted: true,
             }))
         });
         let store = Arc::new(store);

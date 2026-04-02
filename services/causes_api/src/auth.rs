@@ -38,8 +38,12 @@ impl<S: crate::store::Store> AuthHandler<S> {
     }
 }
 
-/// Default session duration: 30 days.
-const SESSION_DURATION: Duration = Duration::from_secs(30 * 24 * 60 * 60);
+/// Restricted session duration: 30 days.
+const RESTRICTED_SESSION_DURATION: Duration = Duration::from_secs(30 * 24 * 60 * 60);
+
+/// Admin (unrestricted) session duration: 1 hour.
+/// Short-lived to limit the blast radius of device compromise.
+const ADMIN_SESSION_DURATION: Duration = Duration::from_secs(60 * 60);
 
 #[tonic::async_trait]
 impl<S: crate::store::Store> AuthService for AuthHandler<S> {
@@ -79,7 +83,9 @@ impl<S: crate::store::Store> AuthService for AuthHandler<S> {
         &self,
         request: Request<CompleteLoginRequest>,
     ) -> Result<Response<CompleteLoginResponse>, Status> {
-        let nonce = api_db::LoginNonce::from_raw(request.into_inner().nonce)
+        let inner = request.into_inner();
+        let admin = inner.admin;
+        let nonce = api_db::LoginNonce::from_raw(inner.nonce)
             .map_err(|e| Status::invalid_argument(format!("invalid nonce: {e}")))?;
 
         let pending = self
@@ -150,9 +156,15 @@ impl<S: crate::store::Store> AuthService for AuthHandler<S> {
                 // nonce in the DB alongside a valid session.
                 self.store.delete_pending_login(&nonce).await.ok();
 
+                let restricted = !admin;
+                let duration = if restricted {
+                    RESTRICTED_SESSION_DURATION
+                } else {
+                    ADMIN_SESSION_DURATION
+                };
                 let session_token = self
                     .store
-                    .create_session(&user_id, SESSION_DURATION, true)
+                    .create_session(&user_id, duration, restricted)
                     .await
                     .map_err(|e| Status::internal(format!("creating session: {e}")))?;
 
@@ -187,6 +199,7 @@ impl<S: crate::store::Store> AuthService for AuthHandler<S> {
             user_id: caller.user_id.as_str().to_owned(),
             display_name: user.display_name.as_str().to_owned(),
             email: user.email.as_str().to_owned(),
+            admin: !caller.restricted,
         }))
     }
 }
@@ -275,7 +288,10 @@ mod tests {
 
         let handler = handler_with_urls(store, &server.uri());
         let resp = handler
-            .complete_login(Request::new(CompleteLoginRequest { nonce: nonce_str }))
+            .complete_login(Request::new(CompleteLoginRequest {
+                nonce: nonce_str,
+                admin: false,
+            }))
             .await
             .expect("complete_login failed")
             .into_inner();
@@ -331,7 +347,10 @@ mod tests {
 
         let handler = handler_with_urls(store, &server.uri());
         let resp = handler
-            .complete_login(Request::new(CompleteLoginRequest { nonce: nonce_str }))
+            .complete_login(Request::new(CompleteLoginRequest {
+                nonce: nonce_str,
+                admin: false,
+            }))
             .await
             .expect("complete_login failed")
             .into_inner();
@@ -356,6 +375,7 @@ mod tests {
         let err = handler
             .complete_login(Request::new(CompleteLoginRequest {
                 nonce: "e".repeat(64),
+                admin: false,
             }))
             .await
             .unwrap_err();
@@ -370,6 +390,7 @@ mod tests {
         let err = handler
             .complete_login(Request::new(CompleteLoginRequest {
                 nonce: "short".to_string(),
+                admin: false,
             }))
             .await
             .unwrap_err();
@@ -426,6 +447,7 @@ mod tests {
         let resp = handler
             .complete_login(Request::new(CompleteLoginRequest {
                 nonce: "f".repeat(64),
+                admin: false,
             }))
             .await
             .expect("complete_login failed")
@@ -482,6 +504,37 @@ mod tests {
         assert_eq!(resp.user_id, uid2.as_str());
         assert_eq!(resp.display_name, "Alice");
         assert_eq!(resp.email, "alice@example.com");
+        assert!(!resp.admin); // restricted session
+    }
+
+    #[tokio::test]
+    async fn who_am_i_returns_admin_for_unrestricted_session() {
+        let user_id = api_db::UserId::new();
+        let uid = user_id.clone();
+
+        let mut store = MockStore::new();
+        store.expect_lookup_session().returning(move |_| {
+            Ok(Some(api_db::SessionRow {
+                user_id: uid.clone(),
+                expires_at: api_db::chrono::Utc::now() + std::time::Duration::from_secs(3600),
+                restricted: false,
+            }))
+        });
+        store.expect_find_user_by_id().returning(move |_| {
+            Ok(Some(api_db::UserRow {
+                display_name: api_db::DisplayName::new("Admin").unwrap(),
+                email: api_db::Email::new("admin@example.com").unwrap(),
+            }))
+        });
+
+        let handler = handler_with_urls(store, "http://unused");
+        let resp = handler
+            .who_am_i(who_am_i_request(&"e".repeat(64)))
+            .await
+            .expect("who_am_i failed")
+            .into_inner();
+
+        assert!(resp.admin); // unrestricted session
     }
 
     #[tokio::test]

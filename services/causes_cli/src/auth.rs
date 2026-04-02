@@ -58,6 +58,7 @@ async fn login(server: &str, data_dir: &std::path::Path) -> anyhow::Result<()> {
         let poll_resp = client
             .complete_login(CompleteLoginRequest {
                 nonce: resp.nonce.clone(),
+                admin: false,
             })
             .await
             .context("CompleteLogin RPC failed")?
@@ -196,6 +197,7 @@ mod tests {
                 user_id: "uid-42".to_string(),
                 display_name: "Test User".to_string(),
                 email: "test@example.com".to_string(),
+                admin: false,
             }))
         }
     }

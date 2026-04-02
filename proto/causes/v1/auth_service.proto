@@ -39,6 +39,10 @@ message StartLoginResponse {
 
 message CompleteLoginRequest {
   string nonce = 1;
+  // If true, create an unrestricted session with full admin powers.
+  // Default (false) creates a restricted session — admin roles are suppressed.
+  // See services/causes_api/README.md "Session types" for the threat model.
+  bool admin = 2;
 }
 
 message CompleteLoginResponse {
@@ -63,4 +67,6 @@ message WhoAmIResponse {
   string user_id = 1;
   string display_name = 2;
   string email = 3;
+  // True if this session has unrestricted (admin) powers.
+  bool admin = 4;
 }

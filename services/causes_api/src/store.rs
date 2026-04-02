@@ -55,6 +55,10 @@ pub trait Store: Send + Sync + 'static {
         &self,
         user_id: &api_db::UserId,
     ) -> anyhow::Result<Vec<api_db::RoleAssignment>>;
+    async fn get_user_instance_roles(
+        &self,
+        user_id: &api_db::UserId,
+    ) -> anyhow::Result<Vec<api_db::Role>>;
     async fn get_user_project_roles(
         &self,
         user_id: &api_db::UserId,
@@ -161,6 +165,13 @@ impl Store for api_db::DbPool {
         user_id: &api_db::UserId,
     ) -> anyhow::Result<Vec<api_db::RoleAssignment>> {
         api_db::get_user_roles(self, user_id).await
+    }
+
+    async fn get_user_instance_roles(
+        &self,
+        user_id: &api_db::UserId,
+    ) -> anyhow::Result<Vec<api_db::Role>> {
+        api_db::get_user_instance_roles(self, user_id).await
     }
 
     async fn get_user_project_roles(

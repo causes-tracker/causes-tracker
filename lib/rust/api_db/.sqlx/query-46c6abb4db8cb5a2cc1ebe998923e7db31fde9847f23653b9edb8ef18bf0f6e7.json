@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT role FROM role_assignments WHERE user_id = $1 AND project_id = ''",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "role",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "46c6abb4db8cb5a2cc1ebe998923e7db31fde9847f23653b9edb8ef18bf0f6e7"
+}

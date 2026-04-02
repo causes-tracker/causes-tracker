@@ -129,6 +129,19 @@ pub async fn get_user_roles(
         .collect()
 }
 
+/// Get instance-level roles for a user (project_id = '').
+pub async fn get_user_instance_roles(pool: &DbPool, user_id: &UserId) -> anyhow::Result<Vec<Role>> {
+    let rows = sqlx::query_scalar!(
+        "SELECT role FROM role_assignments WHERE user_id = $1 AND project_id = ''",
+        user_id.as_str(),
+    )
+    .fetch_all(&pool.0)
+    .await
+    .context("querying user instance roles")?;
+
+    rows.into_iter().map(|r| r.parse()).collect()
+}
+
 /// Get roles for a user scoped to a specific project, including instance-level roles.
 pub async fn get_user_project_roles(
     pool: &DbPool,

@@ -16,7 +16,8 @@ pub use pending_login::{
     lookup_pending_login,
 };
 pub use role::{
-    ProjectId, Role, RoleAssignment, assign_role, get_user_project_roles, get_user_roles,
+    ProjectId, Role, RoleAssignment, assign_role, get_user_instance_roles, get_user_project_roles,
+    get_user_roles,
 };
 pub use session::{
     SessionRow, SessionToken, UserRow, create_session, find_user_by_id, find_user_by_identity,

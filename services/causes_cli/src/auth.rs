@@ -16,7 +16,12 @@ pub struct AuthArgs {
 #[derive(Subcommand, Debug)]
 pub enum AuthCommand {
     /// Log in to a Causes instance via device authorization flow.
-    Login,
+    Login {
+        /// Request an unrestricted session with full admin powers (1 hour).
+        /// Default: restricted session with admin roles suppressed (30 days).
+        #[arg(long)]
+        admin: bool,
+    },
     /// Show the currently authenticated user.
     #[command(name = "whoami")]
     WhoAmI,
@@ -26,12 +31,12 @@ pub fn run(server: &str, args: AuthArgs) -> anyhow::Result<()> {
     let rt = tokio::runtime::Runtime::new().context("creating tokio runtime")?;
     let data_dir = session_file::default_data_dir();
     match args.command {
-        AuthCommand::Login => rt.block_on(login(server, &data_dir)),
+        AuthCommand::Login { admin } => rt.block_on(login(server, &data_dir, admin)),
         AuthCommand::WhoAmI => rt.block_on(whoami(server, &data_dir)),
     }
 }
 
-async fn login(server: &str, data_dir: &std::path::Path) -> anyhow::Result<()> {
+async fn login(server: &str, data_dir: &std::path::Path, admin: bool) -> anyhow::Result<()> {
     let mut client = AuthServiceClient::connect(server.to_owned())
         .await
         .context("connecting to server")?;
@@ -58,7 +63,7 @@ async fn login(server: &str, data_dir: &std::path::Path) -> anyhow::Result<()> {
         let poll_resp = client
             .complete_login(CompleteLoginRequest {
                 nonce: resp.nonce.clone(),
-                admin: false,
+                admin,
             })
             .await
             .context("CompleteLogin RPC failed")?
@@ -111,6 +116,11 @@ async fn whoami(server: &str, data_dir: &std::path::Path) -> anyhow::Result<()> 
     println!("User ID:      {}", resp.user_id);
     println!("Display name: {}", resp.display_name);
     println!("Email:        {}", resp.email);
+    if resp.admin {
+        println!("Session:      admin (unrestricted)");
+    } else {
+        println!("Session:      restricted");
+    }
 
     Ok(())
 }
@@ -128,6 +138,12 @@ mod tests {
     #[test]
     fn auth_login_parses() {
         let cli = Cli::parse_from(["causes", "auth", "login"]);
+        assert!(matches!(cli.command, crate::Command::Auth(_)));
+    }
+
+    #[test]
+    fn auth_login_admin_parses() {
+        let cli = Cli::parse_from(["causes", "auth", "login", "--admin"]);
         assert!(matches!(cli.command, crate::Command::Auth(_)));
     }
 
@@ -230,7 +246,9 @@ mod tests {
         let server_url = start_mock_server().await;
         let dir = test_dir("login");
 
-        super::login(&server_url, &dir).await.expect("login failed");
+        super::login(&server_url, &dir, false)
+            .await
+            .expect("login failed");
 
         let session = crate::session_file::load(&dir, &server_url)
             .expect("load failed")

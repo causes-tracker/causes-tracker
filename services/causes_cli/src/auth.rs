@@ -6,7 +6,7 @@ use causes_proto::{CompleteLoginRequest, StartLoginRequest, complete_login_respo
 
 use crate::session_file::{self, SessionFile};
 
-/// Arguments for the `auth` subcommand group.
+/// Authentication commands.
 #[derive(clap::Args, Debug)]
 pub struct AuthArgs {
     #[command(subcommand)]
@@ -27,12 +27,10 @@ pub enum AuthCommand {
     WhoAmI,
 }
 
-pub fn run(server: &str, args: AuthArgs) -> anyhow::Result<()> {
-    let rt = tokio::runtime::Runtime::new().context("creating tokio runtime")?;
-    let data_dir = session_file::default_data_dir();
+pub async fn run(server: &str, data_dir: &std::path::Path, args: AuthArgs) -> anyhow::Result<()> {
     match args.command {
-        AuthCommand::Login { admin } => rt.block_on(login(server, &data_dir, admin)),
-        AuthCommand::WhoAmI => rt.block_on(whoami(server, &data_dir)),
+        AuthCommand::Login { admin } => login(server, data_dir, admin).await,
+        AuthCommand::WhoAmI => whoami(server, data_dir).await,
     }
 }
 

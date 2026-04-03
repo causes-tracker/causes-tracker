@@ -25,11 +25,13 @@ enum Command {
     Auth(auth::AuthArgs),
 }
 
-fn main() -> anyhow::Result<()> {
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
+    let data_dir = session_file::default_data_dir();
 
     match cli.command {
-        Command::Auth(args) => auth::run(&cli.server, args),
+        Command::Auth(args) => auth::run(&cli.server, &data_dir, args).await,
     }
 }
 

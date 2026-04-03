@@ -91,16 +91,11 @@ async fn startup(
             .context("TLS gRPC server error")?;
     } else {
         let addr = cfg.bind_addr.parse().context("parsing BIND_ADDR")?;
-        let (_health_reporter, health_svc) = grpc::health_service().await;
-        let auth_svc = causes_proto::auth_service_server::AuthServiceServer::new(
-            auth::AuthHandler::new(db, std::sync::Arc::new(cfg), http_client),
-        );
+        let router = grpc::router(db, std::sync::Arc::new(cfg), http_client).await;
 
         info!(%addr, "gRPC server listening (plain HTTP/2)");
 
-        tonic::transport::Server::builder()
-            .add_service(health_svc)
-            .add_service(auth_svc)
+        router
             .serve_with_shutdown(addr, shutdown)
             .await
             .context("gRPC server error")?;

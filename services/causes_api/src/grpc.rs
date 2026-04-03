@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use tonic_health::ServingStatus;
 use tonic_health::pb::health_server::{Health, HealthServer};
 use tonic_health::server::HealthReporter;
@@ -11,6 +13,25 @@ pub async fn health_service() -> (HealthReporter, HealthServer<impl Health>) {
         .set_service_status("", ServingStatus::Serving)
         .await;
     (reporter, server)
+}
+
+/// Build a tonic router with all application services registered.
+///
+/// Both the plain HTTP/2 and TLS paths call this so new services are
+/// added in one place.
+pub async fn router<S: crate::store::Store>(
+    db: Arc<S>,
+    cfg: Arc<crate::config::Config>,
+    http_client: reqwest::Client,
+) -> tonic::transport::server::Router {
+    let (_health_reporter, health_svc) = health_service().await;
+    let auth_svc = causes_proto::auth_service_server::AuthServiceServer::new(
+        crate::auth::AuthHandler::new(db, cfg, http_client),
+    );
+
+    tonic::transport::Server::builder()
+        .add_service(health_svc)
+        .add_service(auth_svc)
 }
 
 #[cfg(test)]

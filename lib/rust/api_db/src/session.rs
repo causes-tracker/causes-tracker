@@ -108,7 +108,7 @@ pub async fn find_user_by_identity(
     .await
     .context("finding user by identity")?;
 
-    Ok(row.map(UserId::from_existing))
+    row.map(|s| UserId::from_raw(&s)).transpose()
 }
 
 /// Fetch a user's display name and email by their id.
@@ -124,6 +124,22 @@ pub async fn find_user_by_id(pool: &DbPool, user_id: &UserId) -> anyhow::Result<
     .context("finding user by id")?;
 
     row.map(RawUserRow::try_into).transpose()
+}
+
+/// Find a user by email address. Returns the user ID if exactly one user matches.
+/// Returns `None` if no user has this email.
+/// Errors if multiple users share the same email (ambiguous).
+pub async fn find_user_by_email(pool: &DbPool, email: &str) -> anyhow::Result<Option<UserId>> {
+    let rows = sqlx::query_scalar!("SELECT id FROM users WHERE email = $1", email,)
+        .fetch_all(&pool.0)
+        .await
+        .context("finding user by email")?;
+
+    match rows.len() {
+        0 => Ok(None),
+        1 => Ok(Some(UserId::from_raw(&rows[0])?)),
+        n => anyhow::bail!("ambiguous: {n} users share email {email:?}"),
+    }
 }
 
 /// Delete expired sessions.
@@ -148,7 +164,7 @@ struct RawSessionRow {
 impl RawSessionRow {
     fn try_into(self) -> anyhow::Result<SessionRow> {
         Ok(SessionRow {
-            user_id: UserId::from_existing(self.user_id),
+            user_id: UserId::from_raw(&self.user_id)?,
             expires_at: self.expires_at,
             restricted: self.restricted,
         })

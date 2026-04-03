@@ -136,9 +136,11 @@ impl UserId {
         Self(Uuid::new_v4().to_string())
     }
 
-    /// Wrap an existing id string (e.g. from the database).
-    pub(crate) fn from_existing(s: String) -> Self {
-        Self(s)
+    /// Parse and validate a user ID string (must be a valid UUID).
+    pub fn from_raw(s: &str) -> anyhow::Result<Self> {
+        s.parse::<Uuid>()
+            .map_err(|e| anyhow::anyhow!("UserId must be a valid UUID: {e}"))?;
+        Ok(Self(s.to_owned()))
     }
 
     pub fn as_str(&self) -> &str {
@@ -198,7 +200,7 @@ pub async fn create_admin(
     .context("inserting external_identity")?;
 
     sqlx::query!(
-        "INSERT INTO role_assignments (user_id, project_id, role) VALUES ($1, '', 'instance-admin')",
+        "INSERT INTO role_assignments (user_id, role) VALUES ($1, 'instance-admin')",
         user_id.as_str(),
     )
     .execute(&mut *tx)

@@ -99,6 +99,12 @@ pub async fn create_project(
     embargoed_by_default: bool,
     creator_user_id: &UserId,
 ) -> anyhow::Result<ProjectId> {
+    // TODO: implement visibility enforcement before allowing private projects.
+    anyhow::ensure!(
+        visibility == ProjectVisibility::Public,
+        "private projects are not yet supported"
+    );
+
     let id = Uuid::new_v4().to_string();
     let mut tx = pool.0.begin().await.context("beginning transaction")?;
 
@@ -130,14 +136,17 @@ pub async fn create_project(
     ProjectId::new(id)
 }
 
-/// Look up a project by ID.
+/// Look up a public project by ID. Returns `None` for private projects.
+///
+/// TODO: return private projects visible to the caller once visibility
+/// enforcement is implemented.
 pub async fn get_project(
     pool: &DbPool,
     project_id: &ProjectId,
 ) -> anyhow::Result<Option<ProjectRow>> {
     let row = sqlx::query!(
         "SELECT id, name, description, visibility, embargoed_by_default, created_at \
-         FROM projects WHERE id = $1",
+         FROM projects WHERE id = $1 AND visibility = 'public'",
         project_id.as_str(),
     )
     .fetch_optional(&pool.0)
@@ -157,11 +166,27 @@ pub async fn get_project(
     .transpose()
 }
 
-/// List all projects.
+/// Look up a project ID by name. Returns `None` if no project has this name.
+pub async fn find_project_id_by_name(
+    pool: &DbPool,
+    name: &str,
+) -> anyhow::Result<Option<ProjectId>> {
+    let row = sqlx::query_scalar!("SELECT id FROM projects WHERE name = $1", name,)
+        .fetch_optional(&pool.0)
+        .await
+        .context("finding project by name")?;
+
+    row.map(|s| ProjectId::new(s)).transpose()
+}
+
+/// List all public projects.
+///
+/// TODO: return private projects visible to the caller once visibility
+/// enforcement is implemented.
 pub async fn list_projects(pool: &DbPool) -> anyhow::Result<Vec<ProjectRow>> {
     let rows = sqlx::query!(
         "SELECT id, name, description, visibility, embargoed_by_default, created_at \
-         FROM projects ORDER BY name"
+         FROM projects WHERE visibility = 'public' ORDER BY name"
     )
     .fetch_all(&pool.0)
     .await
@@ -299,6 +324,24 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
+    async fn create_private_project_rejected(pool: sqlx::PgPool) {
+        let pool = DbPool(pool);
+        let user_id = seed_admin(&pool).await;
+
+        let err = create_project(
+            &pool,
+            &ProjectName::new("secret").unwrap(),
+            "",
+            ProjectVisibility::Private,
+            false,
+            &user_id,
+        )
+        .await;
+        assert!(err.is_err());
+        assert!(err.unwrap_err().to_string().contains("not yet supported"));
+    }
+
+    #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn create_project_inserts_row_and_role(pool: sqlx::PgPool) {
         let pool = DbPool(pool);
         let user_id = seed_admin(&pool).await;
@@ -307,7 +350,7 @@ mod tests {
             &pool,
             &ProjectName::new("my-project").unwrap(),
             "A test project",
-            ProjectVisibility::Private,
+            ProjectVisibility::Public,
             false,
             &user_id,
         )
@@ -317,7 +360,7 @@ mod tests {
         let row = get_project(&pool, &project_id).await.unwrap().unwrap();
         assert_eq!(row.name.as_str(), "my-project");
         assert_eq!(row.description, "A test project");
-        assert_eq!(row.visibility, ProjectVisibility::Private);
+        assert_eq!(row.visibility, ProjectVisibility::Public);
         assert!(!row.embargoed_by_default);
 
         // Creator should have project-maintainer role
@@ -335,26 +378,12 @@ mod tests {
         let user_id = seed_admin(&pool).await;
         let name = ProjectName::new("dupe").unwrap();
 
-        create_project(
-            &pool,
-            &name,
-            "",
-            ProjectVisibility::Private,
-            false,
-            &user_id,
-        )
-        .await
-        .unwrap();
+        create_project(&pool, &name, "", ProjectVisibility::Public, false, &user_id)
+            .await
+            .unwrap();
 
-        let err = create_project(
-            &pool,
-            &name,
-            "",
-            ProjectVisibility::Private,
-            false,
-            &user_id,
-        )
-        .await;
+        let err =
+            create_project(&pool, &name, "", ProjectVisibility::Public, false, &user_id).await;
         assert!(err.is_err());
     }
 
@@ -374,7 +403,7 @@ mod tests {
             &pool,
             &ProjectName::new("old-name").unwrap(),
             "",
-            ProjectVisibility::Private,
+            ProjectVisibility::Public,
             false,
             &user_id,
         )
@@ -409,7 +438,7 @@ mod tests {
             &pool,
             &ProjectName::new("doomed").unwrap(),
             "",
-            ProjectVisibility::Private,
+            ProjectVisibility::Public,
             false,
             &user_id,
         )
@@ -441,7 +470,7 @@ mod tests {
             &pool,
             &ProjectName::new("alpha").unwrap(),
             "",
-            ProjectVisibility::Private,
+            ProjectVisibility::Public,
             false,
             &user_id,
         )

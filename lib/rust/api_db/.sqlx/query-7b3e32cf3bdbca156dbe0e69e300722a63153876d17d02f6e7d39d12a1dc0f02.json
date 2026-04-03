@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT role FROM role_assignments WHERE user_id = $1 AND (project_id = '' OR project_id = $2)",
+  "query": "SELECT role FROM role_assignments WHERE user_id = $1 AND (project_id IS NULL OR project_id = $2)",
   "describe": {
     "columns": [
       {
@@ -19,5 +19,5 @@
       false
     ]
   },
-  "hash": "e4f4adad04fa995dbc9828d915ad2c9014a02e8319cd5b3fdf4caaeae201146c"
+  "hash": "7b3e32cf3bdbca156dbe0e69e300722a63153876d17d02f6e7d39d12a1dc0f02"
 }

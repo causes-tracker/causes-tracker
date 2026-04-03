@@ -80,21 +80,9 @@ impl std::fmt::Display for ProjectId {
 
 // ── DB helpers ───────────────────────────────────────────────────────────
 
-/// Convert `Option<ProjectId>` to the DB string (empty string = instance-level).
-fn project_id_to_db(project_id: &Option<ProjectId>) -> &str {
-    match project_id {
-        Some(pid) => pid.as_str(),
-        None => "",
-    }
-}
-
-/// Convert a DB string to `Option<ProjectId>` (empty string = None).
-fn project_id_from_db(s: String) -> anyhow::Result<Option<ProjectId>> {
-    if s.is_empty() {
-        Ok(None)
-    } else {
-        Ok(Some(ProjectId::new(s)?))
-    }
+/// Convert a nullable DB string to `Option<ProjectId>`.
+fn project_id_from_db(s: Option<String>) -> anyhow::Result<Option<ProjectId>> {
+    s.map(|s| ProjectId::new(s)).transpose()
 }
 
 // ── Public API ───────────────────────────────────────────────────────────
@@ -129,10 +117,10 @@ pub async fn get_user_roles(
         .collect()
 }
 
-/// Get instance-level roles for a user (project_id = '').
+/// Get instance-level roles for a user (project_id IS NULL).
 pub async fn get_user_instance_roles(pool: &DbPool, user_id: &UserId) -> anyhow::Result<Vec<Role>> {
     let rows = sqlx::query_scalar!(
-        "SELECT role FROM role_assignments WHERE user_id = $1 AND project_id = ''",
+        "SELECT role FROM role_assignments WHERE user_id = $1 AND project_id IS NULL",
         user_id.as_str(),
     )
     .fetch_all(&pool.0)
@@ -150,7 +138,7 @@ pub async fn get_user_project_roles(
 ) -> anyhow::Result<Vec<Role>> {
     let rows = sqlx::query_scalar!(
         "SELECT role FROM role_assignments \
-         WHERE user_id = $1 AND (project_id = '' OR project_id = $2)",
+         WHERE user_id = $1 AND (project_id IS NULL OR project_id = $2)",
         user_id.as_str(),
         project_id.as_str(),
     )
@@ -175,7 +163,7 @@ pub async fn assign_role(
          VALUES ($1, $2, $3) \
          ON CONFLICT DO NOTHING",
         user_id.as_str(),
-        project_id_to_db(project_id),
+        project_id.as_ref().map(|p| p.as_str()),
         role.as_str(),
     )
     .execute(&pool.0)
@@ -334,13 +322,15 @@ mod tests {
     async fn get_user_project_roles_includes_instance_level(pool: sqlx::PgPool) {
         let pool = DbPool(pool);
         let user_id = seed_admin(&pool).await;
-        let project_id = ProjectId::new(Uuid::new_v4().to_string()).unwrap();
 
-        assign_role(
+        // create_project assigns project-maintainer to the creator
+        let project_id = crate::project::create_project(
             &pool,
+            &crate::project::ProjectName::new("test-proj").unwrap(),
+            "",
+            crate::project::ProjectVisibility::Public,
+            false,
             &user_id,
-            &Some(project_id.clone()),
-            Role::ProjectMaintainer,
         )
         .await
         .unwrap();
@@ -356,17 +346,36 @@ mod tests {
     async fn get_user_project_roles_excludes_other_projects(pool: sqlx::PgPool) {
         let pool = DbPool(pool);
         let user_id = seed_admin(&pool).await;
-        let project_a = ProjectId::new(Uuid::new_v4().to_string()).unwrap();
-        let project_b = ProjectId::new(Uuid::new_v4().to_string()).unwrap();
 
-        assign_role(&pool, &user_id, &Some(project_a), Role::ProjectMaintainer)
-            .await
-            .unwrap();
+        let project_a = crate::project::create_project(
+            &pool,
+            &crate::project::ProjectName::new("proj-a").unwrap(),
+            "",
+            crate::project::ProjectVisibility::Public,
+            false,
+            &user_id,
+        )
+        .await
+        .unwrap();
+        let project_b = crate::project::create_project(
+            &pool,
+            &crate::project::ProjectName::new("proj-b").unwrap(),
+            "",
+            crate::project::ProjectVisibility::Public,
+            false,
+            &user_id,
+        )
+        .await
+        .unwrap();
 
+        // Both projects have project-maintainer from create_project.
+        // Check that project_b's roles don't include project_a's.
         let roles = get_user_project_roles(&pool, &user_id, &project_b)
             .await
             .unwrap();
-        // Only instance-admin (instance-level), not project-maintainer from project_a
-        assert_eq!(roles, vec![Role::InstanceAdmin]);
+        assert!(roles.contains(&Role::InstanceAdmin));
+        assert!(roles.contains(&Role::ProjectMaintainer));
+        assert_eq!(roles.len(), 2);
+        let _ = project_a;
     }
 }

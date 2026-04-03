@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, name, description, visibility, embargoed_by_default, created_at FROM projects WHERE id = $1",
+  "query": "SELECT id, name, description, visibility, embargoed_by_default, created_at FROM projects WHERE visibility = 'public' ORDER BY name",
   "describe": {
     "columns": [
       {
@@ -35,9 +35,7 @@
       }
     ],
     "parameters": {
-      "Left": [
-        "Text"
-      ]
+      "Left": []
     },
     "nullable": [
       false,
@@ -48,5 +46,5 @@
       false
     ]
   },
-  "hash": "9ab35460e8ca7d0187156ccc9a4ce4789c9bd4a8c646c1678638365870ab31b9"
+  "hash": "0c1d8c3756045e6d524abcbead5af963115673464a4fd4642d254ff08111580c"
 }

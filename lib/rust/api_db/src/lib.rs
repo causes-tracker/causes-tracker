@@ -17,14 +17,14 @@ pub use pending_login::{
     lookup_pending_login,
 };
 pub use project::{
-    ProjectName, ProjectRow, ProjectVisibility, create_project, delete_project, get_project,
-    list_projects, rename_project,
+    ProjectName, ProjectRow, ProjectVisibility, create_project, delete_project,
+    find_project_id_by_name, get_project, list_projects, rename_project,
 };
 pub use role::{
     ProjectId, Role, RoleAssignment, assign_role, get_user_instance_roles, get_user_project_roles,
     get_user_roles,
 };
 pub use session::{
-    SessionRow, SessionToken, UserRow, create_session, find_user_by_id, find_user_by_identity,
-    gc_expired_sessions, lookup_session,
+    SessionRow, SessionToken, UserRow, create_session, find_user_by_email, find_user_by_id,
+    find_user_by_identity, gc_expired_sessions, lookup_session,
 };

@@ -26,9 +26,11 @@ All git interaction goes through `jj git fetch` and `jj git push`.
    Edits are tracked automatically.
    There is no `jj add` or staged/unstaged distinction.
 
-3. **Fresh changeset per session.** Run `jj new master` (or the appropriate parent)
-   before starting any new work.
-   Never edit in an existing changeset left over from prior work.
+3. **Right changeset before every edit.** Before editing any file, verify that
+   `@` is the correct changeset for that edit.
+   If starting new work: `jj new master` (or the appropriate parent).
+   If switching tasks mid-conversation: `jj new` or `jj edit <target>` first.
+   Never edit a file while sitting on an unrelated changeset.
 
 4. **`--named` is only for first push.** To create a new bookmark and push:
    `jj git push --named <name>=@`.
@@ -114,6 +116,44 @@ Never cascade-rebase multiple nodes — that causes conflicts.
 jj rebase -r <X> -A <Y> -B <Z>           # X becomes child of Y, before Z
 jj rebase -r <X> -A master -B <merge>    # independent branch off master
 ```
+
+### Safe reorder with open PRs
+
+**CRITICAL:** When reordering commits in a stack with open PRs, GitHub can
+falsely mark a PR as "merged" — closing it without any code reaching master.
+
+**How it happens:** In a stack where PR-B has `--base branch-A --head branch-B`,
+if you reorder so that B's commit becomes an ancestor of A's commit and then
+push both branches, GitHub sees B's head reachable from A (B's base branch)
+and concludes B was merged into A.
+The PR shows as "merged" (purple) but the code never went through the merge
+queue and is not on master.
+
+**Safe reorder protocol:**
+
+1. **Before pushing**, list all open PRs affected by the reorder.
+2. **Temporarily set PR bases to `master`** for any PR whose base branch will
+   move, be deleted, or gain new ancestors:
+   ```sh
+   gh pr edit <N> --base master
+   ```
+   This is safe because master is guaranteed not to contain any in-flight
+   branch heads.
+3. **Push all branch updates:**
+   ```sh
+   jj git push --all
+   ```
+4. **Create PRs** for any new bookmarks that need them.
+5. **Fix PR bases** to the correct stacked branch:
+   ```sh
+   gh pr edit <N> --base <correct-branch>
+   ```
+
+The key invariant: **at no point during the push should a PR's head be
+reachable from its base branch's HEAD.**
+
+After any reorder, verify by querying open PRs and confirming there is a
+bijection between open PRs and the branches being worked on.
 
 ### Resolving conflicts
 

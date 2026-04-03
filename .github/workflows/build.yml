@@ -25,6 +25,12 @@ jobs:
           bazelisk-cache: true
           disk-cache: ${{ github.workflow }}-v2
           repository-cache: true
+      - name: Check Rust macro usage
+        run: |
+          if grep -rn 'load("@rules_rs//rs:rust_\(binary\|library\|test\)\.bzl"' --include='BUILD.bazel' .; then
+            echo "ERROR: Use //build:rust.bzl macros instead of @rules_rs directly."
+            exit 1
+          fi
       - name: Check formatting
         run: bazel run $BB_FLAGS //:format.check
       - name: Test, build docs, and check coverage

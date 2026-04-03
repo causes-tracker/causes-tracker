@@ -1,6 +1,5 @@
-load("@rules_rs//rs:rust_library.bzl", "rust_library")
-load("@rules_rs//rs:rust_test.bzl", "rust_test")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//build:rust.bzl", "rust_library", "rust_test")
 load("//tools:sqlx_prepare.bzl", "sqlx_prepare")
 
 rust_library(

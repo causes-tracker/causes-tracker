@@ -1,4 +1,4 @@
-load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
+load("//build:rust.bzl", "rust_binary")
 
 rust_binary(
     name = "proto_gen",

@@ -1,4 +1,4 @@
-# OpenTofu / Terraform
+# OpenTofu / Terraform — AWS module
 infra/terraform/.terraform/
 infra/terraform/*.tfstate
 infra/terraform/*.tfstate.backup
@@ -6,6 +6,15 @@ infra/terraform/*.tfplan
 infra/terraform/*.lock.info
 infra/terraform/.terraform.lock.hcl
 infra/terraform/terraform.tfvars
+
+# OpenTofu / Terraform — GitHub module
+infra/github/.terraform/
+infra/github/*.tfstate
+infra/github/*.tfstate.backup
+infra/github/*.tfplan
+infra/github/*.lock.info
+infra/github/.terraform.lock.hcl
+infra/github/terraform.tfvars
 
 # Local dev environment overrides (DATABASE_URL, etc.) — never commit
 .env

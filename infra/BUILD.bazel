@@ -37,3 +37,8 @@ markdown_lint_test(
     name = "pymarkdown",
     srcs = ["terraform/README.md"],
 )
+
+markdown_lint_test(
+    name = "pymarkdown_github",
+    srcs = ["github/README.md"],
+)

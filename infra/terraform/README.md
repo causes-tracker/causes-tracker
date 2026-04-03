@@ -5,8 +5,10 @@ Idle cost is ~$5/month in ap-southeast-2.
 
 The causes-tracker project itself runs on this infrastructure at `https://causes-tracker.robertcollins.net`.
 
+GitHub repository settings (rulesets, merge queue, labels) are managed separately in `infra/github/`.
+
 All commands below use the hermetic OpenTofu wrapper:
-`bazel run //infra:tofu -- <args>`.
+`bazel run //infra:tofu -- infra/terraform <args>`.
 
 ## First-time provisioning
 
@@ -38,8 +40,8 @@ At minimum you need `region`, `ssh_public_key`, `google_client_id`, and `google_
 The EC2 instance pulls its container image from S3 on first boot, so the bucket and image must exist before the instance is created.
 
 ```sh
-bazel run //infra:tofu -- init
-bazel run //infra:tofu -- apply \
+bazel run //infra:tofu -- infra/terraform init
+bazel run //infra:tofu -- infra/terraform apply \
   -target=aws_s3_bucket.images \
   -target=aws_s3_bucket_versioning.images \
   -target=aws_s3_bucket_public_access_block.images
@@ -49,7 +51,7 @@ bazel run //infra:tofu -- apply \
 
 ```sh
 bazel build //services/causes_api:image_tarball
-BUCKET=$(bazel --quiet run //infra:tofu -- output -raw images_bucket)
+BUCKET=$(bazel --quiet run //infra:tofu -- infra/terraform output -raw images_bucket)
 TARBALL="$(bazel info workspace)/bazel-bin/services/causes_api/image_load/tarball.tar"
 bazel run //infra:aws -- s3 cp "$TARBALL" s3://$BUCKET/causes-api-latest.tar
 ```
@@ -57,7 +59,7 @@ bazel run //infra:aws -- s3 cp "$TARBALL" s3://$BUCKET/causes-api-latest.tar
 ### 6. Provision everything else
 
 ```sh
-bazel run //infra:tofu -- apply
+bazel run //infra:tofu -- infra/terraform apply
 ```
 
 This creates the VPC, Aurora cluster, EC2 instance, EIP, and IAM roles.
@@ -75,7 +77,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 ### 8. Verify
 
 ```sh
-IP=$(bazel --quiet run //infra:tofu -- output -raw ec2_public_ip)
+IP=$(bazel --quiet run //infra:tofu -- infra/terraform output -raw ec2_public_ip)
 ssh -i infra/terraform/causes-deployer ec2-user@$IP
 docker logs causes-api
 ```
@@ -97,8 +99,8 @@ After changing values in `terraform.tfvars`, the `user_data` script is updated b
 Force the instance to be recreated:
 
 ```sh
-bazel run //infra:tofu -- apply -replace=aws_instance.causes_api
-IP=$(bazel --quiet run //infra:tofu -- output -raw ec2_public_ip)
+bazel run //infra:tofu -- infra/terraform apply -replace=aws_instance.causes_api
+IP=$(bazel --quiet run //infra:tofu -- infra/terraform output -raw ec2_public_ip)
 ssh-keygen -R $IP
 ```
 
@@ -108,7 +110,7 @@ The EIP is preserved.
 ## Tear down
 
 ```sh
-bazel run //infra:tofu -- destroy
+bazel run //infra:tofu -- infra/terraform destroy
 ```
 
 ## Variables
@@ -134,7 +136,7 @@ To serve gRPC over TLS with automatic Let's Encrypt certificates:
 1. Create a DNS A record pointing your domain at the Elastic IP:
 
    ```sh
-   bazel --quiet run //infra:tofu -- output -raw ec2_public_ip
+   bazel --quiet run //infra:tofu -- infra/terraform output -raw ec2_public_ip
    ```
 
 2. Add to `terraform.tfvars`:
@@ -147,7 +149,7 @@ To serve gRPC over TLS with automatic Let's Encrypt certificates:
 3. Apply and recreate the instance:
 
    ```sh
-   bazel run //infra:tofu -- apply -replace=aws_instance.causes_api
+   bazel run //infra:tofu -- infra/terraform apply -replace=aws_instance.causes_api
    ```
 
 The server obtains a certificate on first start (~30 seconds) and auto-renews before expiry.

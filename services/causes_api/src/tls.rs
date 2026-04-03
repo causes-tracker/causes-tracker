@@ -56,17 +56,12 @@ where
     // h2 ALPN for gRPC; rustls-acme adds acme-tls/1 internally for challenges.
     let tls_incoming = acme.tokio_incoming(tcp_stream, vec![b"h2".to_vec()]);
 
-    let (_health_reporter, health_svc) = crate::grpc::health_service().await;
-    let auth_svc = causes_proto::auth_service_server::AuthServiceServer::new(
-        crate::auth::AuthHandler::new(db, cfg, http_client),
-    );
+    let router = crate::grpc::router(db, cfg, http_client).await;
 
     let wrapped = tokio_stream::StreamExt::map(tls_incoming, |result| result.map(AcmeTlsStream));
     tokio::pin!(wrapped);
 
-    tonic::transport::Server::builder()
-        .add_service(health_svc)
-        .add_service(auth_svc)
+    router
         .serve_with_incoming_shutdown(wrapped, shutdown)
         .await
         .context("TLS gRPC server error")?;

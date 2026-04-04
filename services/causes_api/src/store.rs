@@ -1,6 +1,8 @@
 /// Abstraction over database operations needed by this service.
 /// Implemented by [`api_db::DbPool`] in production; in tests, use
 /// [`mockall::automock`]-generated `MockStore`.
+// TODO: remove allow(dead_code) when admin_service.rs lands (PR #146).
+#[allow(dead_code)]
 #[cfg_attr(test, mockall::automock)]
 #[tonic::async_trait]
 pub trait Store: Send + Sync + 'static {

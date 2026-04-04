@@ -1,7 +1,7 @@
 load("@rules_python//python:defs.bzl", "py_binary")
-load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//build:rust.bzl", "rust_binary")
 
 exports_files([
     "proto_gen_impl.sh",

@@ -53,6 +53,8 @@ pub async fn authenticate<S: Store>(
     })
 }
 
+// TODO: remove allow(dead_code) when admin_service.rs lands (PR #146).
+#[allow(dead_code)]
 /// Check whether a role list satisfies a required role.
 ///
 /// `InstanceAdmin` acts as superuser (satisfies any check), unless the
@@ -66,6 +68,7 @@ fn has_required_role(roles: &[api_db::Role], required: api_db::Role, restricted:
     })
 }
 
+#[allow(dead_code)]
 /// Authenticate the caller and verify they hold the given role at instance level.
 pub async fn authorize_instance_role<S: Store>(
     store: &Arc<S>,
@@ -86,6 +89,7 @@ pub async fn authorize_instance_role<S: Store>(
     }
 }
 
+#[allow(dead_code)]
 /// Authenticate the caller and verify they hold the given role for a project.
 ///
 /// Includes instance-level roles (e.g. instance-admin satisfies any project check).

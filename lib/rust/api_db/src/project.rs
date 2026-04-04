@@ -6,6 +6,43 @@ use crate::DbPool;
 use crate::admin::UserId;
 use crate::role::{ProjectId, Role};
 
+// ── Errors ───────────────────────────────────────────────────────────────
+
+/// Errors from project operations that callers may need to distinguish.
+#[derive(Debug)]
+pub enum ProjectError {
+    /// A project with that name already exists.
+    NameAlreadyExists,
+    /// Any other error.
+    Other(anyhow::Error),
+}
+
+impl std::fmt::Display for ProjectError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NameAlreadyExists => f.write_str("a project with that name already exists"),
+            Self::Other(e) => write!(f, "{e}"),
+        }
+    }
+}
+
+impl std::error::Error for ProjectError {}
+
+impl From<anyhow::Error> for ProjectError {
+    fn from(e: anyhow::Error) -> Self {
+        Self::Other(e)
+    }
+}
+
+/// Check whether a sqlx error is a unique-constraint violation.
+/// PostgreSQL error code 23505: <https://www.postgresql.org/docs/current/errcodes-appendix.html>
+fn is_unique_violation(err: &sqlx::Error) -> bool {
+    match err {
+        sqlx::Error::Database(db_err) => db_err.code().as_deref() == Some("23505"),
+        _ => false,
+    }
+}
+
 // ── Newtypes ─────────────────────────────────────────────────────────────
 
 /// Project name: a slug (lowercase alphanumeric + hyphens, 2–64 chars).
@@ -98,12 +135,13 @@ pub async fn create_project(
     visibility: ProjectVisibility,
     embargoed_by_default: bool,
     creator_user_id: &UserId,
-) -> anyhow::Result<ProjectId> {
+) -> Result<ProjectId, ProjectError> {
     // TODO: implement visibility enforcement before allowing private projects.
-    anyhow::ensure!(
-        visibility == ProjectVisibility::Public,
-        "private projects are not yet supported"
-    );
+    if visibility != ProjectVisibility::Public {
+        return Err(ProjectError::Other(anyhow::anyhow!(
+            "private projects are not yet supported"
+        )));
+    }
 
     let id = Uuid::new_v4().to_string();
     let mut tx = pool.0.begin().await.context("beginning transaction")?;
@@ -119,7 +157,12 @@ pub async fn create_project(
     )
     .execute(&mut *tx)
     .await
-    .context("inserting project")?;
+    .map_err(|e| {
+        if is_unique_violation(&e) {
+            return ProjectError::NameAlreadyExists;
+        }
+        ProjectError::Other(anyhow::Error::from(e).context("inserting project"))
+    })?;
 
     sqlx::query!(
         "INSERT INTO role_assignments (user_id, project_id, role) VALUES ($1, $2, $3)",
@@ -133,7 +176,7 @@ pub async fn create_project(
 
     tx.commit().await.context("committing transaction")?;
 
-    ProjectId::new(id)
+    Ok(ProjectId::new(id)?)
 }
 
 /// Look up a public project by ID. Returns `None` for private projects.
@@ -211,7 +254,7 @@ pub async fn rename_project(
     pool: &DbPool,
     project_id: &ProjectId,
     new_name: &ProjectName,
-) -> anyhow::Result<bool> {
+) -> Result<bool, ProjectError> {
     let result = sqlx::query!(
         "UPDATE projects SET name = $1 WHERE id = $2",
         new_name.as_str(),
@@ -219,7 +262,12 @@ pub async fn rename_project(
     )
     .execute(&pool.0)
     .await
-    .context("renaming project")?;
+    .map_err(|e| {
+        if is_unique_violation(&e) {
+            return ProjectError::NameAlreadyExists;
+        }
+        ProjectError::Other(anyhow::Error::from(e).context("renaming project"))
+    })?;
 
     Ok(result.rows_affected() > 0)
 }

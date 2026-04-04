@@ -84,7 +84,7 @@ pub trait Store: Send + Sync + 'static {
         visibility: api_db::ProjectVisibility,
         embargoed_by_default: bool,
         creator_user_id: &api_db::UserId,
-    ) -> anyhow::Result<api_db::ProjectId>;
+    ) -> Result<api_db::ProjectId, api_db::ProjectError>;
     async fn get_project(
         &self,
         project_id: &api_db::ProjectId,
@@ -94,7 +94,7 @@ pub trait Store: Send + Sync + 'static {
         &self,
         project_id: &api_db::ProjectId,
         new_name: &api_db::ProjectName,
-    ) -> anyhow::Result<bool>;
+    ) -> Result<bool, api_db::ProjectError>;
     async fn delete_project(&self, project_id: &api_db::ProjectId) -> anyhow::Result<bool>;
 }
 
@@ -235,7 +235,7 @@ impl Store for api_db::DbPool {
         visibility: api_db::ProjectVisibility,
         embargoed_by_default: bool,
         creator_user_id: &api_db::UserId,
-    ) -> anyhow::Result<api_db::ProjectId> {
+    ) -> Result<api_db::ProjectId, api_db::ProjectError> {
         api_db::create_project(
             self,
             name,
@@ -262,7 +262,7 @@ impl Store for api_db::DbPool {
         &self,
         project_id: &api_db::ProjectId,
         new_name: &api_db::ProjectName,
-    ) -> anyhow::Result<bool> {
+    ) -> Result<bool, api_db::ProjectError> {
         api_db::rename_project(self, project_id, new_name).await
     }
 

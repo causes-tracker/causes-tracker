@@ -46,20 +46,39 @@ rust_test(
     ],
 )
 
+# Shared test data for the hermetic database test wrappers.
+_DB_TEST_DATA = [
+    ":api_db_test",
+    "//infra/postgres:postgres_extracted",
+    "//infra/postgres:testfixture.sh",
+    "@bazel_tools//tools/bash/runfiles",
+    "@rust_host_tools//:llvm_cov",
+    "@rust_host_tools//:llvm_profdata",
+]
+
 # Hermetic database test: spins up a throwaway PostgreSQL from the bundled
 # tarball, then runs the Rust test binary with DATABASE_URL pointed at it.
 sh_test(
     name = "api_db_db_test",
     srcs = ["db_test.sh"],
     args = ["$(location :api_db_test)"],
-    data = [
-        ":api_db_test",
-        "//infra/postgres:postgres_extracted",
-        "//infra/postgres:testfixture.sh",
-        "@bazel_tools//tools/bash/runfiles",
-        "@rust_host_tools//:llvm_cov",
-        "@rust_host_tools//:llvm_profdata",
+    data = _DB_TEST_DATA,
+)
+
+# Manual-only performance scaling test — not included in CI.
+# Run: bazel test //lib/rust/api_db:scaling_test --test_output=streamed
+sh_test(
+    name = "scaling_test",
+    size = "enormous",
+    srcs = ["db_test.sh"],
+    args = [
+        "$(location :api_db_test)",
+        "list_projects_scaling",
+        "--nocapture",
     ],
+    data = _DB_TEST_DATA,
+    env = {"RUN_SCALING_TESTS": "1"},
+    tags = ["manual"],
 )
 
 # Golden file targets — regenerates or checks the committed .sqlx/ files.

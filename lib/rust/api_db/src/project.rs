@@ -1071,4 +1071,183 @@ mod tests {
             ProjectAccess::AccessDenied
         ));
     }
+
+    // ── Scaling tests ───────────────────────────────────────────────
+
+    /// Print a line and flush stdout immediately (stdout is fully buffered
+    /// when piped through Bazel).
+    macro_rules! log {
+        ($($arg:tt)*) => {{
+            use std::io::Write;
+            println!($($arg)*);
+            std::io::stdout().flush().ok();
+        }};
+    }
+
+    /// Measures time-to-first-batch for `list_projects` at exponentially
+    /// growing project counts.  Fails if latency grows faster than O(log n).
+    ///
+    /// Run manually via the dedicated Bazel target:
+    /// ```sh
+    /// bazel test //lib/rust/api_db:scaling_test --test_output=streamed
+    /// ```
+    #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
+    async fn list_projects_scaling(pool: sqlx::PgPool) {
+        if std::env::var("RUN_SCALING_TESTS").is_err() {
+            log!(
+                "skipped: set RUN_SCALING_TESTS=1 or use \
+                 `bazel test //lib/rust/api_db:scaling_test --test_output=streamed`"
+            );
+            return;
+        }
+
+        use futures::StreamExt;
+
+        let pool = DbPool(pool);
+        let user_id = seed_admin(&pool).await;
+        let session = session_for(&user_id, false);
+
+        let wall_start = std::time::Instant::now();
+        let wall_limit = std::time::Duration::from_secs(3600);
+
+        let mut total: usize = 0;
+        let mut next_add: usize = 1;
+        let mut baseline_ratio: Option<f64> = None;
+        // Skip the first few steps for baseline — they are warm-up where
+        // cold-cache effects dominate and ratios are noisy.
+        let warmup_steps = 2;
+        let mut step = 0usize;
+
+        log!(
+            "\n{:<12} {:>14} {:>12}",
+            "projects",
+            "first_batch",
+            "µs/ln(n)"
+        );
+        log!("{}", "-".repeat(40));
+
+        loop {
+            if wall_start.elapsed() > wall_limit {
+                log!("stopped: wall-clock limit ({wall_limit:?}) reached");
+                break;
+            }
+
+            let add = next_add;
+            next_add = (next_add * 50).max(next_add + 1);
+
+            // Bulk-insert projects in batches of up to 1000 rows.
+            let insert_start = total;
+            let target = total + add;
+            while total < target {
+                let batch_end = (total + 1000).min(target);
+                let mut query = String::from(
+                    "INSERT INTO projects \
+                     (id, name, description, visibility, embargoed_by_default, created_at) VALUES ",
+                );
+                let mut first = true;
+                for i in total..batch_end {
+                    if !first {
+                        query.push(',');
+                    }
+                    first = false;
+                    let id = Uuid::new_v4();
+                    let name = format!("p-{i:08}");
+                    // Safety: name is alphanumeric + hyphen, no SQL injection.
+                    query.push_str(&format!("('{id}', '{name}', '', 'public', false, now())"));
+                }
+                sqlx::query(&query)
+                    .execute(&pool.0)
+                    .await
+                    .unwrap_or_else(|e| {
+                        panic!(
+                            "bulk insert failed at {total}..{batch_end} \
+                             (added {} since step start): {e}",
+                            total - insert_start,
+                        )
+                    });
+                total = batch_end;
+            }
+
+            // Update planner statistics after bulk insert so Postgres
+            // doesn't fall back to sequential scan + sort.
+            sqlx::query("ANALYZE projects")
+                .execute(&pool.0)
+                .await
+                .expect("ANALYZE failed");
+
+            // Show query plan for this step.
+            let plan: Vec<String> = sqlx::query_scalar(
+                "EXPLAIN (ANALYZE, BUFFERS) \
+                 SELECT id, name, description, visibility, embargoed_by_default, created_at \
+                 FROM projects",
+            )
+            .fetch_all(&pool.0)
+            .await
+            .expect("EXPLAIN failed");
+            log!("\n-- EXPLAIN at {total} projects --");
+            for line in &plan {
+                log!("{line}");
+            }
+
+            // Measure time-to-first-batch (best of 3 to filter noise).
+            let mut best_us = u128::MAX;
+            for _ in 0..3 {
+                let t0 = std::time::Instant::now();
+                let mut stream = list_projects(&pool, &session)
+                    .await
+                    .expect("list_projects failed");
+                let first = stream.next().await;
+                let elapsed = t0.elapsed();
+                drop(stream);
+
+                match first {
+                    Some(Ok(batch)) => assert!(!batch.is_empty(), "first batch was empty"),
+                    Some(Err(e)) => panic!("stream error: {e}"),
+                    None => panic!("stream was empty with {total} projects"),
+                }
+
+                best_us = best_us.min(elapsed.as_micros());
+            }
+
+            let us = best_us;
+            step += 1;
+
+            // Print this row immediately.
+            if total > 1 {
+                let ln_n = (total as f64).ln();
+                log!("{:<12} {:>12} µs {:>12.1}", total, us, us as f64 / ln_n,);
+            } else {
+                log!("{:<12} {:>12} µs {:>12}", total, us, "-");
+            }
+
+            // Check O(log n) growth.  Skip when total ≤ 1 (ln(1) = 0)
+            // and during warm-up steps where cold-cache noise dominates.
+            if total > 1 && step > warmup_steps {
+                let ln_n = (total as f64).ln();
+                let ratio = us as f64 / ln_n;
+
+                if let Some(base) = baseline_ratio {
+                    if ratio > base * 5.0 {
+                        log!(
+                            "stopped: ratio {ratio:.1} > 5× baseline {base:.1} \
+                             at {total} projects"
+                        );
+                        panic!(
+                            "time-to-first-batch grew faster than O(log n): \
+                             ratio {ratio:.1} vs baseline {base:.1} \
+                             at {total} projects ({us} µs)",
+                        );
+                    }
+                } else {
+                    baseline_ratio = Some(ratio);
+                }
+            }
+        }
+
+        log!(
+            "stopped: wall-clock limit ({wall_limit:?}) after {total} projects, \
+             {step} steps in {:.1}s",
+            wall_start.elapsed().as_secs_f64(),
+        );
+    }
 }

@@ -1,15 +1,20 @@
+use std::io;
+use std::net::SocketAddr;
 use std::pin::Pin;
-use std::task::{Context, Poll};
 
 use anyhow::Context as _;
 use rustls_acme::AcmeConfig;
 use rustls_acme::caches::DirCache;
-use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::TcpListener;
 use tokio_stream::wrappers::TcpListenerStream;
 use tracing::info;
 
-/// Start the gRPC server with automatic TLS on port 443 using Let's Encrypt.
+/// Start the server with automatic TLS on port 443 using Let's Encrypt.
+///
+/// In TLS mode we also start a loopback-only plain gRPC listener on
+/// 127.0.0.1:50051 so that BFF handlers can reach the gRPC services
+/// without going through TLS.
 pub async fn serve_with_acme<S: crate::store::Store>(
     cfg: std::sync::Arc<crate::config::Config>,
     db: std::sync::Arc<S>,
@@ -58,83 +63,73 @@ where
 
     let router = crate::grpc::router(db, cfg, http_client).await;
 
-    let wrapped = tokio_stream::StreamExt::map(tls_incoming, |result| result.map(AcmeTlsStream));
-    tokio::pin!(wrapped);
-
-    router
-        .serve_with_incoming_shutdown(wrapped, shutdown)
+    // Start a loopback-only plain gRPC listener for BFF→gRPC internal calls.
+    let loopback = TcpListener::bind("127.0.0.1:50051")
         .await
-        .context("TLS gRPC server error")?;
+        .context("binding loopback gRPC listener")?;
+    info!(
+        addr = %loopback.local_addr().unwrap(),
+        "loopback gRPC listener (plain, internal)"
+    );
+    let loopback_router = router.clone();
+    tokio::spawn(async move {
+        axum::serve(loopback, loopback_router).await.ok();
+    });
+
+    let acme_listener = AcmeListener {
+        stream: Box::pin(tls_incoming),
+        local_addr,
+    };
+
+    axum::serve(acme_listener, router)
+        .with_graceful_shutdown(shutdown)
+        .await
+        .context("TLS server error")?;
 
     Ok(())
 }
 
-// ── Newtype wrapper for tonic's Connected trait ───────────────────────────
+// ── AcmeListener: adapts a rustls-acme TLS stream to axum's Listener trait ──
 
-/// Wraps the TLS stream from rustls-acme so it implements `tonic::transport::server::Connected`.
-struct AcmeTlsStream<T>(T);
-
-impl<T: AsyncRead + Unpin> AsyncRead for AcmeTlsStream<T> {
-    fn poll_read(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut ReadBuf<'_>,
-    ) -> Poll<std::io::Result<()>> {
-        Pin::new(&mut self.get_mut().0).poll_read(cx, buf)
-    }
+/// Wraps a rustls-acme TLS incoming stream so it implements `axum::serve::Listener`.
+struct AcmeListener<IO> {
+    stream: Pin<Box<dyn tokio_stream::Stream<Item = Result<IO, io::Error>> + Send>>,
+    local_addr: SocketAddr,
 }
 
-impl<T: AsyncWrite + Unpin> AsyncWrite for AcmeTlsStream<T> {
-    fn poll_write(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &[u8],
-    ) -> Poll<std::io::Result<usize>> {
-        Pin::new(&mut self.get_mut().0).poll_write(cx, buf)
+impl<IO> axum::serve::Listener for AcmeListener<IO>
+where
+    IO: AsyncRead + AsyncWrite + Send + Unpin + 'static,
+{
+    type Io = IO;
+    type Addr = SocketAddr;
+
+    async fn accept(&mut self) -> (Self::Io, Self::Addr) {
+        use tokio_stream::StreamExt as _;
+        loop {
+            match self.stream.next().await {
+                Some(Ok(io)) => return (io, self.local_addr),
+                Some(Err(e)) => {
+                    tracing::warn!("TLS accept error: {e}");
+                    continue;
+                }
+                None => {
+                    // Stream ended; block forever (server will shut down
+                    // via the graceful shutdown signal).
+                    std::future::pending::<()>().await;
+                }
+            }
+        }
     }
 
-    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
-        Pin::new(&mut self.get_mut().0).poll_flush(cx)
+    fn local_addr(&self) -> io::Result<Self::Addr> {
+        Ok(self.local_addr)
     }
-
-    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
-        Pin::new(&mut self.get_mut().0).poll_shutdown(cx)
-    }
-}
-
-impl<T> tonic::transport::server::Connected for AcmeTlsStream<T> {
-    type ConnectInfo = ();
-
-    fn connect_info(&self) -> Self::ConnectInfo {}
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tokio::io::{AsyncReadExt, AsyncWriteExt};
-
-    #[tokio::test]
-    async fn acme_tls_stream_delegates_read_write() {
-        let (client, server) = tokio::io::duplex(64);
-        let mut wrapped = AcmeTlsStream(server);
-
-        tokio::spawn(async move {
-            let mut client = client;
-            client.write_all(b"hello").await.unwrap();
-            client.shutdown().await.unwrap();
-        });
-
-        let mut buf = vec![0u8; 5];
-        wrapped.read_exact(&mut buf).await.unwrap();
-        assert_eq!(&buf, b"hello");
-    }
-
-    #[tokio::test]
-    async fn acme_tls_stream_implements_connected() {
-        let (_, server) = tokio::io::duplex(64);
-        let wrapped = AcmeTlsStream(server);
-        let _info: () = tonic::transport::server::Connected::connect_info(&wrapped);
-    }
 
     fn test_config() -> crate::config::Config {
         use clap::Parser;

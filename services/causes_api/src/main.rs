@@ -6,6 +6,7 @@ use tracing::{Instrument as _, info, info_span};
 
 mod admin_service;
 mod auth;
+mod bff;
 mod bootstrap;
 mod config;
 mod google;
@@ -91,15 +92,18 @@ async fn startup(
             .await
             .context("TLS gRPC server error")?;
     } else {
-        let addr = cfg.bind_addr.parse().context("parsing BIND_ADDR")?;
+        let addr: std::net::SocketAddr = cfg.bind_addr.parse().context("parsing BIND_ADDR")?;
         let router = grpc::router(db, std::sync::Arc::new(cfg), http_client).await;
 
-        info!(%addr, "gRPC server listening (plain HTTP/2)");
+        info!(%addr, "server listening (plain HTTP/2)");
 
-        router
-            .serve_with_shutdown(addr, shutdown)
+        let listener = tokio::net::TcpListener::bind(addr)
             .await
-            .context("gRPC server error")?;
+            .context("binding listener")?;
+        axum::serve(listener, router)
+            .with_graceful_shutdown(shutdown)
+            .await
+            .context("server error")?;
     }
 
     Ok(())

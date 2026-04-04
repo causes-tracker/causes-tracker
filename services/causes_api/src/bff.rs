@@ -35,12 +35,20 @@ pub fn router(cfg: Arc<crate::config::Config>) -> Router {
     };
 
     Router::new()
+        .route("/", get(index))
         .route("/healthz", get(healthz))
         .route("/auth/login", post(auth_login))
         .route("/auth/poll", post(auth_poll))
         .route("/auth/logout", post(auth_logout))
         .route("/api/whoami", get(api_whoami))
         .with_state(state)
+}
+
+async fn index() -> impl IntoResponse {
+    (
+        [(axum::http::header::CONTENT_TYPE, "text/html; charset=utf-8")],
+        include_str!("../static/index.html"),
+    )
 }
 
 async fn healthz() -> &'static str {

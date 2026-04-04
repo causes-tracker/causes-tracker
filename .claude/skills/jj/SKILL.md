@@ -32,10 +32,14 @@ All git interaction goes through `jj git fetch` and `jj git push`.
    If switching tasks mid-conversation: `jj new` or `jj edit <target>` first.
    Never edit a file while sitting on an unrelated changeset.
 
-4. **`--named` is only for first push.** To create a new bookmark and push:
-   `jj git push --named <name>=@`.
-   For all subsequent pushes: `jj git push --all`.
-   Never use `--named` for a bookmark that already exists.
+4. **Always push with `--all`.** Editing any commit in a stack changes the
+   hashes of all descendants — their bookmarks must be updated on the remote
+   too, or PRs will show stale content.
+   To create a new bookmark and push the whole stack:
+   `jj bookmark set <name> -r @` then `jj git push --all`.
+   (`--all` and `--named` cannot be combined.)
+   For subsequent pushes: `jj git push --all`.
+   Never use `--named` alone — it only pushes the one bookmark.
 
 5. **`gh` needs explicit flags.** `gh` cannot infer branches from jj.
    Always pass `--base` and `--head` to `gh pr create` and `gh pr edit`.

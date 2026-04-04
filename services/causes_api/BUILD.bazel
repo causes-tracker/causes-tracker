@@ -9,6 +9,7 @@ rust_binary(
         "//lib/rust/api_db",
         "//lib/rust/causes_proto",
         "@crates//:anyhow",
+        "@crates//:axum",
         "@crates//:clap",
         "@crates//:dotenvy",
         "@crates//:opentelemetry",

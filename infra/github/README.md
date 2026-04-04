@@ -52,6 +52,34 @@ bazel run //infra:tofu -- infra/github plan    # preview changes
 bazel run //infra:tofu -- infra/github apply   # apply changes
 ```
 
+## Auto-queue token (`AUTO_QUEUE_TOKEN`)
+
+The auto-queue workflow (`.github/workflows/auto-queue.yml`) uses a fine-grained PAT stored as the repository secret `AUTO_QUEUE_TOKEN`.
+A PAT is required because actions triggered by the built-in `GITHUB_TOKEN` [cannot trigger further workflow runs][gh-token-limit] — so the `merge_group` event that the merge queue needs would never fire.
+
+[gh-token-limit]: https://docs.github.com/en/actions/security-for-github-actions/security-guides/automatic-token-authentication#using-the-github_token-in-a-workflow
+
+### Creating or rotating the token
+
+1. Go to **GitHub → Settings → Developer settings → Fine-grained personal access tokens → Generate new token**.
+2. Configure:
+   - **Token name:** `causes-auto-queue` (or any descriptive name)
+   - **Expiration:** 90 days (or your preferred rotation cadence)
+   - **Repository access:** Only select repositories → `causes-tracker/causes-tracker`
+   - **Permissions:**
+
+     | Permission | Access | Why |
+     |---|---|---|
+     | Contents | Read and write | Required by `gh pr merge` |
+     | Pull requests | Read and write | Enable auto-merge on PRs |
+     | Merge queues | Read and write | Add PRs to the merge queue |
+     | Metadata | Read-only | Required by all fine-grained tokens |
+
+3. Copy the token.
+4. Go to the repository **Settings → Secrets and variables → Actions → Repository secrets**.
+5. Create or update the secret named `AUTO_QUEUE_TOKEN` with the token value.
+6. Verify by adding the `merge` label to any PR — the auto-queue action should succeed and the merge queue build should start.
+
 ## Merging PRs
 
 The `merge` label is an imperative command: adding it to a PR means "merge this."

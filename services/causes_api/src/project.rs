@@ -17,6 +17,26 @@ impl<S: crate::store::Store> ProjectHandler<S> {
     pub fn new(store: Arc<S>) -> Self {
         Self { store }
     }
+
+    /// Resolve a project name, returning the row or the appropriate error.
+    async fn resolve_name(
+        &self,
+        name: &str,
+        session: &api_db::SessionRow,
+    ) -> Result<api_db::ProjectRow, Status> {
+        match self
+            .store
+            .find_project_by_name(name, session)
+            .await
+            .map_err(|e| Status::internal(format!("looking up project: {e}")))?
+        {
+            api_db::ProjectAccess::Visible(row) => Ok(row),
+            api_db::ProjectAccess::AccessDenied => {
+                Err(Status::permission_denied("project access denied"))
+            }
+            api_db::ProjectAccess::NotFound => Err(Status::not_found("project not found")),
+        }
+    }
 }
 
 fn project_row_to_proto(row: api_db::ProjectRow) -> causes_proto::Project {
@@ -106,8 +126,10 @@ impl<S: crate::store::Store> ProjectService for ProjectHandler<S> {
     ) -> Result<Response<GetProjectResponse>, Status> {
         let session = crate::interceptor::authenticate(&self.store, request.metadata()).await?;
 
-        let project_id = api_db::ProjectId::new(&request.into_inner().project_id)
-            .map_err(|e| Status::invalid_argument(format!("invalid project_id: {e}")))?;
+        let project_id = self
+            .resolve_name(&request.into_inner().name, &session)
+            .await?
+            .id;
 
         let row = match self
             .store
@@ -153,11 +175,9 @@ impl<S: crate::store::Store> ProjectService for ProjectHandler<S> {
         &self,
         request: Request<RenameProjectRequest>,
     ) -> Result<Response<RenameProjectResponse>, Status> {
-        let req = request.get_ref();
-        let project_id = api_db::ProjectId::new(&req.project_id)
-            .map_err(|e| Status::invalid_argument(format!("invalid project_id: {e}")))?;
-
         let session = crate::interceptor::authenticate(&self.store, request.metadata()).await?;
+        let req = request.get_ref();
+        let project_id = self.resolve_name(&req.name, &session).await?.id;
 
         let roles = self
             .store
@@ -200,10 +220,11 @@ impl<S: crate::store::Store> ProjectService for ProjectHandler<S> {
         &self,
         request: Request<DeleteProjectRequest>,
     ) -> Result<Response<DeleteProjectResponse>, Status> {
-        let project_id = api_db::ProjectId::new(&request.get_ref().project_id)
-            .map_err(|e| Status::invalid_argument(format!("invalid project_id: {e}")))?;
-
         let session = crate::interceptor::authenticate(&self.store, request.metadata()).await?;
+        let project_id = self
+            .resolve_name(&request.get_ref().name, &session)
+            .await?
+            .id;
 
         let roles = self
             .store
@@ -275,6 +296,9 @@ mod tests {
             }))
         });
         store
+            .expect_find_project_by_name()
+            .returning(|_, _| Ok(api_db::ProjectAccess::Visible(sample_project_row())));
+        store
             .expect_get_user_project_roles()
             .returning(|_, _| Ok(vec![api_db::Role::ProjectMaintainer]));
         store
@@ -290,6 +314,9 @@ mod tests {
                 restricted: true,
             }))
         });
+        store
+            .expect_find_project_by_name()
+            .returning(|_, _| Ok(api_db::ProjectAccess::Visible(sample_project_row())));
         store
     }
 
@@ -388,7 +415,7 @@ mod tests {
             .get_project(authed_request(
                 &"a".repeat(64),
                 GetProjectRequest {
-                    project_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890".to_owned(),
+                    name: "my-project".to_owned(),
                 },
             ))
             .await
@@ -410,7 +437,7 @@ mod tests {
             .get_project(authed_request(
                 &"a".repeat(64),
                 GetProjectRequest {
-                    project_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890".to_owned(),
+                    name: "my-project".to_owned(),
                 },
             ))
             .await
@@ -456,7 +483,7 @@ mod tests {
             .rename_project(authed_request(
                 &"a".repeat(64),
                 RenameProjectRequest {
-                    project_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890".to_owned(),
+                    name: "my-project".to_owned(),
                     new_name: "renamed".to_owned(),
                 },
             ))
@@ -477,7 +504,7 @@ mod tests {
             .rename_project(authed_request(
                 &"a".repeat(64),
                 RenameProjectRequest {
-                    project_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890".to_owned(),
+                    name: "my-project".to_owned(),
                     new_name: "renamed".to_owned(),
                 },
             ))
@@ -499,7 +526,7 @@ mod tests {
             .delete_project(authed_request(
                 &"a".repeat(64),
                 DeleteProjectRequest {
-                    project_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890".to_owned(),
+                    name: "my-project".to_owned(),
                 },
             ))
             .await;
@@ -519,7 +546,7 @@ mod tests {
             .delete_project(authed_request(
                 &"a".repeat(64),
                 DeleteProjectRequest {
-                    project_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890".to_owned(),
+                    name: "my-project".to_owned(),
                 },
             ))
             .await

@@ -4,6 +4,7 @@ use anyhow::Context;
 use clap::Parser;
 use tracing::{Instrument as _, info, info_span};
 
+mod admin_service;
 mod auth;
 mod bootstrap;
 mod config;

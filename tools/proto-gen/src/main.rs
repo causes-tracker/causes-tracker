@@ -30,7 +30,10 @@ fn main() {
         .build_client(true)
         .out_dir(&out_dir)
         .compile_protos(
-            &[proto_dir.join("causes/v1/auth_service.proto")],
+            &[
+                proto_dir.join("causes/v1/admin_service.proto"),
+                proto_dir.join("causes/v1/auth_service.proto"),
+            ],
             &[proto_dir],
         )
         .expect("compiling protos");

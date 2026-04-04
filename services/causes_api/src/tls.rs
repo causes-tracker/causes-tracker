@@ -61,16 +61,16 @@ where
     // h2 ALPN for gRPC; rustls-acme adds acme-tls/1 internally for challenges.
     let tls_incoming = acme.tokio_incoming(tcp_stream, vec![b"h2".to_vec()]);
 
-    let router = crate::grpc::router(db, cfg, http_client).await;
-
     // Start a loopback-only plain gRPC listener for BFF→gRPC internal calls.
-    let loopback = TcpListener::bind("127.0.0.1:50051")
+    // Bind before building the router so we can tell the BFF the actual port.
+    let loopback = TcpListener::bind("127.0.0.1:0")
         .await
         .context("binding loopback gRPC listener")?;
-    info!(
-        addr = %loopback.local_addr().unwrap(),
-        "loopback gRPC listener (plain, internal)"
-    );
+    let loopback_addr = loopback.local_addr().context("loopback local addr")?;
+    info!(%loopback_addr, "loopback gRPC listener (plain, internal)");
+
+    let grpc_url = format!("http://{loopback_addr}");
+    let router = crate::grpc::router(db, cfg, http_client, grpc_url).await;
     let loopback_router = router.clone();
     tokio::spawn(async move {
         axum::serve(loopback, loopback_router).await.ok();

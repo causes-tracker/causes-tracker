@@ -94,7 +94,8 @@ async fn startup(
             .context("TLS gRPC server error")?;
     } else {
         let addr: std::net::SocketAddr = cfg.bind_addr.parse().context("parsing BIND_ADDR")?;
-        let router = grpc::router(db, std::sync::Arc::new(cfg), http_client).await;
+        let grpc_url = format!("http://{}", cfg.bind_addr);
+        let router = grpc::router(db, std::sync::Arc::new(cfg), http_client, grpc_url).await;
 
         info!(%addr, "server listening (plain HTTP/2)");
 

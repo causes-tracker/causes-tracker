@@ -28,4 +28,5 @@ dotenvy.workspace = true
 
 [dev-dependencies]
 mockall.workspace = true
+tower.workspace = true
 wiremock.workspace = true

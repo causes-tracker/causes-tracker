@@ -23,6 +23,7 @@ pub async fn router<S: crate::store::Store>(
     db: Arc<S>,
     cfg: Arc<crate::config::Config>,
     http_client: reqwest::Client,
+    grpc_url: String,
 ) -> axum::Router {
     let (_health_reporter, health_svc) = health_service().await;
     let admin_svc = causes_proto::admin_service_server::AdminServiceServer::new(
@@ -41,7 +42,7 @@ pub async fn router<S: crate::store::Store>(
         .add_service(project_svc)
         .into_axum_router();
 
-    let bff_router = crate::bff::router(cfg);
+    let bff_router = crate::bff::router(cfg, grpc_url);
 
     grpc_router.merge(bff_router)
 }

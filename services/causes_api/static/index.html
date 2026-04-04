@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Causes</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 40em; margin: 2em auto; padding: 0 1em; }
+  h1 { font-size: 1.4em; }
+  .hidden { display: none; }
+  code { background: #f0f0f0; padding: 0.2em 0.4em; border-radius: 3px; font-size: 1.2em; }
+  button { padding: 0.5em 1em; cursor: pointer; }
+  #user-info dt { font-weight: bold; }
+  #user-info dd { margin: 0 0 0.5em; }
+  .error { color: #c00; }
+</style>
+</head>
+<body>
+<h1>Causes</h1>
+
+<div id="view-login">
+  <p>Sign in to continue.</p>
+  <button onclick="startLogin()">Sign in with Google</button>
+</div>
+
+<div id="view-device" class="hidden">
+  <p>Open <a id="device-url" href="#" target="_blank"></a> and enter this code:</p>
+  <p><code id="device-code"></code></p>
+  <p id="device-status">Waiting for sign-in...</p>
+</div>
+
+<div id="view-app" class="hidden">
+  <dl id="user-info"></dl>
+  <button onclick="logout()">Sign out</button>
+</div>
+
+<p id="error" class="error hidden"></p>
+
+<script>
+function show(id) {
+  for (const v of document.querySelectorAll('[id^="view-"]')) v.classList.add('hidden');
+  document.getElementById(id).classList.remove('hidden');
+}
+
+function showError(msg) {
+  const el = document.getElementById('error');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+
+async function startLogin() {
+  document.getElementById('error').classList.add('hidden');
+  try {
+    const resp = await fetch('/auth/login', { method: 'POST' });
+    if (!resp.ok) throw new Error(await resp.text());
+    const data = await resp.json();
+
+    document.getElementById('device-url').href = data.verification_url;
+    document.getElementById('device-url').textContent = data.verification_url;
+    document.getElementById('device-code').textContent = data.user_code;
+    show('view-device');
+
+    pollLogin(data.nonce, (data.interval_secs || 5) * 1000);
+  } catch (e) {
+    showError('Login failed: ' + e.message);
+  }
+}
+
+async function pollLogin(nonce, intervalMs) {
+  while (true) {
+    await new Promise(r => setTimeout(r, intervalMs));
+    try {
+      const resp = await fetch('/auth/poll', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nonce }),
+      });
+      if (!resp.ok) throw new Error(await resp.text());
+      const data = await resp.json();
+      if (data.status === 'ok') {
+        loadApp();
+        return;
+      }
+    } catch (e) {
+      showError('Poll failed: ' + e.message);
+      show('view-login');
+      return;
+    }
+  }
+}
+
+async function loadApp() {
+  try {
+    const resp = await fetch('/api/whoami');
+    if (!resp.ok) throw new Error(await resp.text());
+    const data = await resp.json();
+
+    if (!data.logged_in) {
+      show('view-login');
+      return;
+    }
+
+    const dl = document.getElementById('user-info');
+    dl.innerHTML = '';
+    for (const [key, value] of [['display name', data.display_name], ['email', data.email]]) {
+      const dt = document.createElement('dt');
+      dt.textContent = key;
+      const dd = document.createElement('dd');
+      dd.textContent = value;
+      dl.append(dt, dd);
+    }
+    show('view-app');
+  } catch (e) {
+    showError('Failed to load user info: ' + e.message);
+  }
+}
+
+async function logout() {
+  await fetch('/auth/logout', { method: 'POST' });
+  show('view-login');
+}
+
+// On page load, check if already logged in.
+loadApp();
+</script>
+</body>
+</html>

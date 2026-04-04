@@ -26,10 +26,18 @@ pub(crate) fn router(cfg: Arc<crate::config::Config>, grpc_url: String) -> Route
     };
 
     Router::new()
+        .route("/", get(index))
         .route("/healthz", get(healthz))
         .merge(auth::routes())
         .merge(whoami::routes())
         .with_state(state)
+}
+
+async fn index() -> impl IntoResponse {
+    (
+        [(axum::http::header::CONTENT_TYPE, "text/html; charset=utf-8")],
+        include_str!("../static/index.html"),
+    )
 }
 
 async fn healthz() -> &'static str {
@@ -217,6 +225,7 @@ pub(super) mod test_support {
         };
 
         axum::Router::new()
+            .route("/", axum::routing::get(super::index))
             .route("/healthz", axum::routing::get(super::healthz))
             .merge(super::auth::routes())
             .merge(super::whoami::routes())

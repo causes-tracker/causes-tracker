@@ -11,6 +11,7 @@ mod config;
 mod google;
 mod grpc;
 mod interceptor;
+mod project;
 mod store;
 mod telemetry;
 mod tls;

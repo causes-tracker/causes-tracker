@@ -9,6 +9,22 @@ use causes_proto::{
     RenameProjectRequest,
 };
 
+/// Project visibility for the CLI.
+#[derive(clap::ValueEnum, Clone, Debug)]
+pub enum CliVisibility {
+    Public,
+    Private,
+}
+
+impl CliVisibility {
+    fn to_proto(&self) -> i32 {
+        match self {
+            Self::Public => causes_proto::project::Visibility::Public.into(),
+            Self::Private => causes_proto::project::Visibility::Private.into(),
+        }
+    }
+}
+
 /// Project management commands.
 #[derive(clap::Args, Debug)]
 pub struct ProjectArgs {
@@ -25,6 +41,9 @@ pub enum ProjectCommand {
         /// Project description (Markdown).
         #[arg(long, default_value = "")]
         description: String,
+        /// Visibility: public (default) or private.
+        #[arg(long, default_value = "public")]
+        visibility: CliVisibility,
     },
     /// Show a project.
     Get {
@@ -54,9 +73,11 @@ pub async fn run(
 ) -> anyhow::Result<()> {
     let mut out = std::io::stdout();
     match args.command {
-        ProjectCommand::Create { name, description } => {
-            create(server, data_dir, &name, &description, &mut out).await
-        }
+        ProjectCommand::Create {
+            name,
+            description,
+            visibility,
+        } => create(server, data_dir, &name, &description, &visibility, &mut out).await,
         ProjectCommand::Get { name } => get(server, data_dir, &name, &mut out).await,
         ProjectCommand::List => list(server, data_dir, &mut out).await,
         ProjectCommand::Rename { name, new_name } => {
@@ -89,6 +110,7 @@ async fn create(
     data_dir: &std::path::Path,
     name: &str,
     description: &str,
+    visibility: &CliVisibility,
     out: &mut dyn Write,
 ) -> anyhow::Result<()> {
     let req = crate::rpc::authed_request(
@@ -97,7 +119,7 @@ async fn create(
         CreateProjectRequest {
             name: name.to_owned(),
             description: description.to_owned(),
-            visibility: causes_proto::project::Visibility::Public.into(),
+            visibility: visibility.to_proto(),
             embargoed_by_default: false,
         },
     )?;
@@ -304,6 +326,19 @@ mod tests {
     #[test]
     fn project_create_parses() {
         let cli = Cli::parse_from(["causes", "project", "create", "my-project"]);
+        assert!(matches!(cli.command, crate::Command::Project(_)));
+    }
+
+    #[test]
+    fn project_create_private_parses() {
+        let cli = Cli::parse_from([
+            "causes",
+            "project",
+            "create",
+            "my-project",
+            "--visibility",
+            "private",
+        ]);
         assert!(matches!(cli.command, crate::Command::Project(_)));
     }
 

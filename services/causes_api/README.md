@@ -1,6 +1,29 @@
 # causes-api
 
-Async Rust gRPC service that serves the Causes API.
+Async Rust gRPC service that serves the Causes API and BFF web UI.
+
+## Web UI (BFF)
+
+The server includes a Browser-for-Frontend layer that serves a web UI on
+the same port as gRPC.
+Open `http://localhost:50051/` (dev) or `https://your-domain/` (TLS) in a
+browser to use it.
+
+Authentication uses the same Google OAuth device flow as the CLI.
+The browser receives a device code, the user completes sign-in at Google,
+and the BFF stores the resulting session token in an `HttpOnly` cookie.
+The BFF is stateless — all session state lives in the instance database.
+
+Endpoints:
+
+| Path | Method | Description |
+|---|---|---|
+| `/` | GET | Web UI (single-page HTML) |
+| `/healthz` | GET | Health check |
+| `/auth/login` | POST | Start device flow, returns `{nonce, user_code, verification_url}` |
+| `/auth/poll` | POST | Poll for completion with `{nonce}`, sets session cookie on success |
+| `/auth/logout` | POST | Clears session cookie |
+| `/api/whoami` | GET | Proxied WhoAmI — returns user info from gRPC |
 
 ## Bootstrap flow
 

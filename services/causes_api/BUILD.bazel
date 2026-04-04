@@ -12,6 +12,7 @@ rust_binary(
         "@crates//:axum",
         "@crates//:clap",
         "@crates//:dotenvy",
+        "@crates//:futures",
         "@crates//:opentelemetry",
         "@crates//:opentelemetry-otlp",
         "@crates//:opentelemetry_sdk",

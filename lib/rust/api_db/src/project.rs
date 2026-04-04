@@ -1,4 +1,7 @@
+use std::pin::Pin;
+
 use anyhow::Context;
+use futures::StreamExt;
 use sqlx::types::chrono;
 use uuid::Uuid;
 
@@ -6,6 +9,14 @@ use crate::DbPool;
 use crate::admin::UserId;
 use crate::role::{ProjectId, Role};
 use crate::session::SessionRow;
+
+/// A stream of visibility-filtered project batches.
+///
+/// Each item is a `Vec<ProjectRow>` containing up to [`VISIBILITY_BATCH_SIZE`]
+/// projects that passed the caller's visibility check.  Use standard
+/// `StreamExt` / `TryStreamExt` combinators to consume it.
+pub type ProjectBatchStream =
+    Pin<Box<dyn futures::Stream<Item = anyhow::Result<Vec<ProjectRow>>> + Send>>;
 
 // ── Errors ───────────────────────────────────────────────────────────────
 
@@ -340,7 +351,7 @@ pub async fn find_project_by_name(
 /// Number of rows to accumulate before doing a bulk visibility check.
 const VISIBILITY_BATCH_SIZE: usize = 50;
 
-/// List projects visible to the caller.
+/// List projects visible to the caller, returning a [`ProjectBatchStream`].
 ///
 /// Streams rows from the database using a cursor (`.fetch()`) so Postgres
 /// never materializes the full result set. The `ORDER BY name` is satisfied
@@ -352,46 +363,92 @@ const VISIBILITY_BATCH_SIZE: usize = 50;
 /// caller has a role on. Public projects pass through without a check.
 /// Unrestricted instance-admins skip the visibility query entirely.
 ///
-/// Currently flattens all batches into a `Vec`. The batch structure is
-/// compatible with a future streaming interface that yields one batch at a
-/// time to the gRPC response stream.
-pub async fn list_projects(pool: &DbPool, session: &SessionRow) -> anyhow::Result<Vec<ProjectRow>> {
-    use futures::TryStreamExt;
-
+/// Each visibility-filtered batch is yielded through the stream. Dropping
+/// the stream cancels production after the current batch completes.
+pub async fn list_projects(
+    pool: &DbPool,
+    session: &SessionRow,
+) -> anyhow::Result<ProjectBatchStream> {
     let admin = is_unrestricted_admin(pool, session).await?;
-    let mut visible = Vec::new();
-    let mut batch = Vec::with_capacity(VISIBILITY_BATCH_SIZE);
+    let pool = pool.clone();
+    let session = session.clone();
 
-    // Stream rows from the DB cursor — Postgres streams via the name index.
-    let mut stream = sqlx::query!(
-        "SELECT id, name, description, visibility, embargoed_by_default, created_at \
-         FROM projects ORDER BY name"
-    )
-    .fetch(&pool.0);
+    let (mut tx, rx) = futures::channel::mpsc::channel(2);
 
-    while let Some(r) = stream.try_next().await.context("streaming projects")? {
-        let project = ProjectRow {
-            id: ProjectId::new(r.id)?,
-            name: ProjectName::new(r.name)?,
-            visibility: r.visibility.parse()?,
-            description: r.description,
-            embargoed_by_default: r.embargoed_by_default,
-            created_at: r.created_at,
-        };
-        batch.push(project);
+    tokio::spawn(async move {
+        use futures::SinkExt;
+        use futures::TryStreamExt;
 
-        if batch.len() >= VISIBILITY_BATCH_SIZE {
-            let drained: Vec<_> = batch.drain(..).collect();
-            visible.extend(visible_projects(pool, session, admin, drained).await?);
+        let mut batch = Vec::with_capacity(VISIBILITY_BATCH_SIZE);
+
+        let mut stream = sqlx::query!(
+            "SELECT id, name, description, visibility, embargoed_by_default, created_at \
+             FROM projects ORDER BY name"
+        )
+        .fetch(&pool.0);
+
+        loop {
+            match stream.try_next().await {
+                Ok(Some(r)) => {
+                    let project = match (|| -> anyhow::Result<ProjectRow> {
+                        Ok(ProjectRow {
+                            id: ProjectId::new(r.id)?,
+                            name: ProjectName::new(r.name)?,
+                            visibility: r.visibility.parse()?,
+                            description: r.description,
+                            embargoed_by_default: r.embargoed_by_default,
+                            created_at: r.created_at,
+                        })
+                    })() {
+                        Ok(p) => p,
+                        Err(e) => {
+                            let _ = tx.send(Err(e)).await;
+                            return;
+                        }
+                    };
+                    batch.push(project);
+
+                    if batch.len() >= VISIBILITY_BATCH_SIZE {
+                        let drained: Vec<_> = batch.drain(..).collect();
+                        match visible_projects(&pool, &session, admin, drained).await {
+                            Ok(visible) if !visible.is_empty() => {
+                                if tx.send(Ok(visible)).await.is_err() {
+                                    return;
+                                }
+                            }
+                            Ok(_) => {}
+                            Err(e) => {
+                                let _ = tx.send(Err(e)).await;
+                                return;
+                            }
+                        }
+                    }
+                }
+                Ok(None) => break,
+                Err(e) => {
+                    let _ = tx
+                        .send(Err(anyhow::Error::new(e).context("streaming projects")))
+                        .await;
+                    return;
+                }
+            }
         }
-    }
 
-    // Flush any remaining rows.
-    if !batch.is_empty() {
-        visible.extend(visible_projects(pool, session, admin, batch).await?);
-    }
+        // Flush any remaining rows.
+        if !batch.is_empty() {
+            match visible_projects(&pool, &session, admin, batch).await {
+                Ok(visible) if !visible.is_empty() => {
+                    let _ = tx.send(Ok(visible)).await;
+                }
+                Ok(_) => {}
+                Err(e) => {
+                    let _ = tx.send(Err(e)).await;
+                }
+            }
+        }
+    });
 
-    Ok(visible)
+    Ok(rx.boxed())
 }
 
 /// Rename a project. Returns the updated row, or `None` if not found.
@@ -514,6 +571,13 @@ mod tests {
     }
 
     // ── DB-backed tests ──────────────────────────────────────────────
+
+    async fn collect_all_projects(pool: &DbPool, session: &SessionRow) -> Vec<ProjectRow> {
+        use futures::TryStreamExt;
+        let stream = list_projects(pool, session).await.unwrap();
+        let batches: Vec<Vec<ProjectRow>> = stream.try_collect().await.unwrap();
+        batches.into_iter().flatten().collect()
+    }
 
     fn session_for(user_id: &UserId, restricted: bool) -> SessionRow {
         SessionRow {
@@ -722,7 +786,7 @@ mod tests {
         .await
         .unwrap();
 
-        let projects = list_projects(&pool, &session).await.unwrap();
+        let projects = collect_all_projects(&pool, &session).await;
         assert_eq!(projects.len(), 2);
         assert_eq!(projects[0].name.as_str(), "alpha"); // ordered by name
         assert_eq!(projects[1].name.as_str(), "beta");
@@ -756,7 +820,7 @@ mod tests {
         assert_eq!(row.description, "first project");
 
         // 3. List contains it
-        let projects = list_projects(&pool, &session).await.unwrap();
+        let projects = collect_all_projects(&pool, &session).await;
         assert_eq!(projects.len(), 1);
 
         // 4. Create a second project
@@ -774,7 +838,7 @@ mod tests {
         assert_ne!(alpha_id, beta_id);
 
         // 5. List contains both
-        let projects = list_projects(&pool, &session).await.unwrap();
+        let projects = collect_all_projects(&pool, &session).await;
         assert_eq!(projects.len(), 2);
 
         // 6. Rename alpha
@@ -813,7 +877,7 @@ mod tests {
         assert!(!delete_project(&pool, &alpha_id).await.unwrap());
 
         // 12. Only beta remains
-        let projects = list_projects(&pool, &session).await.unwrap();
+        let projects = collect_all_projects(&pool, &session).await;
         assert_eq!(projects.len(), 1);
         assert_eq!(projects[0].name.as_str(), "beta");
     }
@@ -963,11 +1027,11 @@ mod tests {
         .unwrap();
 
         // Creator sees both
-        let projects = list_projects(&pool, &creator_session).await.unwrap();
+        let projects = collect_all_projects(&pool, &creator_session).await;
         assert_eq!(projects.len(), 2);
 
         // Stranger sees only public
-        let projects = list_projects(&pool, &stranger_session).await.unwrap();
+        let projects = collect_all_projects(&pool, &stranger_session).await;
         assert_eq!(projects.len(), 1);
         assert_eq!(projects[0].name.as_str(), "public-proj");
     }

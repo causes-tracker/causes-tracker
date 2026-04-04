@@ -88,6 +88,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "email_address",
+ "futures",
  "sqlx",
  "tokio",
  "tracing",

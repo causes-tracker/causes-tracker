@@ -1,7 +1,6 @@
 /// Abstraction over database operations needed by this service.
 /// Implemented by [`api_db::DbPool`] in production; in tests, use
 /// [`mockall::automock`]-generated `MockStore`.
-// TODO: remove allow(dead_code) when admin_service.rs lands (PR #146).
 #[allow(dead_code)]
 #[cfg_attr(test, mockall::automock)]
 #[tonic::async_trait]
@@ -73,10 +72,11 @@ pub trait Store: Send + Sync + 'static {
         project_id: &Option<api_db::ProjectId>,
         role: api_db::Role,
     ) -> anyhow::Result<()>;
-    async fn find_project_id_by_name(
+    async fn find_project_by_name(
         &self,
         name: &str,
-    ) -> anyhow::Result<Option<api_db::ProjectId>>;
+        session: &api_db::SessionRow,
+    ) -> anyhow::Result<api_db::ProjectAccess>;
     async fn create_project(
         &self,
         name: &api_db::ProjectName,
@@ -84,17 +84,21 @@ pub trait Store: Send + Sync + 'static {
         visibility: api_db::ProjectVisibility,
         embargoed_by_default: bool,
         creator_user_id: &api_db::UserId,
-    ) -> Result<api_db::ProjectId, api_db::ProjectError>;
+    ) -> Result<api_db::ProjectRow, api_db::ProjectError>;
     async fn get_project(
         &self,
         project_id: &api_db::ProjectId,
-    ) -> anyhow::Result<Option<api_db::ProjectRow>>;
-    async fn list_projects(&self) -> anyhow::Result<Vec<api_db::ProjectRow>>;
+        session: &api_db::SessionRow,
+    ) -> anyhow::Result<api_db::ProjectAccess>;
+    async fn list_projects(
+        &self,
+        session: &api_db::SessionRow,
+    ) -> anyhow::Result<Vec<api_db::ProjectRow>>;
     async fn rename_project(
         &self,
         project_id: &api_db::ProjectId,
         new_name: &api_db::ProjectName,
-    ) -> Result<bool, api_db::ProjectError>;
+    ) -> Result<Option<api_db::ProjectRow>, api_db::ProjectError>;
     async fn delete_project(&self, project_id: &api_db::ProjectId) -> anyhow::Result<bool>;
 }
 
@@ -221,11 +225,12 @@ impl Store for api_db::DbPool {
         api_db::assign_role(self, user_id, project_id, role).await
     }
 
-    async fn find_project_id_by_name(
+    async fn find_project_by_name(
         &self,
         name: &str,
-    ) -> anyhow::Result<Option<api_db::ProjectId>> {
-        api_db::find_project_id_by_name(self, name).await
+        session: &api_db::SessionRow,
+    ) -> anyhow::Result<api_db::ProjectAccess> {
+        api_db::find_project_by_name(self, name, session).await
     }
 
     async fn create_project(
@@ -235,7 +240,7 @@ impl Store for api_db::DbPool {
         visibility: api_db::ProjectVisibility,
         embargoed_by_default: bool,
         creator_user_id: &api_db::UserId,
-    ) -> Result<api_db::ProjectId, api_db::ProjectError> {
+    ) -> Result<api_db::ProjectRow, api_db::ProjectError> {
         api_db::create_project(
             self,
             name,
@@ -250,19 +255,23 @@ impl Store for api_db::DbPool {
     async fn get_project(
         &self,
         project_id: &api_db::ProjectId,
-    ) -> anyhow::Result<Option<api_db::ProjectRow>> {
-        api_db::get_project(self, project_id).await
+        session: &api_db::SessionRow,
+    ) -> anyhow::Result<api_db::ProjectAccess> {
+        api_db::get_project(self, project_id, session).await
     }
 
-    async fn list_projects(&self) -> anyhow::Result<Vec<api_db::ProjectRow>> {
-        api_db::list_projects(self).await
+    async fn list_projects(
+        &self,
+        session: &api_db::SessionRow,
+    ) -> anyhow::Result<Vec<api_db::ProjectRow>> {
+        api_db::list_projects(self, session).await
     }
 
     async fn rename_project(
         &self,
         project_id: &api_db::ProjectId,
         new_name: &api_db::ProjectName,
-    ) -> Result<bool, api_db::ProjectError> {
+    ) -> Result<Option<api_db::ProjectRow>, api_db::ProjectError> {
         api_db::rename_project(self, project_id, new_name).await
     }
 

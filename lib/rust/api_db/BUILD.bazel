@@ -17,6 +17,7 @@ rust_library(
     deps = [
         "@crates//:anyhow",
         "@crates//:email_address",
+        "@crates//:futures",
         "@crates//:sqlx",
         "@crates//:tracing",
         "@crates//:url",

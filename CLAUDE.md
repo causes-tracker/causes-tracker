@@ -47,6 +47,13 @@ Tests must never mutate global process state.
 In particular, never call `std::env::set_var` in tests — it is unsound in multithreaded programs (Rust 2024 marks it `unsafe`) and causes flaky failures when tests run in parallel.
 If code reads environment variables, refactor it to accept the value as a parameter so tests can pass it directly.
 
+## Error handling
+
+DB and infrastructure layer errors must be **typed**, not stringified.
+Never inspect error messages with `.to_string().contains(...)` to decide control flow.
+Instead, define domain-specific error enums (e.g. `ProjectError::NameAlreadyExists`) and catch the underlying error structurally (e.g. Postgres error code `23505` for unique violations).
+The API layer pattern-matches on the typed error to choose the gRPC status code.
+
 ## Commit discipline
 
 Each commit must do exactly one thing.

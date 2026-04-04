@@ -1,6 +1,6 @@
 name: auto-queue
 on:
-  pull_request:
+  pull_request_target:
     types: [labeled, edited]
 permissions:
   contents: write

@@ -39,13 +39,15 @@ pub async fn authenticate<S: Store>(
     Ok(session)
 }
 
-// TODO: remove allow(dead_code) when admin_service.rs lands (PR #146).
-#[allow(dead_code)]
 /// Check whether a role list satisfies a required role.
 ///
 /// `InstanceAdmin` acts as superuser (satisfies any check), unless the
 /// session is restricted — restricted sessions suppress `InstanceAdmin`.
-fn has_required_role(roles: &[api_db::Role], required: api_db::Role, restricted: bool) -> bool {
+pub(crate) fn has_required_role(
+    roles: &[api_db::Role],
+    required: api_db::Role,
+    restricted: bool,
+) -> bool {
     roles.iter().any(|&role| {
         if role == api_db::Role::InstanceAdmin && restricted {
             return false;

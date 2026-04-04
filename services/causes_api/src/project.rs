@@ -53,12 +53,21 @@ impl<S: crate::store::Store> ProjectService for ProjectHandler<S> {
         &self,
         request: Request<CreateProjectRequest>,
     ) -> Result<Response<CreateProjectResponse>, Status> {
-        let user_id = crate::interceptor::authorize_instance_role(
-            &self.store,
-            request.metadata(),
+        let session = crate::interceptor::authenticate(&self.store, request.metadata()).await?;
+
+        let roles = self
+            .store
+            .get_user_instance_roles(&session.user_id)
+            .await
+            .map_err(|e| Status::internal(format!("querying roles: {e}")))?;
+
+        if !crate::interceptor::has_required_role(
+            &roles,
             api_db::Role::Developer,
-        )
-        .await?;
+            session.restricted,
+        ) {
+            return Err(Status::permission_denied("insufficient permissions"));
+        }
 
         let req = request.into_inner();
 
@@ -66,14 +75,14 @@ impl<S: crate::store::Store> ProjectService for ProjectHandler<S> {
             .map_err(|e| Status::invalid_argument(format!("invalid project name: {e}")))?;
         let visibility = parse_visibility(req.visibility)?;
 
-        let project_id = self
+        let row = self
             .store
             .create_project(
                 &name,
                 &req.description,
                 visibility,
                 req.embargoed_by_default,
-                &user_id,
+                &session.user_id,
             )
             .await
             .map_err(|e| match e {
@@ -85,13 +94,6 @@ impl<S: crate::store::Store> ProjectService for ProjectHandler<S> {
                 }
             })?;
 
-        let row = self
-            .store
-            .get_project(&project_id)
-            .await
-            .map_err(|e| Status::internal(format!("fetching created project: {e}")))?
-            .ok_or_else(|| Status::internal("created project not found"))?;
-
         Ok(Response::new(CreateProjectResponse {
             project: Some(project_row_to_proto(row)),
         }))
@@ -102,17 +104,25 @@ impl<S: crate::store::Store> ProjectService for ProjectHandler<S> {
         &self,
         request: Request<GetProjectRequest>,
     ) -> Result<Response<GetProjectResponse>, Status> {
-        crate::interceptor::authenticate(&self.store, request.metadata()).await?;
+        let session = crate::interceptor::authenticate(&self.store, request.metadata()).await?;
 
         let project_id = api_db::ProjectId::new(&request.into_inner().project_id)
             .map_err(|e| Status::invalid_argument(format!("invalid project_id: {e}")))?;
 
-        let row = self
+        let row = match self
             .store
-            .get_project(&project_id)
+            .get_project(&project_id, &session)
             .await
             .map_err(|e| Status::internal(format!("fetching project: {e}")))?
-            .ok_or_else(|| Status::not_found("project not found"))?;
+        {
+            api_db::ProjectAccess::Visible(row) => row,
+            api_db::ProjectAccess::AccessDenied => {
+                return Err(Status::permission_denied("project access denied"));
+            }
+            api_db::ProjectAccess::NotFound => {
+                return Err(Status::not_found("project not found"));
+            }
+        };
 
         Ok(Response::new(GetProjectResponse {
             project: Some(project_row_to_proto(row)),
@@ -124,11 +134,11 @@ impl<S: crate::store::Store> ProjectService for ProjectHandler<S> {
         &self,
         request: Request<ListProjectsRequest>,
     ) -> Result<Response<Self::ListProjectsStream>, Status> {
-        crate::interceptor::authenticate(&self.store, request.metadata()).await?;
+        let session = crate::interceptor::authenticate(&self.store, request.metadata()).await?;
 
         let rows = self
             .store
-            .list_projects()
+            .list_projects(&session)
             .await
             .map_err(|e| Status::internal(format!("listing projects: {e}")))?;
 
@@ -147,18 +157,27 @@ impl<S: crate::store::Store> ProjectService for ProjectHandler<S> {
         let project_id = api_db::ProjectId::new(&req.project_id)
             .map_err(|e| Status::invalid_argument(format!("invalid project_id: {e}")))?;
 
-        crate::interceptor::authorize_project_role(
-            &self.store,
-            request.metadata(),
-            &project_id,
+        let session = crate::interceptor::authenticate(&self.store, request.metadata()).await?;
+
+        let roles = self
+            .store
+            .get_user_project_roles(&session.user_id, &project_id)
+            .await
+            .map_err(|e| Status::internal(format!("querying roles: {e}")))?;
+
+        if !crate::interceptor::has_required_role(
+            &roles,
             api_db::Role::ProjectMaintainer,
-        )
-        .await?;
+            session.restricted,
+        ) {
+            return Err(Status::permission_denied("insufficient permissions"));
+        }
 
         let new_name = api_db::ProjectName::new(&request.into_inner().new_name)
             .map_err(|e| Status::invalid_argument(format!("invalid project name: {e}")))?;
 
-        self.store
+        let row = self
+            .store
             .rename_project(&project_id, &new_name)
             .await
             .map_err(|e| match e {
@@ -168,13 +187,7 @@ impl<S: crate::store::Store> ProjectService for ProjectHandler<S> {
                 api_db::ProjectError::Other(e) => {
                     Status::internal(format!("renaming project: {e}"))
                 }
-            })?;
-
-        let row = self
-            .store
-            .get_project(&project_id)
-            .await
-            .map_err(|e| Status::internal(format!("fetching renamed project: {e}")))?
+            })?
             .ok_or_else(|| Status::not_found("project not found"))?;
 
         Ok(Response::new(RenameProjectResponse {
@@ -190,13 +203,21 @@ impl<S: crate::store::Store> ProjectService for ProjectHandler<S> {
         let project_id = api_db::ProjectId::new(&request.get_ref().project_id)
             .map_err(|e| Status::invalid_argument(format!("invalid project_id: {e}")))?;
 
-        crate::interceptor::authorize_project_role(
-            &self.store,
-            request.metadata(),
-            &project_id,
+        let session = crate::interceptor::authenticate(&self.store, request.metadata()).await?;
+
+        let roles = self
+            .store
+            .get_user_project_roles(&session.user_id, &project_id)
+            .await
+            .map_err(|e| Status::internal(format!("querying roles: {e}")))?;
+
+        if !crate::interceptor::has_required_role(
+            &roles,
             api_db::Role::ProjectMaintainer,
-        )
-        .await?;
+            session.restricted,
+        ) {
+            return Err(Status::permission_denied("insufficient permissions"));
+        }
 
         let deleted = self
             .store
@@ -288,15 +309,10 @@ mod tests {
     #[tokio::test]
     async fn create_project_succeeds_for_developer() {
         let user_id = api_db::UserId::new();
-        let pid = api_db::ProjectId::new("a1b2c3d4-e5f6-7890-abcd-ef1234567890").unwrap();
-        let pid2 = pid.clone();
         let mut store = mock_developer_session(user_id);
         store
             .expect_create_project()
-            .returning(move |_, _, _, _, _| Ok(pid2.clone()));
-        store
-            .expect_get_project()
-            .returning(|_| Ok(Some(sample_project_row())));
+            .returning(|_, _, _, _, _| Ok(sample_project_row()));
 
         let handler = ProjectHandler::new(Arc::new(store));
         let resp = handler
@@ -365,7 +381,7 @@ mod tests {
         let mut store = mock_authed_session(user_id);
         store
             .expect_get_project()
-            .returning(|_| Ok(Some(sample_project_row())));
+            .returning(|_, _| Ok(api_db::ProjectAccess::Visible(sample_project_row())));
 
         let handler = ProjectHandler::new(Arc::new(store));
         let resp = handler
@@ -385,7 +401,9 @@ mod tests {
     async fn get_project_returns_not_found() {
         let user_id = api_db::UserId::new();
         let mut store = mock_authed_session(user_id);
-        store.expect_get_project().returning(|_| Ok(None));
+        store
+            .expect_get_project()
+            .returning(|_, _| Ok(api_db::ProjectAccess::NotFound));
 
         let handler = ProjectHandler::new(Arc::new(store));
         let err = handler
@@ -410,7 +428,7 @@ mod tests {
         let mut store = mock_authed_session(user_id);
         store
             .expect_list_projects()
-            .returning(|| Ok(vec![sample_project_row()]));
+            .returning(|_| Ok(vec![sample_project_row()]));
 
         let handler = ProjectHandler::new(Arc::new(store));
         let stream = handler
@@ -429,10 +447,9 @@ mod tests {
     async fn rename_project_succeeds_for_maintainer() {
         let user_id = api_db::UserId::new();
         let mut store = mock_maintainer_session(user_id);
-        store.expect_rename_project().returning(|_, _| Ok(true));
         store
-            .expect_get_project()
-            .returning(|_| Ok(Some(sample_project_row())));
+            .expect_rename_project()
+            .returning(|_, _| Ok(Some(sample_project_row())));
 
         let handler = ProjectHandler::new(Arc::new(store));
         let resp = handler

@@ -58,6 +58,7 @@ prost-types = "0.14"
 tonic-prost = "0.14"
 tonic-prost-build = "0.14"
 rustls-acme = { version = "0.15", features = ["tokio"] }
+futures = "0.3"
 tokio-stream = "0.1"
 mockall = "0.14"
 tempfile = "3"

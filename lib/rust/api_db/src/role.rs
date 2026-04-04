@@ -333,7 +333,8 @@ mod tests {
             &user_id,
         )
         .await
-        .unwrap();
+        .unwrap()
+        .id;
 
         let roles = get_user_project_roles(&pool, &user_id, &project_id)
             .await
@@ -356,7 +357,8 @@ mod tests {
             &user_id,
         )
         .await
-        .unwrap();
+        .unwrap()
+        .id;
         let project_b = crate::project::create_project(
             &pool,
             &crate::project::ProjectName::new("proj-b").unwrap(),
@@ -366,7 +368,8 @@ mod tests {
             &user_id,
         )
         .await
-        .unwrap();
+        .unwrap()
+        .id;
 
         // Both projects have project-maintainer from create_project.
         // Check that project_b's roles don't include project_a's.

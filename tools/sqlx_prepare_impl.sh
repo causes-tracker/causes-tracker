@@ -70,11 +70,18 @@ text = re.sub(r'members\s*=\s*\[[^\]]*\]', 'members = ["pkg"]', text, flags=re.D
 open(dst, 'w').write(text)
 PYEOF
 
-	cp "${WORKSPACE_ROOT}/Cargo.lock" "$ISOLATED/Cargo.lock"
-	cp "${PACKAGE_DIR}/Cargo.toml" "$ISOLATED/pkg/Cargo.toml"
-	cp -r "${PACKAGE_DIR}/src" "$ISOLATED/pkg/src"
-	cp -r "${PACKAGE_DIR}/migrations" "$ISOLATED/pkg/migrations"
-	cp -r "${PACKAGE_DIR}/.sqlx" "$ISOLATED/pkg/.sqlx"
+	# Bazel runfiles are symlinks into a read-only execroot.  We must
+	# dereference them (-L) so that sqlx can touch source files.  If the
+	# touch fails, sqlx falls back to `cargo clean`, which nukes the
+	# target/sqlx-prepare-check/ dir that sqlx itself just created —
+	# and then cargo check fails because the offline data is gone.
+	cp -rL "${WORKSPACE_ROOT}/Cargo.lock" "$ISOLATED/Cargo.lock"
+	cp -rL "${PACKAGE_DIR}/Cargo.toml" "$ISOLATED/pkg/Cargo.toml"
+	cp -rL "${PACKAGE_DIR}/src" "$ISOLATED/pkg/src"
+	cp -rL "${PACKAGE_DIR}/migrations" "$ISOLATED/pkg/migrations"
+	cp -rL "${PACKAGE_DIR}/.sqlx" "$ISOLATED/pkg/.sqlx"
+
+	chmod -R u+w "$ISOLATED"
 
 	DATABASE_URL="$TEST_POSTGRES_URL" "$SQLX" migrate run \
 		--source "$ISOLATED/pkg/migrations"

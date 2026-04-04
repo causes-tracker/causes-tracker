@@ -17,8 +17,9 @@ pub use pending_login::{
     lookup_pending_login,
 };
 pub use project::{
-    ProjectAccess, ProjectError, ProjectName, ProjectRow, ProjectVisibility, create_project,
-    delete_project, find_project_by_name, get_project, list_projects, rename_project,
+    ProjectAccess, ProjectBatchStream, ProjectError, ProjectName, ProjectRow, ProjectVisibility,
+    create_project, delete_project, find_project_by_name, get_project, list_projects,
+    rename_project,
 };
 pub use role::{
     ProjectId, Role, RoleAssignment, assign_role, get_user_instance_roles, get_user_project_roles,

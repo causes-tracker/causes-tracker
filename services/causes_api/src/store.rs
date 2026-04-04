@@ -93,7 +93,7 @@ pub trait Store: Send + Sync + 'static {
     async fn list_projects(
         &self,
         session: &api_db::SessionRow,
-    ) -> anyhow::Result<Vec<api_db::ProjectRow>>;
+    ) -> anyhow::Result<api_db::ProjectBatchStream>;
     async fn rename_project(
         &self,
         project_id: &api_db::ProjectId,
@@ -263,7 +263,7 @@ impl Store for api_db::DbPool {
     async fn list_projects(
         &self,
         session: &api_db::SessionRow,
-    ) -> anyhow::Result<Vec<api_db::ProjectRow>> {
+    ) -> anyhow::Result<api_db::ProjectBatchStream> {
         api_db::list_projects(self, session).await
     }
 

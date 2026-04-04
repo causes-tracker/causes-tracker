@@ -156,16 +156,27 @@ impl<S: crate::store::Store> ProjectService for ProjectHandler<S> {
         &self,
         request: Request<ListProjectsRequest>,
     ) -> Result<Response<Self::ListProjectsStream>, Status> {
+        use futures::TryStreamExt;
+
         let session = crate::interceptor::authenticate(&self.store, request.metadata()).await?;
 
-        let rows = self
+        let stream = self
             .store
             .list_projects(&session)
             .await
             .map_err(|e| Status::internal(format!("listing projects: {e}")))?;
 
+        let batches: Vec<Vec<api_db::ProjectRow>> = stream
+            .try_collect()
+            .await
+            .map_err(|e| Status::internal(format!("listing projects: {e}")))?;
+
         let response = ListProjectsResponse {
-            projects: rows.into_iter().map(project_row_to_proto).collect(),
+            projects: batches
+                .into_iter()
+                .flatten()
+                .map(project_row_to_proto)
+                .collect(),
         };
         Ok(Response::new(tokio_stream::once(Ok(response))))
     }
@@ -453,9 +464,10 @@ mod tests {
 
         let user_id = api_db::UserId::new();
         let mut store = mock_authed_session(user_id);
-        store
-            .expect_list_projects()
-            .returning(|_| Ok(vec![sample_project_row()]));
+        store.expect_list_projects().returning(|_| {
+            use futures::StreamExt;
+            Ok(futures::stream::iter(vec![Ok(vec![sample_project_row()])]).boxed())
+        });
 
         let handler = ProjectHandler::new(Arc::new(store));
         let stream = handler

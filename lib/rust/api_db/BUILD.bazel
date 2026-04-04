@@ -19,6 +19,7 @@ rust_library(
         "@crates//:email_address",
         "@crates//:futures",
         "@crates//:sqlx",
+        "@crates//:tokio",
         "@crates//:tracing",
         "@crates//:url",
         "@crates//:uuid",

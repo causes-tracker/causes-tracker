@@ -1,9 +1,14 @@
 mod auth;
+mod whoami;
 
 use std::sync::Arc;
 
 use axum::Router;
+use axum::http::StatusCode;
+use axum::response::IntoResponse;
 use axum::routing::get;
+use causes_proto::auth_service_client::AuthServiceClient;
+use tonic::transport::Channel;
 
 #[derive(Clone)]
 pub(crate) struct AppState {
@@ -23,11 +28,90 @@ pub(crate) fn router(cfg: Arc<crate::config::Config>, grpc_url: String) -> Route
     Router::new()
         .route("/healthz", get(healthz))
         .merge(auth::routes())
+        .merge(whoami::routes())
         .with_state(state)
 }
 
 async fn healthz() -> &'static str {
     "ok"
+}
+
+/// Session token extracted from the `causes_session` cookie.
+///
+/// Use as `Option<SessionToken>` in handler signatures: `None` means no
+/// cookie was present (the user is not logged in).
+#[derive(Debug)]
+pub(super) struct SessionToken(pub String);
+
+impl<S: Send + Sync> axum::extract::OptionalFromRequestParts<S> for SessionToken {
+    type Rejection = std::convert::Infallible;
+
+    async fn from_request_parts(
+        parts: &mut axum::http::request::Parts,
+        _state: &S,
+    ) -> Result<Option<Self>, Self::Rejection> {
+        Ok(extract_session(&parts.headers).map(SessionToken))
+    }
+}
+
+/// Connect to the gRPC instance and return an authenticated client.
+pub(super) async fn grpc_client(
+    state: &AppState,
+    session: &SessionToken,
+) -> Result<
+    AuthServiceClient<tonic::service::interceptor::InterceptedService<Channel, BearerInterceptor>>,
+    (StatusCode, &'static str),
+> {
+    let channel = Channel::from_shared(state.grpc_url.clone())
+        .expect("valid gRPC URL")
+        .connect()
+        .await
+        .map_err(|e| {
+            tracing::error!("gRPC connect failed: {e}");
+            (StatusCode::BAD_GATEWAY, "gRPC unavailable")
+        })?;
+
+    Ok(AuthServiceClient::with_interceptor(
+        channel,
+        BearerInterceptor(session.0.clone()),
+    ))
+}
+
+/// Tonic interceptor that injects a Bearer token into every request.
+#[derive(Clone)]
+pub(super) struct BearerInterceptor(String);
+
+impl tonic::service::Interceptor for BearerInterceptor {
+    fn call(&mut self, mut req: tonic::Request<()>) -> Result<tonic::Request<()>, tonic::Status> {
+        let value = format!("Bearer {}", self.0)
+            .parse()
+            .map_err(|_| tonic::Status::internal("invalid token"))?;
+        req.metadata_mut().insert("authorization", value);
+        Ok(req)
+    }
+}
+
+/// Map a tonic error to an appropriate HTTP status code and message.
+pub(super) fn grpc_error_response(e: tonic::Status) -> impl IntoResponse {
+    let status = match e.code() {
+        tonic::Code::Unauthenticated => StatusCode::UNAUTHORIZED,
+        _ => StatusCode::BAD_GATEWAY,
+    };
+    (status, e.message().to_string())
+}
+
+/// Extract the `causes_session` cookie value from request headers.
+fn extract_session(headers: &axum::http::HeaderMap) -> Option<String> {
+    let cookie_header = headers.get(axum::http::header::COOKIE)?.to_str().ok()?;
+    for pair in cookie_header.split(';') {
+        let pair = pair.trim();
+        if let Some(value) = pair.strip_prefix("causes_session=") {
+            if !value.is_empty() {
+                return Some(value.to_string());
+            }
+        }
+    }
+    None
 }
 
 #[cfg(test)]
@@ -37,6 +121,10 @@ pub(super) mod test_support {
 
     use causes_proto::auth_service_server::{AuthService, AuthServiceServer};
     use causes_proto::*;
+
+    /// Tokens containing this prefix are rejected by the mock with
+    /// `Unauthenticated`, simulating an expired or invalid session.
+    pub const REJECTED_TOKEN_PREFIX: &str = "expired";
 
     pub struct MockAuthService {
         poll_count: AtomicU32,
@@ -86,8 +174,14 @@ pub(super) mod test_support {
 
         async fn who_am_i(
             &self,
-            _req: tonic::Request<WhoAmIRequest>,
+            req: tonic::Request<WhoAmIRequest>,
         ) -> Result<tonic::Response<WhoAmIResponse>, tonic::Status> {
+            // Reject tokens starting with "expired" to test invalid-session handling.
+            if let Some(auth) = req.metadata().get("authorization") {
+                if auth.to_str().unwrap_or("").contains(REJECTED_TOKEN_PREFIX) {
+                    return Err(tonic::Status::unauthenticated("session expired"));
+                }
+            }
             Ok(tonic::Response::new(WhoAmIResponse {
                 user_id: "uid-42".to_string(),
                 display_name: "Test User".to_string(),
@@ -125,6 +219,92 @@ pub(super) mod test_support {
         axum::Router::new()
             .route("/healthz", axum::routing::get(super::healthz))
             .merge(super::auth::routes())
+            .merge(super::whoami::routes())
             .with_state(state)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::http::HeaderValue;
+
+    #[test]
+    fn extract_session_from_single_cookie() {
+        let mut headers = axum::http::HeaderMap::new();
+        headers.insert(
+            axum::http::header::COOKIE,
+            HeaderValue::from_static("causes_session=abc123"),
+        );
+        assert_eq!(extract_session(&headers).unwrap(), "abc123");
+    }
+
+    #[test]
+    fn extract_session_from_multiple_cookies() {
+        let mut headers = axum::http::HeaderMap::new();
+        headers.insert(
+            axum::http::header::COOKIE,
+            HeaderValue::from_static("other=foo; causes_session=xyz789; third=bar"),
+        );
+        assert_eq!(extract_session(&headers).unwrap(), "xyz789");
+    }
+
+    #[test]
+    fn extract_session_returns_none_when_missing() {
+        let headers = axum::http::HeaderMap::new();
+        assert!(extract_session(&headers).is_none());
+    }
+
+    #[test]
+    fn extract_session_returns_none_for_empty_value() {
+        let mut headers = axum::http::HeaderMap::new();
+        headers.insert(
+            axum::http::header::COOKIE,
+            HeaderValue::from_static("causes_session="),
+        );
+        assert!(extract_session(&headers).is_none());
+    }
+
+    #[test]
+    fn bearer_interceptor_sets_authorization() {
+        let mut interceptor = BearerInterceptor("tok123".to_string());
+        let req =
+            tonic::service::Interceptor::call(&mut interceptor, tonic::Request::new(())).unwrap();
+        let auth = req
+            .metadata()
+            .get("authorization")
+            .unwrap()
+            .to_str()
+            .unwrap();
+        assert_eq!(auth, "Bearer tok123");
+    }
+
+    #[tokio::test]
+    async fn session_token_extracts_from_cookie() {
+        use axum::extract::OptionalFromRequestParts;
+
+        let (mut parts, _) = axum::http::Request::builder()
+            .header("cookie", "causes_session=tok456")
+            .body(())
+            .unwrap()
+            .into_parts();
+        let token = SessionToken::from_request_parts(&mut parts, &())
+            .await
+            .unwrap();
+        assert_eq!(token.unwrap().0, "tok456");
+    }
+
+    #[tokio::test]
+    async fn session_token_none_without_cookie() {
+        use axum::extract::OptionalFromRequestParts;
+
+        let (mut parts, _) = axum::http::Request::builder()
+            .body(())
+            .unwrap()
+            .into_parts();
+        let token = SessionToken::from_request_parts(&mut parts, &())
+            .await
+            .unwrap();
+        assert!(token.is_none());
     }
 }

@@ -540,4 +540,87 @@ mod tests {
         assert_eq!(projects[0].name.as_str(), "alpha"); // ordered by name
         assert_eq!(projects[1].name.as_str(), "beta");
     }
+
+    #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
+    async fn full_lifecycle(pool: sqlx::PgPool) {
+        let pool = DbPool(pool);
+        let user_id = seed_admin(&pool).await;
+
+        // 1. Create a project
+        let alpha_id = create_project(
+            &pool,
+            &ProjectName::new("alpha").unwrap(),
+            "first project",
+            ProjectVisibility::Public,
+            false,
+            &user_id,
+        )
+        .await
+        .unwrap();
+
+        // 2. Get it back
+        let row = get_project(&pool, &alpha_id).await.unwrap().unwrap();
+        assert_eq!(row.name.as_str(), "alpha");
+        assert_eq!(row.description, "first project");
+
+        // 3. List contains it
+        let projects = list_projects(&pool).await.unwrap();
+        assert_eq!(projects.len(), 1);
+
+        // 4. Create a second project
+        let beta_id = create_project(
+            &pool,
+            &ProjectName::new("beta").unwrap(),
+            "",
+            ProjectVisibility::Public,
+            false,
+            &user_id,
+        )
+        .await
+        .unwrap();
+        assert_ne!(alpha_id, beta_id);
+
+        // 5. List contains both
+        let projects = list_projects(&pool).await.unwrap();
+        assert_eq!(projects.len(), 2);
+
+        // 6. Rename alpha
+        assert!(
+            rename_project(
+                &pool,
+                &alpha_id,
+                &ProjectName::new("alpha-renamed").unwrap()
+            )
+            .await
+            .unwrap()
+        );
+        let row = get_project(&pool, &alpha_id).await.unwrap().unwrap();
+        assert_eq!(row.name.as_str(), "alpha-renamed");
+
+        // 7. Rename to existing name fails (unique constraint)
+        let err = rename_project(&pool, &alpha_id, &ProjectName::new("beta").unwrap()).await;
+        assert!(err.is_err());
+
+        // 8. Delete alpha
+        assert!(delete_project(&pool, &alpha_id).await.unwrap());
+
+        // 9. Alpha is gone
+        assert!(get_project(&pool, &alpha_id).await.unwrap().is_none());
+
+        // 10. Role assignments for alpha are gone
+        let roles = crate::role::get_user_roles(&pool, &user_id).await.unwrap();
+        assert!(
+            roles
+                .iter()
+                .all(|r| r.project_id.as_ref() != Some(&alpha_id))
+        );
+
+        // 11. Delete again returns false
+        assert!(!delete_project(&pool, &alpha_id).await.unwrap());
+
+        // 12. Only beta remains
+        let projects = list_projects(&pool).await.unwrap();
+        assert_eq!(projects.len(), 1);
+        assert_eq!(projects[0].name.as_str(), "beta");
+    }
 }

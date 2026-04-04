@@ -4,26 +4,15 @@ use tonic::Status;
 
 use crate::store::Store;
 
-/// Result of successful authentication.
-///
-/// Carries both the user identity and whether this session is restricted.
-/// Restricted sessions suppress elevated roles (e.g. instance-admin) when
-/// checked by authorization helpers.
-#[derive(Debug)]
-pub struct AuthenticatedCaller {
-    pub user_id: api_db::UserId,
-    pub restricted: bool,
-}
-
 /// Extract the bearer token from request metadata, validate the session,
-/// and return the authenticated caller with their restriction status.
+/// and return the session row.
 ///
 /// Called explicitly by authenticated RPC handlers. Unauthenticated RPCs
 /// (StartLogin, CompleteLogin, health) simply don't call this.
 pub async fn authenticate<S: Store>(
     store: &Arc<S>,
     metadata: &tonic::metadata::MetadataMap,
-) -> Result<AuthenticatedCaller, Status> {
+) -> Result<api_db::SessionRow, Status> {
     let token_str = metadata
         .get("authorization")
         .ok_or_else(|| Status::unauthenticated("missing authorization header"))?
@@ -47,10 +36,7 @@ pub async fn authenticate<S: Store>(
         return Err(Status::unauthenticated("session has expired"));
     }
 
-    Ok(AuthenticatedCaller {
-        user_id: session.user_id,
-        restricted: session.restricted,
-    })
+    Ok(session)
 }
 
 // TODO: remove allow(dead_code) when admin_service.rs lands (PR #146).
@@ -75,15 +61,15 @@ pub async fn authorize_instance_role<S: Store>(
     metadata: &tonic::metadata::MetadataMap,
     required_role: api_db::Role,
 ) -> Result<api_db::UserId, Status> {
-    let caller = authenticate(store, metadata).await?;
+    let session = authenticate(store, metadata).await?;
 
     let roles = store
-        .get_user_instance_roles(&caller.user_id)
+        .get_user_instance_roles(&session.user_id)
         .await
         .map_err(|e| Status::internal(format!("querying roles: {e}")))?;
 
-    if has_required_role(&roles, required_role, caller.restricted) {
-        Ok(caller.user_id)
+    if has_required_role(&roles, required_role, session.restricted) {
+        Ok(session.user_id)
     } else {
         Err(Status::permission_denied("insufficient permissions"))
     }
@@ -99,15 +85,15 @@ pub async fn authorize_project_role<S: Store>(
     project_id: &api_db::ProjectId,
     required_role: api_db::Role,
 ) -> Result<api_db::UserId, Status> {
-    let caller = authenticate(store, metadata).await?;
+    let session = authenticate(store, metadata).await?;
 
     let roles = store
-        .get_user_project_roles(&caller.user_id, project_id)
+        .get_user_project_roles(&session.user_id, project_id)
         .await
         .map_err(|e| Status::internal(format!("querying project roles: {e}")))?;
 
-    if has_required_role(&roles, required_role, caller.restricted) {
-        Ok(caller.user_id)
+    if has_required_role(&roles, required_role, session.restricted) {
+        Ok(session.user_id)
     } else {
         Err(Status::permission_denied("insufficient permissions"))
     }
@@ -203,9 +189,9 @@ mod tests {
         let store = Arc::new(store);
 
         let md = metadata_with_bearer(&"c".repeat(64));
-        let caller = authenticate(&store, &md).await.unwrap();
-        assert_eq!(caller.user_id, user_id);
-        assert!(caller.restricted);
+        let session = authenticate(&store, &md).await.unwrap();
+        assert_eq!(session.user_id, user_id);
+        assert!(session.restricted);
     }
 
     // ── authorize_instance_role tests ────────────────────────────────
@@ -402,8 +388,8 @@ mod tests {
         let store = Arc::new(store);
 
         let md = metadata_with_bearer(&"d".repeat(64));
-        let caller = authenticate(&store, &md).await.unwrap();
-        assert_eq!(caller.user_id, user_id);
-        assert!(!caller.restricted);
+        let session = authenticate(&store, &md).await.unwrap();
+        assert_eq!(session.user_id, user_id);
+        assert!(!session.restricted);
     }
 }

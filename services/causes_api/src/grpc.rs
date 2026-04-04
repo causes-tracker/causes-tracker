@@ -29,13 +29,17 @@ pub async fn router<S: crate::store::Store>(
         crate::admin_service::AdminHandler::new(db.clone()),
     );
     let auth_svc = causes_proto::auth_service_server::AuthServiceServer::new(
-        crate::auth::AuthHandler::new(db, cfg, http_client),
+        crate::auth::AuthHandler::new(db.clone(), cfg, http_client),
+    );
+    let project_svc = causes_proto::project_service_server::ProjectServiceServer::new(
+        crate::project::ProjectHandler::new(db),
     );
 
     tonic::transport::Server::builder()
         .add_service(health_svc)
         .add_service(admin_svc)
         .add_service(auth_svc)
+        .add_service(project_svc)
 }
 
 #[cfg(test)]

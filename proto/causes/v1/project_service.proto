@@ -13,7 +13,7 @@ service ProjectService {
   // Get a project by ID.
   rpc GetProject(GetProjectRequest) returns (GetProjectResponse);
   // List all projects visible to the caller.
-  rpc ListProjects(ListProjectsRequest) returns (ListProjectsResponse);
+  rpc ListProjects(ListProjectsRequest) returns (stream ListProjectsResponse);
   // Rename a project. Requires project-maintainer or instance-admin.
   rpc RenameProject(RenameProjectRequest) returns (RenameProjectResponse);
   // Delete a project and all associated data.

@@ -46,6 +46,8 @@ fn parse_visibility(v: i32) -> Result<api_db::ProjectVisibility, Status> {
 
 #[tonic::async_trait]
 impl<S: crate::store::Store> ProjectService for ProjectHandler<S> {
+    type ListProjectsStream = tokio_stream::Once<Result<ListProjectsResponse, Status>>;
+
     #[tracing::instrument(skip(self, request))]
     async fn create_project(
         &self,
@@ -121,7 +123,7 @@ impl<S: crate::store::Store> ProjectService for ProjectHandler<S> {
     async fn list_projects(
         &self,
         request: Request<ListProjectsRequest>,
-    ) -> Result<Response<ListProjectsResponse>, Status> {
+    ) -> Result<Response<Self::ListProjectsStream>, Status> {
         crate::interceptor::authenticate(&self.store, request.metadata()).await?;
 
         let rows = self
@@ -130,9 +132,10 @@ impl<S: crate::store::Store> ProjectService for ProjectHandler<S> {
             .await
             .map_err(|e| Status::internal(format!("listing projects: {e}")))?;
 
-        Ok(Response::new(ListProjectsResponse {
+        let response = ListProjectsResponse {
             projects: rows.into_iter().map(project_row_to_proto).collect(),
-        }))
+        };
+        Ok(Response::new(tokio_stream::once(Ok(response))))
     }
 
     #[tracing::instrument(skip(self, request))]
@@ -401,6 +404,8 @@ mod tests {
 
     #[tokio::test]
     async fn list_projects_returns_all() {
+        use tokio_stream::StreamExt;
+
         let user_id = api_db::UserId::new();
         let mut store = mock_authed_session(user_id);
         store
@@ -408,12 +413,14 @@ mod tests {
             .returning(|| Ok(vec![sample_project_row()]));
 
         let handler = ProjectHandler::new(Arc::new(store));
-        let resp = handler
+        let stream = handler
             .list_projects(authed_request(&"a".repeat(64), ListProjectsRequest {}))
             .await
             .unwrap()
             .into_inner();
-        assert_eq!(resp.projects.len(), 1);
+        let batches: Vec<_> = stream.collect().await;
+        assert_eq!(batches.len(), 1);
+        assert_eq!(batches[0].as_ref().unwrap().projects.len(), 1);
     }
 
     // ── RenameProject ────────────────────────────────────────────────

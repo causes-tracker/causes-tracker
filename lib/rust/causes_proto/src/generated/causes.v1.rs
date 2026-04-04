@@ -1039,8 +1039,10 @@ pub mod project_service_client {
         pub async fn list_projects(
             &mut self,
             request: impl tonic::IntoRequest<super::ListProjectsRequest>,
-        ) -> std::result::Result<tonic::Response<super::ListProjectsResponse>, tonic::Status>
-        {
+        ) -> std::result::Result<
+            tonic::Response<tonic::codec::Streaming<super::ListProjectsResponse>>,
+            tonic::Status,
+        > {
             self.inner.ready().await.map_err(|e| {
                 tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
             })?;
@@ -1050,7 +1052,7 @@ pub mod project_service_client {
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("causes.v1.ProjectService", "ListProjects"));
-            self.inner.unary(req, path, codec).await
+            self.inner.server_streaming(req, path, codec).await
         }
         /// Rename a project. Requires project-maintainer or instance-admin.
         pub async fn rename_project(
@@ -1113,11 +1115,16 @@ pub mod project_service_server {
             &self,
             request: tonic::Request<super::GetProjectRequest>,
         ) -> std::result::Result<tonic::Response<super::GetProjectResponse>, tonic::Status>;
+        /// Server streaming response type for the ListProjects method.
+        type ListProjectsStream: tonic::codegen::tokio_stream::Stream<
+                Item = std::result::Result<super::ListProjectsResponse, tonic::Status>,
+            > + std::marker::Send
+            + 'static;
         /// List all projects visible to the caller.
         async fn list_projects(
             &self,
             request: tonic::Request<super::ListProjectsRequest>,
-        ) -> std::result::Result<tonic::Response<super::ListProjectsResponse>, tonic::Status>;
+        ) -> std::result::Result<tonic::Response<Self::ListProjectsStream>, tonic::Status>;
         /// Rename a project. Requires project-maintainer or instance-admin.
         async fn rename_project(
             &self,
@@ -1287,11 +1294,14 @@ pub mod project_service_server {
                 "/causes.v1.ProjectService/ListProjects" => {
                     #[allow(non_camel_case_types)]
                     struct ListProjectsSvc<T: ProjectService>(pub Arc<T>);
-                    impl<T: ProjectService> tonic::server::UnaryService<super::ListProjectsRequest>
+                    impl<T: ProjectService>
+                        tonic::server::ServerStreamingService<super::ListProjectsRequest>
                         for ListProjectsSvc<T>
                     {
                         type Response = super::ListProjectsResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type ResponseStream = T::ListProjectsStream;
+                        type Future =
+                            BoxFuture<tonic::Response<Self::ResponseStream>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::ListProjectsRequest>,
@@ -1320,7 +1330,7 @@ pub mod project_service_server {
                                 max_decoding_message_size,
                                 max_encoding_message_size,
                             );
-                        let res = grpc.unary(method, req).await;
+                        let res = grpc.server_streaming(method, req).await;
                         Ok(res)
                     };
                     Box::pin(fut)

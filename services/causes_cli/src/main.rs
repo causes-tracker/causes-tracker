@@ -2,6 +2,7 @@ use clap::Parser;
 
 mod admin;
 mod auth;
+mod project;
 pub(crate) mod rpc;
 mod session_file;
 
@@ -27,6 +28,8 @@ enum Command {
     Admin(admin::AdminArgs),
     /// Manage authentication.
     Auth(auth::AuthArgs),
+    /// Manage projects.
+    Project(project::ProjectArgs),
 }
 
 #[tokio::main]
@@ -37,6 +40,7 @@ async fn main() -> anyhow::Result<()> {
     match cli.command {
         Command::Admin(args) => admin::run(&cli.server, &data_dir, args).await,
         Command::Auth(args) => auth::run(&cli.server, &data_dir, args).await,
+        Command::Project(args) => project::run(&cli.server, &data_dir, args).await,
     }
 }
 

@@ -61,6 +61,9 @@ Commits must pass all linting and tests before being made.
 Commits are kept strictly small: **400–500 lines maximum** (diff lines added, ignoring generated files, ignoring removed lines).
 If a change is larger, split it into a sequence of focused commits.
 
+Before pushing, verify the change the way CI does:
+run `tools/coverage.sh //...` (not bare `bazel test //...`) — it runs coverage and enforces per-file thresholds.
+
 For `bazel run` targets (servers, binaries): run them and confirm they start correctly before pushing — even long-running ones, which should be started, verified, then killed.
 "It builds" is not the same as "it works."
 

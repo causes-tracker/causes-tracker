@@ -31,6 +31,8 @@ All git interaction goes through `jj git fetch` and `jj git push`.
    If starting new work: `jj new master` (or the appropriate parent).
    If switching tasks mid-conversation: `jj new` or `jj edit <target>` first.
    Never edit a file while sitting on an unrelated changeset.
+   After finishing a change, run `jj new` to create a fresh empty changeset.
+   This protects the completed work from accidental edits.
 
 4. **Always push with `--all`.** Editing any commit in a stack changes the
    hashes of all descendants — their bookmarks must be updated on the remote

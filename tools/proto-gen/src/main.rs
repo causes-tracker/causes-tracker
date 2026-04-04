@@ -9,6 +9,7 @@
 //! Optional env overrides (used by the staleness check):
 //!   PROTO_GEN_OUT_DIR   — output directory (default: <workspace>/lib/rust/causes_proto/src/generated)
 //!   PROTO_GEN_PROTO_DIR — proto source root (default: <workspace>/proto)
+//!   PROTO_GEN_WKT_DIR   — well-known types root (set by the Bazel shell wrapper)
 
 use std::path::PathBuf;
 
@@ -25,6 +26,11 @@ fn main() {
 
     std::fs::create_dir_all(&out_dir).expect("creating output directory");
 
+    let mut includes = vec![proto_dir.clone()];
+    if let Ok(wkt_dir) = std::env::var("PROTO_GEN_WKT_DIR") {
+        includes.push(PathBuf::from(wkt_dir));
+    }
+
     tonic_prost_build::configure()
         .build_server(true)
         .build_client(true)
@@ -33,8 +39,9 @@ fn main() {
             &[
                 proto_dir.join("causes/v1/admin_service.proto"),
                 proto_dir.join("causes/v1/auth_service.proto"),
+                proto_dir.join("causes/v1/project_service.proto"),
             ],
-            &[proto_dir],
+            &includes,
         )
         .expect("compiling protos");
 

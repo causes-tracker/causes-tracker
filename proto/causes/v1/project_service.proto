@@ -1,0 +1,57 @@
+// Project lifecycle management.
+syntax = "proto3";
+
+package causes.v1;
+
+import "causes/v1/project.proto";
+
+// ProjectService manages the lifecycle of projects.
+service ProjectService {
+  // Create a new project. Caller becomes project-maintainer.
+  // Requires the developer role.
+  rpc CreateProject(CreateProjectRequest) returns (CreateProjectResponse);
+  // Get a project by ID.
+  rpc GetProject(GetProjectRequest) returns (GetProjectResponse);
+  // List all projects visible to the caller.
+  rpc ListProjects(ListProjectsRequest) returns (ListProjectsResponse);
+  // Rename a project. Requires project-maintainer or instance-admin.
+  rpc RenameProject(RenameProjectRequest) returns (RenameProjectResponse);
+  // Delete a project and all associated data.
+  // Requires project-maintainer or instance-admin.
+  rpc DeleteProject(DeleteProjectRequest) returns (DeleteProjectResponse);
+}
+
+message CreateProjectRequest {
+  string name = 1;
+  string description = 2;
+  Project.Visibility visibility = 3;
+  bool embargoed_by_default = 4;
+}
+message CreateProjectResponse {
+  Project project = 1;
+}
+
+message GetProjectRequest {
+  string project_id = 1;
+}
+message GetProjectResponse {
+  Project project = 1;
+}
+
+message ListProjectsRequest {}
+message ListProjectsResponse {
+  repeated Project projects = 1;
+}
+
+message RenameProjectRequest {
+  string project_id = 1;
+  string new_name = 2;
+}
+message RenameProjectResponse {
+  Project project = 1;
+}
+
+message DeleteProjectRequest {
+  string project_id = 1;
+}
+message DeleteProjectResponse {}

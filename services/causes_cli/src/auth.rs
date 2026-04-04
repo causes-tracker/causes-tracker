@@ -90,20 +90,11 @@ async fn login(server: &str, data_dir: &std::path::Path, admin: bool) -> anyhow:
 }
 
 async fn whoami(server: &str, data_dir: &std::path::Path) -> anyhow::Result<()> {
-    let session = session_file::load(data_dir, server)?
-        .ok_or_else(|| anyhow::anyhow!("not logged in — run `causes auth login` first"))?;
+    let req = crate::rpc::authed_request(data_dir, server, causes_proto::WhoAmIRequest {})?;
 
     let mut client = AuthServiceClient::connect(server.to_owned())
         .await
         .context("connecting to server")?;
-
-    let mut req = tonic::Request::new(causes_proto::WhoAmIRequest {});
-    req.metadata_mut().insert(
-        "authorization",
-        format!("Bearer {}", session.session_token)
-            .parse()
-            .context("invalid session token")?,
-    );
 
     let resp = client
         .who_am_i(req)
@@ -235,34 +226,28 @@ mod tests {
         format!("http://127.0.0.1:{port}")
     }
 
-    fn test_dir(name: &str) -> std::path::PathBuf {
-        std::env::temp_dir().join(format!("causes-{name}-{}", std::process::id()))
-    }
-
     #[tokio::test]
     async fn login_flow_polls_and_saves_token() {
         let server_url = start_mock_server().await;
-        let dir = test_dir("login");
+        let dir = tempfile::tempdir().unwrap();
 
-        super::login(&server_url, &dir, false)
+        super::login(&server_url, dir.path(), false)
             .await
             .expect("login failed");
 
-        let session = crate::session_file::load(&dir, &server_url)
+        let session = crate::session_file::load(dir.path(), &server_url)
             .expect("load failed")
             .expect("no session saved");
         assert_eq!(session.session_token, "d".repeat(64));
-
-        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[tokio::test]
     async fn whoami_returns_user_info() {
         let server_url = start_mock_server().await;
-        let dir = test_dir("whoami");
+        let dir = tempfile::tempdir().unwrap();
 
         crate::session_file::save(
-            &dir,
+            dir.path(),
             &server_url,
             &crate::session_file::SessionFile {
                 session_token: "e".repeat(64),
@@ -270,20 +255,18 @@ mod tests {
         )
         .expect("save failed");
 
-        super::whoami(&server_url, &dir)
+        super::whoami(&server_url, dir.path())
             .await
             .expect("whoami failed");
-
-        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[tokio::test]
     async fn whoami_rejects_when_not_logged_in() {
-        let dir = test_dir("whoami-nologin");
+        let dir = tempfile::tempdir().unwrap();
 
-        let err = super::whoami("http://127.0.0.1:1", &dir).await.unwrap_err();
+        let err = super::whoami("http://127.0.0.1:1", dir.path())
+            .await
+            .unwrap_err();
         assert!(err.to_string().contains("not logged in"));
-
-        std::fs::remove_dir_all(&dir).ok();
     }
 }

@@ -17,4 +17,7 @@ rust_binary(
 rust_test(
     name = "causes_cli_test",
     crate = ":causes_cli",
+    deps = [
+        "@crates//:tempfile",
+    ],
 )

@@ -59,6 +59,7 @@ tonic-prost = "0.14"
 tonic-prost-build = "0.14"
 rustls-acme = { version = "0.15", features = ["tokio"] }
 tokio-stream = "0.1"
+tower = { version = "0.5", features = ["util"] }
 mockall = "0.14"
 tempfile = "3"
 wiremock = "0.6"

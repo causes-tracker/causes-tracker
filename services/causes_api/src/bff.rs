@@ -1,13 +1,130 @@
+mod auth;
+
 use std::sync::Arc;
 
 use axum::Router;
 use axum::routing::get;
 
+#[derive(Clone)]
+pub(crate) struct AppState {
+    pub(super) grpc_url: String,
+    pub(super) secure_cookies: bool,
+}
+
 /// Build the BFF HTTP router.
-pub fn router(_cfg: Arc<crate::config::Config>) -> Router {
-    Router::new().route("/healthz", get(healthz))
+pub(crate) fn router(cfg: Arc<crate::config::Config>, grpc_url: String) -> Router {
+    let secure_cookies = cfg.tls_domain.is_some();
+
+    let state = AppState {
+        grpc_url,
+        secure_cookies,
+    };
+
+    Router::new()
+        .route("/healthz", get(healthz))
+        .merge(auth::routes())
+        .with_state(state)
 }
 
 async fn healthz() -> &'static str {
     "ok"
+}
+
+#[cfg(test)]
+pub(super) mod test_support {
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    use causes_proto::auth_service_server::{AuthService, AuthServiceServer};
+    use causes_proto::*;
+
+    pub struct MockAuthService {
+        poll_count: AtomicU32,
+    }
+
+    impl MockAuthService {
+        pub fn new() -> Self {
+            Self {
+                poll_count: AtomicU32::new(0),
+            }
+        }
+    }
+
+    #[tonic::async_trait]
+    impl AuthService for MockAuthService {
+        async fn start_login(
+            &self,
+            _req: tonic::Request<StartLoginRequest>,
+        ) -> Result<tonic::Response<StartLoginResponse>, tonic::Status> {
+            Ok(tonic::Response::new(StartLoginResponse {
+                nonce: "a".repeat(64),
+                user_code: "TEST-CODE".to_string(),
+                verification_url: "https://example.com/device".to_string(),
+                interval_secs: 5,
+            }))
+        }
+
+        async fn complete_login(
+            &self,
+            _req: tonic::Request<CompleteLoginRequest>,
+        ) -> Result<tonic::Response<CompleteLoginResponse>, tonic::Status> {
+            let n = self.poll_count.fetch_add(1, Ordering::SeqCst);
+            if n == 0 {
+                Ok(tonic::Response::new(CompleteLoginResponse {
+                    result: Some(complete_login_response::Result::Pending(Pending {})),
+                }))
+            } else {
+                Ok(tonic::Response::new(CompleteLoginResponse {
+                    result: Some(complete_login_response::Result::SessionCreated(
+                        SessionCreated {
+                            session_token: "d".repeat(64),
+                        },
+                    )),
+                }))
+            }
+        }
+
+        async fn who_am_i(
+            &self,
+            _req: tonic::Request<WhoAmIRequest>,
+        ) -> Result<tonic::Response<WhoAmIResponse>, tonic::Status> {
+            Ok(tonic::Response::new(WhoAmIResponse {
+                user_id: "uid-42".to_string(),
+                display_name: "Test User".to_string(),
+                email: "test@example.com".to_string(),
+                admin: false,
+            }))
+        }
+    }
+
+    /// Start a mock gRPC server and return its URL.
+    pub async fn start_mock_grpc() -> String {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+
+        let mock = Arc::new(MockAuthService::new());
+        tokio::spawn(async move {
+            tonic::transport::Server::builder()
+                .add_service(AuthServiceServer::from_arc(mock))
+                .serve_with_incoming(tokio_stream::wrappers::TcpListenerStream::new(listener))
+                .await
+                .unwrap();
+        });
+
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        format!("http://127.0.0.1:{port}")
+    }
+
+    /// Build a BFF router pointing at the given gRPC URL.
+    pub fn test_router(grpc_url: &str) -> axum::Router {
+        let state = super::AppState {
+            grpc_url: grpc_url.to_string(),
+            secure_cookies: false,
+        };
+
+        axum::Router::new()
+            .route("/healthz", axum::routing::get(super::healthz))
+            .merge(super::auth::routes())
+            .with_state(state)
+    }
 }

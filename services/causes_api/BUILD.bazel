@@ -35,6 +35,7 @@ rust_test(
     crate = ":causes_api",
     deps = [
         "@crates//:mockall",
+        "@crates//:tower",
         "@crates//:wiremock",
     ],
 )

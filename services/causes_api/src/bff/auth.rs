@@ -1,50 +1,21 @@
-use std::sync::Arc;
-
 use axum::Router;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::routing::{get, post};
+use axum::routing::post;
 use serde::{Deserialize, Serialize};
 
 use causes_proto::auth_service_client::AuthServiceClient;
 use causes_proto::{CompleteLoginRequest, StartLoginRequest, complete_login_response};
 
-#[derive(Clone)]
-struct AppState {
-    grpc_url: String,
-    secure_cookies: bool,
-}
+use super::AppState;
 
-/// Build the BFF HTTP router.
-pub fn router(cfg: Arc<crate::config::Config>) -> Router {
-    let secure_cookies = cfg.tls_domain.is_some();
-    let grpc_url = if secure_cookies {
-        // In TLS mode, the loopback gRPC listener is always on 127.0.0.1:50051.
-        "http://127.0.0.1:50051".to_string()
-    } else {
-        // In dev mode, gRPC shares the same listener.
-        format!("http://{}", cfg.bind_addr)
-    };
-
-    let state = AppState {
-        grpc_url,
-        secure_cookies,
-    };
-
+pub fn routes() -> Router<AppState> {
     Router::new()
-        .route("/healthz", get(healthz))
         .route("/auth/login", post(auth_login))
         .route("/auth/poll", post(auth_poll))
         .route("/auth/logout", post(auth_logout))
-        .with_state(state)
 }
-
-async fn healthz() -> &'static str {
-    "ok"
-}
-
-// ── Auth types ───────────────────────────────────────────────────────────
 
 #[derive(Serialize)]
 struct LoginResponse {
@@ -63,8 +34,6 @@ struct PollRequest {
 struct PollResponse {
     status: &'static str,
 }
-
-// ── Auth handlers ────────────────────────────────────────────────────────
 
 async fn auth_login(State(state): State<AppState>) -> impl IntoResponse {
     let mut client = match AuthServiceClient::connect(state.grpc_url).await {

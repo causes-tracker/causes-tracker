@@ -2,6 +2,7 @@ use clap::Parser;
 
 mod admin;
 mod auth;
+pub(crate) mod rpc;
 mod session_file;
 
 /// Command-line interface for a Causes instance.

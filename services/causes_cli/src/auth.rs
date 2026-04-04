@@ -90,20 +90,11 @@ async fn login(server: &str, data_dir: &std::path::Path, admin: bool) -> anyhow:
 }
 
 async fn whoami(server: &str, data_dir: &std::path::Path) -> anyhow::Result<()> {
-    let session = session_file::load(data_dir, server)?
-        .ok_or_else(|| anyhow::anyhow!("not logged in — run `causes auth login` first"))?;
+    let req = crate::rpc::authed_request(data_dir, server, causes_proto::WhoAmIRequest {})?;
 
     let mut client = AuthServiceClient::connect(server.to_owned())
         .await
         .context("connecting to server")?;
-
-    let mut req = tonic::Request::new(causes_proto::WhoAmIRequest {});
-    req.metadata_mut().insert(
-        "authorization",
-        format!("Bearer {}", session.session_token)
-            .parse()
-            .context("invalid session token")?,
-    );
 
     let resp = client
         .who_am_i(req)

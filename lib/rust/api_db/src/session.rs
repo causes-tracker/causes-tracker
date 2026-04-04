@@ -172,6 +172,7 @@ impl RawSessionRow {
 }
 
 /// A looked-up session row.
+#[derive(Debug)]
 pub struct SessionRow {
     pub user_id: UserId,
     pub expires_at: chrono::DateTime<chrono::Utc>,

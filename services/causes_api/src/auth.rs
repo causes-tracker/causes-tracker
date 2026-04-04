@@ -186,20 +186,20 @@ impl<S: crate::store::Store> AuthService for AuthHandler<S> {
         &self,
         request: Request<WhoAmIRequest>,
     ) -> Result<Response<WhoAmIResponse>, Status> {
-        let caller = crate::interceptor::authenticate(&self.store, request.metadata()).await?;
+        let session = crate::interceptor::authenticate(&self.store, request.metadata()).await?;
 
         let user = self
             .store
-            .find_user_by_id(&caller.user_id)
+            .find_user_by_id(&session.user_id)
             .await
             .map_err(|e| Status::internal(format!("finding user: {e}")))?
             .ok_or_else(|| Status::internal("authenticated user not found in database"))?;
 
         Ok(Response::new(WhoAmIResponse {
-            user_id: caller.user_id.as_str().to_owned(),
+            user_id: session.user_id.as_str().to_owned(),
             display_name: user.display_name.as_str().to_owned(),
             email: user.email.as_str().to_owned(),
-            admin: !caller.restricted,
+            admin: !session.restricted,
         }))
     }
 }

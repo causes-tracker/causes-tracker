@@ -1,7 +1,6 @@
 /// Abstraction over database operations needed by this service.
 /// Implemented by [`api_db::DbPool`] in production; in tests, use
 /// [`mockall::automock`]-generated `MockStore`.
-// TODO: remove allow(dead_code) when admin_service.rs lands (PR #146).
 #[allow(dead_code)]
 #[cfg_attr(test, mockall::automock)]
 #[tonic::async_trait]
@@ -76,6 +75,7 @@ pub trait Store: Send + Sync + 'static {
     async fn find_project_id_by_name(
         &self,
         name: &str,
+        session: &api_db::SessionRow,
     ) -> anyhow::Result<Option<api_db::ProjectId>>;
     async fn create_project(
         &self,
@@ -88,8 +88,12 @@ pub trait Store: Send + Sync + 'static {
     async fn get_project(
         &self,
         project_id: &api_db::ProjectId,
+        session: &api_db::SessionRow,
     ) -> anyhow::Result<Option<api_db::ProjectRow>>;
-    async fn list_projects(&self) -> anyhow::Result<Vec<api_db::ProjectRow>>;
+    async fn list_projects(
+        &self,
+        session: &api_db::SessionRow,
+    ) -> anyhow::Result<Vec<api_db::ProjectRow>>;
     async fn rename_project(
         &self,
         project_id: &api_db::ProjectId,
@@ -224,8 +228,9 @@ impl Store for api_db::DbPool {
     async fn find_project_id_by_name(
         &self,
         name: &str,
+        session: &api_db::SessionRow,
     ) -> anyhow::Result<Option<api_db::ProjectId>> {
-        api_db::find_project_id_by_name(self, name).await
+        api_db::find_project_id_by_name(self, name, session).await
     }
 
     async fn create_project(
@@ -250,12 +255,16 @@ impl Store for api_db::DbPool {
     async fn get_project(
         &self,
         project_id: &api_db::ProjectId,
+        session: &api_db::SessionRow,
     ) -> anyhow::Result<Option<api_db::ProjectRow>> {
-        api_db::get_project(self, project_id).await
+        api_db::get_project(self, project_id, session).await
     }
 
-    async fn list_projects(&self) -> anyhow::Result<Vec<api_db::ProjectRow>> {
-        api_db::list_projects(self).await
+    async fn list_projects(
+        &self,
+        session: &api_db::SessionRow,
+    ) -> anyhow::Result<Vec<api_db::ProjectRow>> {
+        api_db::list_projects(self, session).await
     }
 
     async fn rename_project(

@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id FROM projects WHERE name = $1 AND (visibility = 'public' OR (NOT $2 AND EXISTS (SELECT 1 FROM role_assignments WHERE user_id = $3 AND project_id IS NULL AND role = 'instance-admin')) OR EXISTS (SELECT 1 FROM role_assignments WHERE user_id = $3 AND project_id = projects.id))",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Bool",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "4c79f7ac49117b721beb349644f384e0d6566adfbe2fc1fc31915b347addea2f"
+}

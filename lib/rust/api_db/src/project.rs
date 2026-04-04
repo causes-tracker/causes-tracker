@@ -5,6 +5,7 @@ use uuid::Uuid;
 use crate::DbPool;
 use crate::admin::UserId;
 use crate::role::{ProjectId, Role};
+use crate::session::SessionRow;
 
 // ── Errors ───────────────────────────────────────────────────────────────
 
@@ -136,13 +137,6 @@ pub async fn create_project(
     embargoed_by_default: bool,
     creator_user_id: &UserId,
 ) -> Result<ProjectId, ProjectError> {
-    // TODO: implement visibility enforcement before allowing private projects.
-    if visibility != ProjectVisibility::Public {
-        return Err(ProjectError::Other(anyhow::anyhow!(
-            "private projects are not yet supported"
-        )));
-    }
-
     let id = Uuid::new_v4().to_string();
     let mut tx = pool.0.begin().await.context("beginning transaction")?;
 
@@ -179,18 +173,29 @@ pub async fn create_project(
     Ok(ProjectId::new(id)?)
 }
 
-/// Look up a public project by ID. Returns `None` for private projects.
+/// Look up a project by ID, filtered by the caller's visibility.
 ///
-/// TODO: return private projects visible to the caller once visibility
-/// enforcement is implemented.
+/// Returns `None` if the project doesn't exist or the caller can't see it.
+/// The handler should map `None` to `PERMISSION_DENIED` — we intentionally
+/// do not distinguish "nonexistent" from "invisible" at the DB layer.
+/// Public projects are visible to everyone. Private projects are visible to
+/// users with a role on the project, or unrestricted instance-admins.
 pub async fn get_project(
     pool: &DbPool,
     project_id: &ProjectId,
+    session: &SessionRow,
 ) -> anyhow::Result<Option<ProjectRow>> {
     let row = sqlx::query!(
         "SELECT id, name, description, visibility, embargoed_by_default, created_at \
-         FROM projects WHERE id = $1 AND visibility = 'public'",
+         FROM projects WHERE id = $1 AND (\
+             visibility = 'public' \
+             OR (NOT $2 AND EXISTS (SELECT 1 FROM role_assignments \
+                 WHERE user_id = $3 AND project_id IS NULL AND role = 'instance-admin')) \
+             OR EXISTS (SELECT 1 FROM role_assignments \
+                 WHERE user_id = $3 AND project_id = $1))",
         project_id.as_str(),
+        session.restricted,
+        session.user_id.as_str(),
     )
     .fetch_optional(&pool.0)
     .await
@@ -209,27 +214,49 @@ pub async fn get_project(
     .transpose()
 }
 
-/// Look up a project ID by name. Returns `None` if no project has this name.
+/// Look up a project ID by name, filtered by the caller's visibility.
+///
+/// Returns `None` if no visible project has this name.
+/// The handler should map `None` to `PERMISSION_DENIED`.
 pub async fn find_project_id_by_name(
     pool: &DbPool,
     name: &str,
+    session: &SessionRow,
 ) -> anyhow::Result<Option<ProjectId>> {
-    let row = sqlx::query_scalar!("SELECT id FROM projects WHERE name = $1", name,)
-        .fetch_optional(&pool.0)
-        .await
-        .context("finding project by name")?;
+    let row = sqlx::query_scalar!(
+        "SELECT id FROM projects WHERE name = $1 AND (\
+            visibility = 'public' \
+            OR (NOT $2 AND EXISTS (SELECT 1 FROM role_assignments \
+                WHERE user_id = $3 AND project_id IS NULL AND role = 'instance-admin')) \
+            OR EXISTS (SELECT 1 FROM role_assignments \
+                WHERE user_id = $3 AND project_id = projects.id))",
+        name,
+        session.restricted,
+        session.user_id.as_str(),
+    )
+    .fetch_optional(&pool.0)
+    .await
+    .context("finding project by name")?;
 
     row.map(|s| ProjectId::new(s)).transpose()
 }
 
-/// List all public projects.
+/// List projects visible to the caller.
 ///
-/// TODO: return private projects visible to the caller once visibility
-/// enforcement is implemented.
-pub async fn list_projects(pool: &DbPool) -> anyhow::Result<Vec<ProjectRow>> {
+/// Public projects are always included. Private projects are included if the
+/// caller has a role on them, or is an unrestricted instance-admin.
+pub async fn list_projects(pool: &DbPool, session: &SessionRow) -> anyhow::Result<Vec<ProjectRow>> {
     let rows = sqlx::query!(
         "SELECT id, name, description, visibility, embargoed_by_default, created_at \
-         FROM projects WHERE visibility = 'public' ORDER BY name"
+         FROM projects WHERE (\
+             visibility = 'public' \
+             OR (NOT $1 AND EXISTS (SELECT 1 FROM role_assignments \
+                 WHERE user_id = $2 AND project_id IS NULL AND role = 'instance-admin')) \
+             OR EXISTS (SELECT 1 FROM role_assignments \
+                 WHERE user_id = $2 AND project_id = projects.id)) \
+         ORDER BY name",
+        session.restricted,
+        session.user_id.as_str(),
     )
     .fetch_all(&pool.0)
     .await
@@ -359,6 +386,14 @@ mod tests {
 
     // ── DB-backed tests ──────────────────────────────────────────────
 
+    fn session_for(user_id: &UserId, restricted: bool) -> SessionRow {
+        SessionRow {
+            user_id: user_id.clone(),
+            expires_at: chrono::Utc::now() + std::time::Duration::from_secs(3600),
+            restricted,
+        }
+    }
+
     async fn seed_admin(pool: &DbPool) -> UserId {
         create_admin(
             pool,
@@ -372,11 +407,12 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
-    async fn create_private_project_rejected(pool: sqlx::PgPool) {
+    async fn create_private_project_succeeds(pool: sqlx::PgPool) {
         let pool = DbPool(pool);
         let user_id = seed_admin(&pool).await;
+        let session = session_for(&user_id, false);
 
-        let err = create_project(
+        let pid = create_project(
             &pool,
             &ProjectName::new("secret").unwrap(),
             "",
@@ -384,15 +420,19 @@ mod tests {
             false,
             &user_id,
         )
-        .await;
-        assert!(err.is_err());
-        assert!(err.unwrap_err().to_string().contains("not yet supported"));
+        .await
+        .unwrap();
+
+        // Creator can see their own private project
+        let row = get_project(&pool, &pid, &session).await.unwrap().unwrap();
+        assert_eq!(row.visibility, ProjectVisibility::Private);
     }
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn create_project_inserts_row_and_role(pool: sqlx::PgPool) {
         let pool = DbPool(pool);
         let user_id = seed_admin(&pool).await;
+        let session = session_for(&user_id, false);
 
         let project_id = create_project(
             &pool,
@@ -405,7 +445,10 @@ mod tests {
         .await
         .unwrap();
 
-        let row = get_project(&pool, &project_id).await.unwrap().unwrap();
+        let row = get_project(&pool, &project_id, &session)
+            .await
+            .unwrap()
+            .unwrap();
         assert_eq!(row.name.as_str(), "my-project");
         assert_eq!(row.description, "A test project");
         assert_eq!(row.visibility, ProjectVisibility::Public);
@@ -438,14 +481,17 @@ mod tests {
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn get_project_returns_none_for_missing(pool: sqlx::PgPool) {
         let pool = DbPool(pool);
+        let user_id = seed_admin(&pool).await;
+        let session = session_for(&user_id, false);
         let pid = ProjectId::new(Uuid::new_v4().to_string()).unwrap();
-        assert!(get_project(&pool, &pid).await.unwrap().is_none());
+        assert!(get_project(&pool, &pid, &session).await.unwrap().is_none());
     }
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn rename_project_updates_name(pool: sqlx::PgPool) {
         let pool = DbPool(pool);
         let user_id = seed_admin(&pool).await;
+        let session = session_for(&user_id, false);
 
         let pid = create_project(
             &pool,
@@ -463,7 +509,7 @@ mod tests {
             .unwrap();
         assert!(renamed);
 
-        let row = get_project(&pool, &pid).await.unwrap().unwrap();
+        let row = get_project(&pool, &pid, &session).await.unwrap().unwrap();
         assert_eq!(row.name.as_str(), "new-name");
     }
 
@@ -481,6 +527,7 @@ mod tests {
     async fn delete_project_removes_row_and_roles(pool: sqlx::PgPool) {
         let pool = DbPool(pool);
         let user_id = seed_admin(&pool).await;
+        let session = session_for(&user_id, false);
 
         let pid = create_project(
             &pool,
@@ -495,7 +542,7 @@ mod tests {
 
         let deleted = delete_project(&pool, &pid).await.unwrap();
         assert!(deleted);
-        assert!(get_project(&pool, &pid).await.unwrap().is_none());
+        assert!(get_project(&pool, &pid, &session).await.unwrap().is_none());
 
         // Role assignments for this project should be gone
         let roles = get_user_roles(&pool, &user_id).await.unwrap();
@@ -513,6 +560,7 @@ mod tests {
     async fn list_projects_returns_all(pool: sqlx::PgPool) {
         let pool = DbPool(pool);
         let user_id = seed_admin(&pool).await;
+        let session = session_for(&user_id, false);
 
         create_project(
             &pool,
@@ -535,9 +583,198 @@ mod tests {
         .await
         .unwrap();
 
-        let projects = list_projects(&pool).await.unwrap();
+        let projects = list_projects(&pool, &session).await.unwrap();
         assert_eq!(projects.len(), 2);
         assert_eq!(projects[0].name.as_str(), "alpha"); // ordered by name
         assert_eq!(projects[1].name.as_str(), "beta");
+    }
+
+    // ── Visibility tests ─────────────────────────────────────────────
+
+    async fn seed_user(pool: &DbPool, email: &str) -> UserId {
+        crate::admin::create_user(
+            pool,
+            &DisplayName::new("User").unwrap(),
+            &Email::new(email).unwrap(),
+            &AuthProvider::new("accounts.google.com").unwrap(),
+            &crate::admin::Subject::new(email).unwrap(),
+        )
+        .await
+        .unwrap()
+    }
+
+    #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
+    async fn get_project_hides_private_from_stranger(pool: sqlx::PgPool) {
+        let pool = DbPool(pool);
+        let creator = seed_admin(&pool).await;
+        let stranger = seed_user(&pool, "stranger@example.com").await;
+        let stranger_session = session_for(&stranger, false);
+
+        let pid = create_project(
+            &pool,
+            &ProjectName::new("secret").unwrap(),
+            "",
+            ProjectVisibility::Private,
+            false,
+            &creator,
+        )
+        .await
+        .unwrap();
+
+        assert!(
+            get_project(&pool, &pid, &stranger_session)
+                .await
+                .unwrap()
+                .is_none()
+        );
+    }
+
+    #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
+    async fn get_project_shows_private_to_member(pool: sqlx::PgPool) {
+        let pool = DbPool(pool);
+        let creator = seed_admin(&pool).await;
+        let session = session_for(&creator, false);
+
+        let pid = create_project(
+            &pool,
+            &ProjectName::new("secret").unwrap(),
+            "",
+            ProjectVisibility::Private,
+            false,
+            &creator,
+        )
+        .await
+        .unwrap();
+
+        assert!(get_project(&pool, &pid, &session).await.unwrap().is_some());
+    }
+
+    #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
+    async fn get_project_shows_private_to_unrestricted_admin(pool: sqlx::PgPool) {
+        let pool = DbPool(pool);
+        let admin = seed_admin(&pool).await;
+        let other = seed_user(&pool, "other@example.com").await;
+        let admin_session = session_for(&admin, false); // unrestricted
+
+        let pid = create_project(
+            &pool,
+            &ProjectName::new("secret").unwrap(),
+            "",
+            ProjectVisibility::Private,
+            false,
+            &other,
+        )
+        .await
+        .unwrap();
+
+        // Unrestricted admin sees private projects even without a project role
+        assert!(
+            get_project(&pool, &pid, &admin_session)
+                .await
+                .unwrap()
+                .is_some()
+        );
+    }
+
+    #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
+    async fn get_project_hides_private_from_restricted_admin(pool: sqlx::PgPool) {
+        let pool = DbPool(pool);
+        let admin = seed_admin(&pool).await;
+        let other = seed_user(&pool, "other@example.com").await;
+        let restricted_session = session_for(&admin, true); // restricted
+
+        let pid = create_project(
+            &pool,
+            &ProjectName::new("secret").unwrap(),
+            "",
+            ProjectVisibility::Private,
+            false,
+            &other,
+        )
+        .await
+        .unwrap();
+
+        // Restricted admin without project role can't see private projects
+        assert!(
+            get_project(&pool, &pid, &restricted_session)
+                .await
+                .unwrap()
+                .is_none()
+        );
+    }
+
+    #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
+    async fn list_projects_filters_private(pool: sqlx::PgPool) {
+        let pool = DbPool(pool);
+        let creator = seed_admin(&pool).await;
+        let stranger = seed_user(&pool, "stranger@example.com").await;
+        let creator_session = session_for(&creator, false);
+        let stranger_session = session_for(&stranger, false);
+
+        create_project(
+            &pool,
+            &ProjectName::new("public-proj").unwrap(),
+            "",
+            ProjectVisibility::Public,
+            false,
+            &creator,
+        )
+        .await
+        .unwrap();
+        create_project(
+            &pool,
+            &ProjectName::new("private-proj").unwrap(),
+            "",
+            ProjectVisibility::Private,
+            false,
+            &creator,
+        )
+        .await
+        .unwrap();
+
+        // Creator sees both
+        let projects = list_projects(&pool, &creator_session).await.unwrap();
+        assert_eq!(projects.len(), 2);
+
+        // Stranger sees only public
+        let projects = list_projects(&pool, &stranger_session).await.unwrap();
+        assert_eq!(projects.len(), 1);
+        assert_eq!(projects[0].name.as_str(), "public-proj");
+    }
+
+    #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
+    async fn find_project_id_by_name_hides_private(pool: sqlx::PgPool) {
+        let pool = DbPool(pool);
+        let creator = seed_admin(&pool).await;
+        let stranger = seed_user(&pool, "stranger@example.com").await;
+        let creator_session = session_for(&creator, false);
+        let stranger_session = session_for(&stranger, false);
+
+        create_project(
+            &pool,
+            &ProjectName::new("secret").unwrap(),
+            "",
+            ProjectVisibility::Private,
+            false,
+            &creator,
+        )
+        .await
+        .unwrap();
+
+        // Creator can find it
+        assert!(
+            find_project_id_by_name(&pool, "secret", &creator_session)
+                .await
+                .unwrap()
+                .is_some()
+        );
+
+        // Stranger cannot
+        assert!(
+            find_project_id_by_name(&pool, "secret", &stranger_session)
+                .await
+                .unwrap()
+                .is_none()
+        );
     }
 }

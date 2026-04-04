@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, name, description, visibility, embargoed_by_default, created_at FROM projects WHERE visibility = 'public' ORDER BY name",
+  "query": "SELECT id, name, description, visibility, embargoed_by_default, created_at FROM projects WHERE (visibility = 'public' OR (NOT $1 AND EXISTS (SELECT 1 FROM role_assignments WHERE user_id = $2 AND project_id IS NULL AND role = 'instance-admin')) OR EXISTS (SELECT 1 FROM role_assignments WHERE user_id = $2 AND project_id = projects.id)) ORDER BY name",
   "describe": {
     "columns": [
       {
@@ -35,7 +35,10 @@
       }
     ],
     "parameters": {
-      "Left": []
+      "Left": [
+        "Bool",
+        "Text"
+      ]
     },
     "nullable": [
       false,
@@ -46,5 +49,5 @@
       false
     ]
   },
-  "hash": "0c1d8c3756045e6d524abcbead5af963115673464a4fd4642d254ff08111580c"
+  "hash": "8b182a36cd2e9c8c6630090ce8fbd0f04fa8647ed48e5f581b1d53bdf8a64bf5"
 }

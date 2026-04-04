@@ -32,12 +32,21 @@ impl<S: crate::store::Store> AdminService for AdminHandler<S> {
         &self,
         request: Request<GrantRoleRequest>,
     ) -> Result<Response<GrantRoleResponse>, Status> {
-        crate::interceptor::authorize_instance_role(
-            &self.store,
-            request.metadata(),
+        let session = crate::interceptor::authenticate(&self.store, request.metadata()).await?;
+
+        let roles = self
+            .store
+            .get_user_instance_roles(&session.user_id)
+            .await
+            .map_err(|e| Status::internal(format!("querying roles: {e}")))?;
+
+        if !crate::interceptor::has_required_role(
+            &roles,
             api_db::Role::InstanceAdmin,
-        )
-        .await?;
+            session.restricted,
+        ) {
+            return Err(Status::permission_denied("insufficient permissions"));
+        }
 
         let req = request.into_inner();
 
@@ -57,7 +66,7 @@ impl<S: crate::store::Store> AdminService for AdminHandler<S> {
         } else {
             Some(
                 self.store
-                    .find_project_id_by_name(&req.project)
+                    .find_project_id_by_name(&req.project, &session)
                     .await
                     .map_err(|e| Status::internal(format!("looking up project: {e}")))?
                     .ok_or_else(|| Status::not_found("no project with that name"))?,

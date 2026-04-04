@@ -5,6 +5,7 @@ load("//build:rust.bzl", "rust_binary", "rust_test")
 rust_binary(
     name = "causes_api",
     srcs = glob(["src/**/*.rs"]),
+    compile_data = glob(["static/**"]),
     deps = [
         "//lib/rust/api_db",
         "//lib/rust/causes_proto",

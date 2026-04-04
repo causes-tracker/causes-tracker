@@ -4,8 +4,6 @@ use clap::Subcommand;
 use causes_proto::GrantRoleRequest;
 use causes_proto::admin_service_client::AdminServiceClient;
 
-use crate::session_file;
-
 /// Instance administration commands (requires an admin session).
 #[derive(clap::Args, Debug)]
 pub struct AdminArgs {
@@ -64,24 +62,19 @@ async fn grant_role(
     role: &CliRole,
     project_id: &str,
 ) -> anyhow::Result<()> {
-    let session = session_file::load(data_dir, server)?
-        .ok_or_else(|| anyhow::anyhow!("not logged in — run `causes auth login` first"))?;
+    let req = crate::rpc::authed_request(
+        data_dir,
+        server,
+        GrantRoleRequest {
+            email: email.to_owned(),
+            role: role.to_proto().into(),
+            project: project_id.to_owned(),
+        },
+    )?;
 
     let mut client = AdminServiceClient::connect(server.to_owned())
         .await
         .context("connecting to server")?;
-
-    let mut req = tonic::Request::new(GrantRoleRequest {
-        email: email.to_owned(),
-        role: role.to_proto().into(),
-        project: project_id.to_owned(),
-    });
-    req.metadata_mut().insert(
-        "authorization",
-        format!("Bearer {}", session.session_token)
-            .parse()
-            .context("invalid session token")?,
-    );
 
     client
         .grant_role(req)

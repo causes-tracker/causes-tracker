@@ -82,6 +82,16 @@ See `CLAUDE.md` at the repository root for the full jj workflow including branch
 All merges go through the merge queue.
 The `build` job (`bazel test //...`) must pass before a PR can merge.
 
+## Infrastructure
+
+Infrastructure is managed via OpenTofu through the Bazel wrapper `bazel run //infra:tofu -- <module> <args>`.
+There are two root modules:
+
+- `infra/terraform` — AWS infrastructure (Aurora, EC2, S3, networking).
+  See `infra/terraform/README.md`.
+- `infra/github` — GitHub repository settings, branch rulesets, and merge queue.
+  See `infra/github/README.md`.
+
 ## Commit discipline
 
 Each commit must do exactly one thing.

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Thin wrapper: runs OpenTofu from the infra/terraform directory.
-# Usage via Bazel: bazel run //infra:tofu -- <tofu args>
+# Thin wrapper: runs OpenTofu from a specified root module directory.
+# Usage via Bazel: bazel run //infra:tofu -- <module-dir> <tofu args>
+# Example:         bazel run //infra:tofu -- infra/terraform plan
 set -euo pipefail
 
 # Standard Bazel 3-way runfiles init.
@@ -20,5 +21,14 @@ else
 fi
 
 tofu_bin="$(rlocation opentofu_linux_amd64/tofu)"
-cd "${BUILD_WORKSPACE_DIRECTORY}/infra/terraform"
+
+if [[ $# -eq 0 ]]; then
+	echo >&2 "Usage: bazel run //infra:tofu -- <module-dir> <tofu-args...>"
+	echo >&2 "Example: bazel run //infra:tofu -- infra/terraform plan"
+	exit 1
+fi
+root_module="$1"
+shift
+
+cd "${BUILD_WORKSPACE_DIRECTORY}/${root_module}"
 exec "$tofu_bin" "$@"

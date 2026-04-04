@@ -876,8 +876,9 @@ pub struct CreateProjectResponse {
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct GetProjectRequest {
+    /// Project name (slug).
     #[prost(string, tag = "1")]
-    pub project_id: ::prost::alloc::string::String,
+    pub name: ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct GetProjectResponse {
@@ -893,8 +894,10 @@ pub struct ListProjectsResponse {
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct RenameProjectRequest {
+    /// Current project name (slug).
     #[prost(string, tag = "1")]
-    pub project_id: ::prost::alloc::string::String,
+    pub name: ::prost::alloc::string::String,
+    /// New project name (slug).
     #[prost(string, tag = "2")]
     pub new_name: ::prost::alloc::string::String,
 }
@@ -905,8 +908,9 @@ pub struct RenameProjectResponse {
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct DeleteProjectRequest {
+    /// Project name (slug).
     #[prost(string, tag = "1")]
-    pub project_id: ::prost::alloc::string::String,
+    pub name: ::prost::alloc::string::String,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct DeleteProjectResponse {}
@@ -1019,7 +1023,7 @@ pub mod project_service_client {
                 .insert(GrpcMethod::new("causes.v1.ProjectService", "CreateProject"));
             self.inner.unary(req, path, codec).await
         }
-        /// Get a project by ID.
+        /// Get a project by name.
         pub async fn get_project(
             &mut self,
             request: impl tonic::IntoRequest<super::GetProjectRequest>,
@@ -1110,7 +1114,7 @@ pub mod project_service_server {
             &self,
             request: tonic::Request<super::CreateProjectRequest>,
         ) -> std::result::Result<tonic::Response<super::CreateProjectResponse>, tonic::Status>;
-        /// Get a project by ID.
+        /// Get a project by name.
         async fn get_project(
             &self,
             request: tonic::Request<super::GetProjectRequest>,

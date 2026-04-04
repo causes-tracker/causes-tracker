@@ -10,7 +10,7 @@ service ProjectService {
   // Create a new project. Caller becomes project-maintainer.
   // Requires the developer role.
   rpc CreateProject(CreateProjectRequest) returns (CreateProjectResponse);
-  // Get a project by ID.
+  // Get a project by name.
   rpc GetProject(GetProjectRequest) returns (GetProjectResponse);
   // List all projects visible to the caller.
   rpc ListProjects(ListProjectsRequest) returns (stream ListProjectsResponse);
@@ -32,7 +32,8 @@ message CreateProjectResponse {
 }
 
 message GetProjectRequest {
-  string project_id = 1;
+  // Project name (slug).
+  string name = 1;
 }
 message GetProjectResponse {
   Project project = 1;
@@ -44,7 +45,9 @@ message ListProjectsResponse {
 }
 
 message RenameProjectRequest {
-  string project_id = 1;
+  // Current project name (slug).
+  string name = 1;
+  // New project name (slug).
   string new_name = 2;
 }
 message RenameProjectResponse {
@@ -52,6 +55,7 @@ message RenameProjectResponse {
 }
 
 message DeleteProjectRequest {
-  string project_id = 1;
+  // Project name (slug).
+  string name = 1;
 }
 message DeleteProjectResponse {}

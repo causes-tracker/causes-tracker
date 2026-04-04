@@ -15,6 +15,7 @@ license = "Apache-2.0"
 version = "0.1.0"
 
 [workspace.dependencies]
+axum = "0.8"
 tokio = { version = "1", features = ["full"] }
 tonic = { version = "0.14", features = [
   "transport",

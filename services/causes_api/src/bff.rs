@@ -1,4 +1,5 @@
 mod auth;
+mod projects;
 mod whoami;
 
 use std::sync::Arc;
@@ -7,7 +8,6 @@ use axum::Router;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::routing::get;
-use causes_proto::auth_service_client::AuthServiceClient;
 use tonic::transport::Channel;
 
 #[derive(Clone)]
@@ -30,6 +30,7 @@ pub(crate) fn router(cfg: Arc<crate::config::Config>, grpc_url: String) -> Route
         .route("/healthz", get(healthz))
         .merge(auth::routes())
         .merge(whoami::routes())
+        .merge(projects::routes())
         .with_state(state)
 }
 
@@ -62,14 +63,15 @@ impl<S: Send + Sync> axum::extract::OptionalFromRequestParts<S> for SessionToken
     }
 }
 
-/// Connect to the gRPC instance and return an authenticated client.
-pub(super) async fn grpc_client(
+/// The channel type returned by `authed_channel`, with Bearer token injection.
+pub(super) type AuthedChannel =
+    tonic::service::interceptor::InterceptedService<Channel, BearerInterceptor>;
+
+/// Connect to the gRPC instance and return a channel with Bearer auth.
+pub(super) async fn authed_channel(
     state: &AppState,
     session: &SessionToken,
-) -> Result<
-    AuthServiceClient<tonic::service::interceptor::InterceptedService<Channel, BearerInterceptor>>,
-    (StatusCode, &'static str),
-> {
+) -> Result<AuthedChannel, (StatusCode, &'static str)> {
     let channel = Channel::from_shared(state.grpc_url.clone())
         .expect("valid gRPC URL")
         .connect()
@@ -79,7 +81,7 @@ pub(super) async fn grpc_client(
             (StatusCode::BAD_GATEWAY, "gRPC unavailable")
         })?;
 
-    Ok(AuthServiceClient::with_interceptor(
+    Ok(tonic::service::interceptor::InterceptedService::new(
         channel,
         BearerInterceptor(session.0.clone()),
     ))
@@ -128,6 +130,7 @@ pub(super) mod test_support {
     use std::sync::atomic::{AtomicU32, Ordering};
 
     use causes_proto::auth_service_server::{AuthService, AuthServiceServer};
+    use causes_proto::project_service_server::{ProjectService, ProjectServiceServer};
     use causes_proto::*;
 
     /// Tokens containing this prefix are rejected by the mock with
@@ -199,6 +202,70 @@ pub(super) mod test_support {
         }
     }
 
+    struct MockProjectService;
+
+    impl MockProjectService {
+        fn test_project() -> Project {
+            Project {
+                id: "proj-1".to_string(),
+                name: "test-project".to_string(),
+                description: "A test project".to_string(),
+                visibility: 1, // PUBLIC
+                embargoed_by_default: false,
+                created_at: None,
+            }
+        }
+    }
+
+    #[tonic::async_trait]
+    impl ProjectService for MockProjectService {
+        async fn create_project(
+            &self,
+            _req: tonic::Request<CreateProjectRequest>,
+        ) -> Result<tonic::Response<CreateProjectResponse>, tonic::Status> {
+            Ok(tonic::Response::new(CreateProjectResponse {
+                project: Some(Self::test_project()),
+            }))
+        }
+
+        async fn get_project(
+            &self,
+            _req: tonic::Request<GetProjectRequest>,
+        ) -> Result<tonic::Response<GetProjectResponse>, tonic::Status> {
+            Ok(tonic::Response::new(GetProjectResponse {
+                project: Some(Self::test_project()),
+            }))
+        }
+
+        type ListProjectsStream = tokio_stream::Once<Result<ListProjectsResponse, tonic::Status>>;
+
+        async fn list_projects(
+            &self,
+            _req: tonic::Request<ListProjectsRequest>,
+        ) -> Result<tonic::Response<Self::ListProjectsStream>, tonic::Status> {
+            let resp = ListProjectsResponse {
+                projects: vec![Self::test_project()],
+            };
+            Ok(tonic::Response::new(tokio_stream::once(Ok(resp))))
+        }
+
+        async fn rename_project(
+            &self,
+            _req: tonic::Request<RenameProjectRequest>,
+        ) -> Result<tonic::Response<RenameProjectResponse>, tonic::Status> {
+            Ok(tonic::Response::new(RenameProjectResponse {
+                project: Some(Self::test_project()),
+            }))
+        }
+
+        async fn delete_project(
+            &self,
+            _req: tonic::Request<DeleteProjectRequest>,
+        ) -> Result<tonic::Response<DeleteProjectResponse>, tonic::Status> {
+            Ok(tonic::Response::new(DeleteProjectResponse {}))
+        }
+    }
+
     /// Start a mock gRPC server and return its URL.
     pub async fn start_mock_grpc() -> String {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -208,6 +275,7 @@ pub(super) mod test_support {
         tokio::spawn(async move {
             tonic::transport::Server::builder()
                 .add_service(AuthServiceServer::from_arc(mock))
+                .add_service(ProjectServiceServer::new(MockProjectService))
                 .serve_with_incoming(tokio_stream::wrappers::TcpListenerStream::new(listener))
                 .await
                 .unwrap();
@@ -229,6 +297,7 @@ pub(super) mod test_support {
             .route("/healthz", axum::routing::get(super::healthz))
             .merge(super::auth::routes())
             .merge(super::whoami::routes())
+            .merge(super::projects::routes())
             .with_state(state)
     }
 }
@@ -315,5 +384,41 @@ mod tests {
             .await
             .unwrap();
         assert!(token.is_none());
+    }
+
+    #[tokio::test]
+    async fn authed_channel_connects_and_injects_bearer() {
+        use causes_proto::WhoAmIRequest;
+        use causes_proto::auth_service_client::AuthServiceClient;
+
+        let grpc_url = test_support::start_mock_grpc().await;
+        let state = AppState {
+            grpc_url,
+            secure_cookies: false,
+        };
+        let session = SessionToken("d".repeat(64));
+
+        let channel = authed_channel(&state, &session).await.unwrap();
+        let mut client = AuthServiceClient::new(channel);
+
+        // The mock accepts any non-"expired" token, so this should succeed.
+        let resp = client
+            .who_am_i(WhoAmIRequest {})
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(resp.user_id, "uid-42");
+    }
+
+    #[tokio::test]
+    async fn authed_channel_fails_on_bad_url() {
+        let state = AppState {
+            grpc_url: "http://127.0.0.1:1".to_string(),
+            secure_cookies: false,
+        };
+        let session = SessionToken("tok".to_string());
+
+        let err = authed_channel(&state, &session).await.unwrap_err();
+        assert_eq!(err.0, StatusCode::BAD_GATEWAY);
     }
 }

@@ -6,7 +6,9 @@ use serde::Serialize;
 
 use causes_proto::WhoAmIRequest;
 
-use super::{AppState, SessionToken, grpc_client, grpc_error_response};
+use causes_proto::auth_service_client::AuthServiceClient;
+
+use super::{AppState, SessionToken, authed_channel, grpc_error_response};
 
 pub(super) fn routes() -> Router<AppState> {
     Router::new().route("/api/whoami", get(api_whoami))
@@ -39,10 +41,11 @@ async fn api_whoami(
         }
     };
 
-    let mut client = match grpc_client(&state, &session).await {
+    let channel = match authed_channel(&state, &session).await {
         Ok(c) => c,
         Err((status, msg)) => return (status, msg.to_string()).into_response(),
     };
+    let mut client = AuthServiceClient::new(channel);
 
     match client.who_am_i(WhoAmIRequest {}).await {
         Ok(resp) => {

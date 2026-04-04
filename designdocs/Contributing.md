@@ -82,6 +82,11 @@ See `CLAUDE.md` at the repository root for the full jj workflow including branch
 All merges go through the merge queue.
 The `build` job (`bazel test //...`) must pass before a PR can merge.
 
+To merge a PR, add the `merge` label.
+A GitHub Action queues it into the merge queue when it targets master.
+For stacked PRs, add the label to every PR in the stack — each one queues automatically when GitHub retargets it to master.
+Never use the merge button directly.
+
 ## Infrastructure
 
 Infrastructure is managed via OpenTofu through the Bazel wrapper `bazel run //infra:tofu -- <module> <args>`.

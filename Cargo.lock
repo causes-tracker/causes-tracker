@@ -492,6 +492,7 @@ dependencies = [
  "schemars",
  "serde",
  "tokio",
+ "tokio-stream",
  "tonic",
 ]
 

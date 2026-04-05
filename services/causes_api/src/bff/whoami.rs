@@ -11,7 +11,7 @@ use causes_proto::auth_service_client::AuthServiceClient;
 use super::{AppState, SessionToken, authed_channel, grpc_error_response};
 
 pub(super) fn routes() -> Router<AppState> {
-    Router::new().route("/api/whoami", get(api_whoami))
+    Router::new().route("/_internal/whoami", get(api_whoami))
 }
 
 #[derive(Serialize)]
@@ -87,7 +87,7 @@ mod tests {
         let resp = app
             .oneshot(
                 Request::builder()
-                    .uri("/api/whoami")
+                    .uri("/_internal/whoami")
                     .header("cookie", format!("causes_session={}", "d".repeat(64)))
                     .body(Body::empty())
                     .unwrap(),
@@ -113,7 +113,7 @@ mod tests {
         let resp = app
             .oneshot(
                 Request::builder()
-                    .uri("/api/whoami")
+                    .uri("/_internal/whoami")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -134,7 +134,7 @@ mod tests {
         let resp = app
             .oneshot(
                 Request::builder()
-                    .uri("/api/whoami")
+                    .uri("/_internal/whoami")
                     .header(
                         "cookie",
                         format!("causes_session={REJECTED_TOKEN_PREFIX}_token"),

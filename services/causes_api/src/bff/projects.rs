@@ -15,9 +15,12 @@ use super::{AppState, SessionToken, authed_channel, grpc_error_response};
 
 pub(super) fn routes() -> Router<AppState> {
     Router::new()
-        .route("/api/projects", get(list_projects).post(create_project))
         .route(
-            "/api/projects/{name}",
+            "/_internal/projects",
+            get(list_projects).post(create_project),
+        )
+        .route(
+            "/_internal/projects/{name}",
             get(get_project).put(rename_project).delete(delete_project),
         )
 }
@@ -243,7 +246,7 @@ mod tests {
         let resp = app
             .oneshot(
                 Request::builder()
-                    .uri("/api/projects")
+                    .uri("/_internal/projects")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -261,7 +264,7 @@ mod tests {
         let resp = app
             .oneshot(
                 Request::builder()
-                    .uri("/api/projects")
+                    .uri("/_internal/projects")
                     .header("cookie", format!("causes_session={}", "d".repeat(64)))
                     .body(Body::empty())
                     .unwrap(),
@@ -286,7 +289,7 @@ mod tests {
         let resp = app
             .oneshot(
                 Request::builder()
-                    .uri("/api/projects/test-project")
+                    .uri("/_internal/projects/test-project")
                     .header("cookie", format!("causes_session={}", "d".repeat(64)))
                     .body(Body::empty())
                     .unwrap(),
@@ -309,7 +312,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/projects")
+                    .uri("/_internal/projects")
                     .header("cookie", format!("causes_session={}", "d".repeat(64)))
                     .header("content-type", "application/json")
                     .body(Body::from(
@@ -339,7 +342,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/projects")
+                    .uri("/_internal/projects")
                     .header("content-type", "application/json")
                     .body(Body::from(
                         serde_json::json!({
@@ -365,7 +368,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("PUT")
-                    .uri("/api/projects/test-project")
+                    .uri("/_internal/projects/test-project")
                     .header("cookie", format!("causes_session={}", "d".repeat(64)))
                     .header("content-type", "application/json")
                     .body(Body::from(
@@ -391,7 +394,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("DELETE")
-                    .uri("/api/projects/test-project")
+                    .uri("/_internal/projects/test-project")
                     .header("cookie", format!("causes_session={}", "d".repeat(64)))
                     .body(Body::empty())
                     .unwrap(),

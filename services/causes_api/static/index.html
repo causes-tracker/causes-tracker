@@ -110,7 +110,7 @@ async function pollLogin(nonce, intervalMs) {
 
 async function loadApp() {
   try {
-    const resp = await fetch('/api/whoami');
+    const resp = await fetch('/_internal/whoami');
     if (!resp.ok) throw new Error(await resp.text());
     const data = await resp.json();
 
@@ -139,7 +139,7 @@ async function loadProjects() {
   const container = document.getElementById('project-list');
   container.innerHTML = '';
   try {
-    const resp = await fetch('/api/projects');
+    const resp = await fetch('/_internal/projects');
     if (!resp.ok) return;
     const projects = await resp.json();
     if (projects.length === 0) {
@@ -185,7 +185,7 @@ async function createProject(event) {
   const description = document.getElementById('new-project-desc').value;
   const visibility = document.getElementById('new-project-vis').value;
   try {
-    const resp = await fetch('/api/projects', {
+    const resp = await fetch('/_internal/projects', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, description, visibility }),
@@ -204,7 +204,7 @@ async function renameProject(currentName) {
   if (!newName) return;
   document.getElementById('error').classList.add('hidden');
   try {
-    const resp = await fetch('/api/projects/' + encodeURIComponent(currentName), {
+    const resp = await fetch('/_internal/projects/' + encodeURIComponent(currentName), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ new_name: newName }),
@@ -220,7 +220,7 @@ async function deleteProject(name) {
   if (!confirm('Delete project ' + name + '?')) return;
   document.getElementById('error').classList.add('hidden');
   try {
-    const resp = await fetch('/api/projects/' + encodeURIComponent(name), {
+    const resp = await fetch('/_internal/projects/' + encodeURIComponent(name), {
       method: 'DELETE',
     });
     if (!resp.ok) throw new Error(await resp.text());

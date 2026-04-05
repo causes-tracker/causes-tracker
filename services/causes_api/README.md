@@ -23,7 +23,12 @@ Endpoints:
 | `/auth/login` | POST | Start device flow, returns `{nonce, user_code, verification_url}` |
 | `/auth/poll` | POST | Poll for completion with `{nonce}`, sets session cookie on success |
 | `/auth/logout` | POST | Clears session cookie |
-| `/api/whoami` | GET | Proxied WhoAmI — returns user info from gRPC |
+| `/_internal/whoami` | GET | Proxied WhoAmI — returns user info from gRPC |
+| `/_internal/projects` | GET | List visible projects |
+| `/_internal/projects` | POST | Create a project |
+| `/_internal/projects/{name}` | GET | Get a project by name |
+| `/_internal/projects/{name}` | PUT | Rename a project |
+| `/_internal/projects/{name}` | DELETE | Delete a project |
 
 ## Bootstrap flow
 

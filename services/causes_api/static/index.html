@@ -7,12 +7,16 @@
 <style>
   body { font-family: system-ui, sans-serif; max-width: 40em; margin: 2em auto; padding: 0 1em; }
   h1 { font-size: 1.4em; }
+  h2 { font-size: 1.2em; margin-top: 1.5em; }
   .hidden { display: none; }
   code { background: #f0f0f0; padding: 0.2em 0.4em; border-radius: 3px; font-size: 1.2em; }
-  button { padding: 0.5em 1em; cursor: pointer; }
+  button { padding: 0.4em 0.8em; cursor: pointer; margin: 0.2em; }
+  input, select { padding: 0.3em; margin: 0.2em; }
   #user-info dt { font-weight: bold; }
   #user-info dd { margin: 0 0 0.5em; }
   .error { color: #c00; }
+  .project-item { margin: 0.5em 0; }
+  .project-item button { font-size: 0.85em; }
 </style>
 </head>
 <body>
@@ -31,7 +35,22 @@
 
 <div id="view-app" class="hidden">
   <dl id="user-info"></dl>
-  <button onclick="logout()">Sign out</button>
+
+  <h2>Projects</h2>
+  <div id="project-list"></div>
+
+  <h2>Create project</h2>
+  <form onsubmit="createProject(event)">
+    <input id="new-project-name" placeholder="project-name" required>
+    <input id="new-project-desc" placeholder="Description">
+    <select id="new-project-vis">
+      <option value="public">Public</option>
+      <option value="private">Private</option>
+    </select>
+    <button type="submit">Create</button>
+  </form>
+
+  <p><button onclick="logout()">Sign out</button></p>
 </div>
 
 <p id="error" class="error hidden"></p>
@@ -110,8 +129,104 @@ async function loadApp() {
       dl.append(dt, dd);
     }
     show('view-app');
+    loadProjects();
   } catch (e) {
     showError('Failed to load user info: ' + e.message);
+  }
+}
+
+async function loadProjects() {
+  const container = document.getElementById('project-list');
+  container.innerHTML = '';
+  try {
+    const resp = await fetch('/api/projects');
+    if (!resp.ok) return;
+    const projects = await resp.json();
+    if (projects.length === 0) {
+      container.innerHTML = '<p>No projects yet.</p>';
+      return;
+    }
+    for (const p of projects) {
+      const div = document.createElement('div');
+      div.className = 'project-item';
+      const label = document.createElement('strong');
+      label.textContent = p.name;
+      div.appendChild(label);
+      if (p.visibility === 'private') {
+        div.appendChild(document.createTextNode(' (private)'));
+      }
+      if (p.description) {
+        const desc = document.createElement('span');
+        desc.textContent = ' — ' + p.description;
+        div.appendChild(desc);
+      }
+
+      const renameBtn = document.createElement('button');
+      renameBtn.textContent = 'Rename';
+      renameBtn.onclick = () => renameProject(p.name);
+      div.appendChild(renameBtn);
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.textContent = 'Delete';
+      deleteBtn.onclick = () => deleteProject(p.name);
+      div.appendChild(deleteBtn);
+
+      container.appendChild(div);
+    }
+  } catch (e) {
+    container.innerHTML = '<p>Failed to load projects.</p>';
+  }
+}
+
+async function createProject(event) {
+  event.preventDefault();
+  document.getElementById('error').classList.add('hidden');
+  const name = document.getElementById('new-project-name').value;
+  const description = document.getElementById('new-project-desc').value;
+  const visibility = document.getElementById('new-project-vis').value;
+  try {
+    const resp = await fetch('/api/projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, description, visibility }),
+    });
+    if (!resp.ok) throw new Error(await resp.text());
+    document.getElementById('new-project-name').value = '';
+    document.getElementById('new-project-desc').value = '';
+    loadProjects();
+  } catch (e) {
+    showError('Create failed: ' + e.message);
+  }
+}
+
+async function renameProject(currentName) {
+  const newName = prompt('New name for ' + currentName + ':');
+  if (!newName) return;
+  document.getElementById('error').classList.add('hidden');
+  try {
+    const resp = await fetch('/api/projects/' + encodeURIComponent(currentName), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ new_name: newName }),
+    });
+    if (!resp.ok) throw new Error(await resp.text());
+    loadProjects();
+  } catch (e) {
+    showError('Rename failed: ' + e.message);
+  }
+}
+
+async function deleteProject(name) {
+  if (!confirm('Delete project ' + name + '?')) return;
+  document.getElementById('error').classList.add('hidden');
+  try {
+    const resp = await fetch('/api/projects/' + encodeURIComponent(name), {
+      method: 'DELETE',
+    });
+    if (!resp.ok) throw new Error(await resp.text());
+    loadProjects();
+  } catch (e) {
+    showError('Delete failed: ' + e.message);
   }
 }
 

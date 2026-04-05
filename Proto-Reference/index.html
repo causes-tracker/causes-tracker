@@ -1,0 +1,4662 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A bug tracker built to free developers from the tedium of manual bug gardening.">
+      
+      
+      
+      
+        <link rel="prev" href="../Decisions/">
+      
+      
+        <link rel="next" href="../Contributing/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.31">
+    
+    
+      
+        <title>Protocol Documentation - Causes</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../assets/stylesheets/modern/main.53a7feaf.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,a=__md_scope)=>JSON.parse(t.getItem(a.pathname+"."+e)),__md_set=(e,t,a=localStorage,_=__md_scope)=>{try{a.setItem(_.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-label="Navigation"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#protocol-documentation" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="./.." title="Causes" class="md-header__button md-logo" aria-label="Causes" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Causes
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Protocol Documentation
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+    </div>
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="./.." title="Causes" class="md-nav__button md-logo" aria-label="Causes" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    Causes
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="./.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Manifesto/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manifesto
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Design-Choices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design Choices
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Decisions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Decisions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Proto Reference
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="././" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Proto Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#table-of-contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Table of Contents
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#causesv1admin_serviceproto" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        causes/v1/admin_service.proto
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="causes&#x2f;v1&#x2f;admin_service.proto">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#grantrolerequest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GrantRoleRequest
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#grantroleresponse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GrantRoleResponse
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#role" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Role
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#adminservice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AdminService
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#causesv1annotationproto" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        causes/v1/annotation.proto
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="causes&#x2f;v1&#x2f;annotation.proto">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#annotation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Annotation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#annotationsourcetype" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Annotation.SourceType
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#causesv1auth_serviceproto" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        causes/v1/auth_service.proto
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="causes&#x2f;v1&#x2f;auth_service.proto">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#completeloginrequest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CompleteLoginRequest
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#completeloginresponse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CompleteLoginResponse
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pending" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pending
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sessioncreated" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SessionCreated
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#startloginrequest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        StartLoginRequest
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#startloginresponse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        StartLoginResponse
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#whoamirequest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        WhoAmIRequest
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#whoamiresponse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        WhoAmIResponse
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#authservice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AuthService
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#causesv1commentproto" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        causes/v1/comment.proto
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="causes&#x2f;v1&#x2f;comment.proto">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#comment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comment
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#causesv1commonproto" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        causes/v1/common.proto
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="causes&#x2f;v1&#x2f;common.proto">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#annotationid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AnnotationId
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#commentid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CommentId
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#federatedidentity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FederatedIdentity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#instanceid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        InstanceId
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#journalentry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        JournalEntry
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#linkid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LinkId
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#markdown" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Markdown
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#planid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PlanId
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#projectid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ProjectId
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#replicationpath" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ReplicationPath
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#resourcemeta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ResourceMeta
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#resourceorigin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ResourceOrigin
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#serviceaccountid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ServiceAccountId
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#signid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SignId
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#symptomid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SymptomId
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#userid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        UserId
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#journalentryop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        JournalEntry.Op
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#causesv1identityproto" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        causes/v1/identity.proto
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="causes&#x2f;v1&#x2f;identity.proto">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#federationpeer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FederationPeer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#roleassignment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RoleAssignment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#serviceaccount" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ServiceAccount
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#user" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        User
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#serviceaccountkind" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ServiceAccountKind
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#causesv1linkproto" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        causes/v1/link.proto
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="causes&#x2f;v1&#x2f;link.proto">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#plandependency" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PlanDependency
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#plansignlink" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PlanSignLink
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#plansymptomlink" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PlanSymptomLink
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#causesv1planproto" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        causes/v1/plan.proto
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="causes&#x2f;v1&#x2f;plan.proto">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Plan
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#planstatus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Plan.Status
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#causesv1projectproto" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        causes/v1/project.proto
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="causes&#x2f;v1&#x2f;project.proto">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#project" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Project
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#projectvisibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Project.Visibility
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#causesv1project_serviceproto" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        causes/v1/project_service.proto
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="causes&#x2f;v1&#x2f;project_service.proto">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#createprojectrequest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CreateProjectRequest
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#createprojectresponse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CreateProjectResponse
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deleteprojectrequest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DeleteProjectRequest
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deleteprojectresponse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DeleteProjectResponse
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#getprojectrequest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GetProjectRequest
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#getprojectresponse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GetProjectResponse
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#listprojectsrequest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ListProjectsRequest
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#listprojectsresponse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ListProjectsResponse
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#renameprojectrequest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RenameProjectRequest
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#renameprojectresponse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RenameProjectResponse
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#projectservice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ProjectService
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#causesv1signproto" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        causes/v1/sign.proto
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="causes&#x2f;v1&#x2f;sign.proto">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sign" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sign
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#signseverity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sign.Severity
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#causesv1symptomproto" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        causes/v1/symptom.proto
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="causes&#x2f;v1&#x2f;symptom.proto">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#symptom" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Symptom
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#symptomstatus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Symptom.Status
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scalar-value-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scalar Value Types
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Raw-Discussion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Raw Discussion
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  
+                    
+                    
+                    
+                      
+                    
+                    
+                      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+                      <div class="md-sidebar-button__wrapper">
+                        <label class="md-sidebar-button" for="__toc"></label>
+                      </div>
+                    
+                  
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#table-of-contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Table of Contents
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#causesv1admin_serviceproto" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        causes/v1/admin_service.proto
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="causes&#x2f;v1&#x2f;admin_service.proto">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#grantrolerequest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GrantRoleRequest
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#grantroleresponse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GrantRoleResponse
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#role" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Role
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#adminservice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AdminService
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#causesv1annotationproto" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        causes/v1/annotation.proto
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="causes&#x2f;v1&#x2f;annotation.proto">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#annotation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Annotation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#annotationsourcetype" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Annotation.SourceType
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#causesv1auth_serviceproto" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        causes/v1/auth_service.proto
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="causes&#x2f;v1&#x2f;auth_service.proto">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#completeloginrequest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CompleteLoginRequest
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#completeloginresponse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CompleteLoginResponse
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pending" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pending
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sessioncreated" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SessionCreated
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#startloginrequest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        StartLoginRequest
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#startloginresponse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        StartLoginResponse
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#whoamirequest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        WhoAmIRequest
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#whoamiresponse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        WhoAmIResponse
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#authservice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AuthService
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#causesv1commentproto" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        causes/v1/comment.proto
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="causes&#x2f;v1&#x2f;comment.proto">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#comment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comment
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#causesv1commonproto" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        causes/v1/common.proto
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="causes&#x2f;v1&#x2f;common.proto">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#annotationid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AnnotationId
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#commentid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CommentId
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#federatedidentity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FederatedIdentity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#instanceid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        InstanceId
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#journalentry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        JournalEntry
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#linkid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LinkId
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#markdown" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Markdown
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#planid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PlanId
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#projectid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ProjectId
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#replicationpath" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ReplicationPath
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#resourcemeta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ResourceMeta
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#resourceorigin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ResourceOrigin
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#serviceaccountid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ServiceAccountId
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#signid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SignId
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#symptomid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SymptomId
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#userid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        UserId
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#journalentryop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        JournalEntry.Op
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#causesv1identityproto" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        causes/v1/identity.proto
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="causes&#x2f;v1&#x2f;identity.proto">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#federationpeer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FederationPeer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#roleassignment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RoleAssignment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#serviceaccount" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ServiceAccount
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#user" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        User
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#serviceaccountkind" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ServiceAccountKind
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#causesv1linkproto" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        causes/v1/link.proto
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="causes&#x2f;v1&#x2f;link.proto">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#plandependency" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PlanDependency
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#plansignlink" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PlanSignLink
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#plansymptomlink" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PlanSymptomLink
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#causesv1planproto" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        causes/v1/plan.proto
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="causes&#x2f;v1&#x2f;plan.proto">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Plan
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#planstatus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Plan.Status
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#causesv1projectproto" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        causes/v1/project.proto
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="causes&#x2f;v1&#x2f;project.proto">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#project" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Project
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#projectvisibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Project.Visibility
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#causesv1project_serviceproto" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        causes/v1/project_service.proto
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="causes&#x2f;v1&#x2f;project_service.proto">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#createprojectrequest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CreateProjectRequest
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#createprojectresponse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CreateProjectResponse
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deleteprojectrequest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DeleteProjectRequest
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deleteprojectresponse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DeleteProjectResponse
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#getprojectrequest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GetProjectRequest
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#getprojectresponse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GetProjectResponse
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#listprojectsrequest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ListProjectsRequest
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#listprojectsresponse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ListProjectsResponse
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#renameprojectrequest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RenameProjectRequest
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#renameprojectresponse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RenameProjectResponse
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#projectservice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ProjectService
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#causesv1signproto" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        causes/v1/sign.proto
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="causes&#x2f;v1&#x2f;sign.proto">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sign" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sign
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#signseverity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sign.Severity
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#causesv1symptomproto" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        causes/v1/symptom.proto
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="causes&#x2f;v1&#x2f;symptom.proto">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#symptom" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Symptom
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#symptomstatus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Symptom.Status
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scalar-value-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scalar Value Types
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+<h1 id="protocol-documentation">Protocol Documentation<a class="headerlink" href="#protocol-documentation" title="Permanent link">&para;</a></h1>
+<p><a name="top"></a></p>
+<h2 id="table-of-contents">Table of Contents<a class="headerlink" href="#table-of-contents" title="Permanent link">&para;</a></h2>
+<ul>
+<li>
+<p><a href="#causes_v1_admin_service-proto">causes/v1/admin_service.proto</a></p>
+<ul>
+<li><a href="#causes-v1-GrantRoleRequest">GrantRoleRequest</a></li>
+<li>
+<p><a href="#causes-v1-GrantRoleResponse">GrantRoleResponse</a></p>
+</li>
+<li>
+<p><a href="#causes-v1-Role">Role</a></p>
+</li>
+<li>
+<p><a href="#causes-v1-AdminService">AdminService</a></p>
+</li>
+</ul>
+</li>
+<li>
+<p><a href="#causes_v1_annotation-proto">causes/v1/annotation.proto</a></p>
+<ul>
+<li>
+<p><a href="#causes-v1-Annotation">Annotation</a></p>
+</li>
+<li>
+<p><a href="#causes-v1-Annotation-SourceType">Annotation.SourceType</a></p>
+</li>
+</ul>
+</li>
+<li>
+<p><a href="#causes_v1_auth_service-proto">causes/v1/auth_service.proto</a></p>
+<ul>
+<li><a href="#causes-v1-CompleteLoginRequest">CompleteLoginRequest</a></li>
+<li><a href="#causes-v1-CompleteLoginResponse">CompleteLoginResponse</a></li>
+<li><a href="#causes-v1-Pending">Pending</a></li>
+<li><a href="#causes-v1-SessionCreated">SessionCreated</a></li>
+<li><a href="#causes-v1-StartLoginRequest">StartLoginRequest</a></li>
+<li><a href="#causes-v1-StartLoginResponse">StartLoginResponse</a></li>
+<li><a href="#causes-v1-WhoAmIRequest">WhoAmIRequest</a></li>
+<li>
+<p><a href="#causes-v1-WhoAmIResponse">WhoAmIResponse</a></p>
+</li>
+<li>
+<p><a href="#causes-v1-AuthService">AuthService</a></p>
+</li>
+</ul>
+</li>
+<li>
+<p><a href="#causes_v1_comment-proto">causes/v1/comment.proto</a></p>
+<ul>
+<li><a href="#causes-v1-Comment">Comment</a></li>
+</ul>
+</li>
+<li>
+<p><a href="#causes_v1_common-proto">causes/v1/common.proto</a></p>
+<ul>
+<li><a href="#causes-v1-AnnotationId">AnnotationId</a></li>
+<li><a href="#causes-v1-CommentId">CommentId</a></li>
+<li><a href="#causes-v1-FederatedIdentity">FederatedIdentity</a></li>
+<li><a href="#causes-v1-InstanceId">InstanceId</a></li>
+<li><a href="#causes-v1-JournalEntry">JournalEntry</a></li>
+<li><a href="#causes-v1-LinkId">LinkId</a></li>
+<li><a href="#causes-v1-Markdown">Markdown</a></li>
+<li><a href="#causes-v1-PlanId">PlanId</a></li>
+<li><a href="#causes-v1-ProjectId">ProjectId</a></li>
+<li><a href="#causes-v1-ReplicationPath">ReplicationPath</a></li>
+<li><a href="#causes-v1-ResourceMeta">ResourceMeta</a></li>
+<li><a href="#causes-v1-ResourceOrigin">ResourceOrigin</a></li>
+<li><a href="#causes-v1-ServiceAccountId">ServiceAccountId</a></li>
+<li><a href="#causes-v1-SignId">SignId</a></li>
+<li><a href="#causes-v1-SymptomId">SymptomId</a></li>
+<li>
+<p><a href="#causes-v1-UserId">UserId</a></p>
+</li>
+<li>
+<p><a href="#causes-v1-JournalEntry-Op">JournalEntry.Op</a></p>
+</li>
+</ul>
+</li>
+<li>
+<p><a href="#causes_v1_identity-proto">causes/v1/identity.proto</a></p>
+<ul>
+<li><a href="#causes-v1-FederationPeer">FederationPeer</a></li>
+<li><a href="#causes-v1-RoleAssignment">RoleAssignment</a></li>
+<li><a href="#causes-v1-ServiceAccount">ServiceAccount</a></li>
+<li>
+<p><a href="#causes-v1-User">User</a></p>
+</li>
+<li>
+<p><a href="#causes-v1-ServiceAccountKind">ServiceAccountKind</a></p>
+</li>
+</ul>
+</li>
+<li>
+<p><a href="#causes_v1_link-proto">causes/v1/link.proto</a></p>
+<ul>
+<li><a href="#causes-v1-PlanDependency">PlanDependency</a></li>
+<li><a href="#causes-v1-PlanSignLink">PlanSignLink</a></li>
+<li><a href="#causes-v1-PlanSymptomLink">PlanSymptomLink</a></li>
+</ul>
+</li>
+<li>
+<p><a href="#causes_v1_plan-proto">causes/v1/plan.proto</a></p>
+<ul>
+<li>
+<p><a href="#causes-v1-Plan">Plan</a></p>
+</li>
+<li>
+<p><a href="#causes-v1-Plan-Status">Plan.Status</a></p>
+</li>
+</ul>
+</li>
+<li>
+<p><a href="#causes_v1_project-proto">causes/v1/project.proto</a></p>
+<ul>
+<li>
+<p><a href="#causes-v1-Project">Project</a></p>
+</li>
+<li>
+<p><a href="#causes-v1-Project-Visibility">Project.Visibility</a></p>
+</li>
+</ul>
+</li>
+<li>
+<p><a href="#causes_v1_project_service-proto">causes/v1/project_service.proto</a></p>
+<ul>
+<li><a href="#causes-v1-CreateProjectRequest">CreateProjectRequest</a></li>
+<li><a href="#causes-v1-CreateProjectResponse">CreateProjectResponse</a></li>
+<li><a href="#causes-v1-DeleteProjectRequest">DeleteProjectRequest</a></li>
+<li><a href="#causes-v1-DeleteProjectResponse">DeleteProjectResponse</a></li>
+<li><a href="#causes-v1-GetProjectRequest">GetProjectRequest</a></li>
+<li><a href="#causes-v1-GetProjectResponse">GetProjectResponse</a></li>
+<li><a href="#causes-v1-ListProjectsRequest">ListProjectsRequest</a></li>
+<li><a href="#causes-v1-ListProjectsResponse">ListProjectsResponse</a></li>
+<li><a href="#causes-v1-RenameProjectRequest">RenameProjectRequest</a></li>
+<li>
+<p><a href="#causes-v1-RenameProjectResponse">RenameProjectResponse</a></p>
+</li>
+<li>
+<p><a href="#causes-v1-ProjectService">ProjectService</a></p>
+</li>
+</ul>
+</li>
+<li>
+<p><a href="#causes_v1_sign-proto">causes/v1/sign.proto</a></p>
+<ul>
+<li>
+<p><a href="#causes-v1-Sign">Sign</a></p>
+</li>
+<li>
+<p><a href="#causes-v1-Sign-Severity">Sign.Severity</a></p>
+</li>
+</ul>
+</li>
+<li>
+<p><a href="#causes_v1_symptom-proto">causes/v1/symptom.proto</a></p>
+<ul>
+<li>
+<p><a href="#causes-v1-Symptom">Symptom</a></p>
+</li>
+<li>
+<p><a href="#causes-v1-Symptom-Status">Symptom.Status</a></p>
+</li>
+</ul>
+</li>
+<li>
+<p><a href="#scalar-value-types">Scalar Value Types</a></p>
+</li>
+</ul>
+<p><a name="causes_v1_admin_service-proto"></a></p>
+<p align="right"><a href="#top">Top</a></p>
+
+<h2 id="causesv1admin_serviceproto">causes/v1/admin_service.proto<a class="headerlink" href="#causesv1admin_serviceproto" title="Permanent link">&para;</a></h2>
+<p>Administrative operations restricted to instance-admin.</p>
+<p><a name="causes-v1-GrantRoleRequest"></a></p>
+<h3 id="grantrolerequest">GrantRoleRequest<a class="headerlink" href="#grantrolerequest" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>email</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td>Email address of the user to grant the role to.</td>
+</tr>
+<tr>
+<td>role</td>
+<td><a href="#causes-v1-Role">Role</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>project</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td>Project name (slug) for project-scoped roles. Empty for instance-level roles.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes-v1-GrantRoleResponse"></a></p>
+<h3 id="grantroleresponse">GrantRoleResponse<a class="headerlink" href="#grantroleresponse" title="Permanent link">&para;</a></h3>
+<p><a name="causes-v1-Role"></a></p>
+<h3 id="role">Role<a class="headerlink" href="#role" title="Permanent link">&para;</a></h3>
+<p>Predefined roles from ADR-010.</p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Number</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ROLE_UNSPECIFIED</td>
+<td>0</td>
+<td></td>
+</tr>
+<tr>
+<td>ROLE_INSTANCE_ADMIN</td>
+<td>1</td>
+<td></td>
+</tr>
+<tr>
+<td>ROLE_DEVELOPER</td>
+<td>2</td>
+<td></td>
+</tr>
+<tr>
+<td>ROLE_PROJECT_MAINTAINER</td>
+<td>3</td>
+<td></td>
+</tr>
+<tr>
+<td>ROLE_SECURITY_TEAM</td>
+<td>4</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes-v1-AdminService"></a></p>
+<h3 id="adminservice">AdminService<a class="headerlink" href="#adminservice" title="Permanent link">&para;</a></h3>
+<p>AdminService provides instance-level administration.
+All RPCs require an unrestricted instance-admin session.</p>
+<table>
+<thead>
+<tr>
+<th>Method Name</th>
+<th>Request Type</th>
+<th>Response Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GrantRole</td>
+<td><a href="#causes-v1-GrantRoleRequest">GrantRoleRequest</a></td>
+<td><a href="#causes-v1-GrantRoleResponse">GrantRoleResponse</a></td>
+<td>Assign a role to a user. Idempotent.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes_v1_annotation-proto"></a></p>
+<p align="right"><a href="#top">Top</a></p>
+
+<h2 id="causesv1annotationproto">causes/v1/annotation.proto<a class="headerlink" href="#causesv1annotationproto" title="Permanent link">&para;</a></h2>
+<p>Annotation carries structured analysis data attached to a Sign.</p>
+<p><a name="causes-v1-Annotation"></a></p>
+<h3 id="annotation">Annotation<a class="headerlink" href="#annotation" title="Permanent link">&para;</a></h3>
+<p>Annotation carries structured or machine-generated analysis data attached to
+a Sign.  Annotations differ from Comments in that:</p>
+<ul>
+<li>They are typically machine-authored (by a connector or analysis service).</li>
+<li>Their content may be structured binary data rather than Markdown.</li>
+<li>The annotation_type field names the schema so consumers can decode content.</li>
+</ul>
+<p>Example: a crash-report Sign may have an Annotation of type &#34;backtrace/v1&#34;
+carrying the retraced backtrace and variable values produced by a retrace
+service.  Storing this as an Annotation rather than a Comment keeps structured
+analysis artifacts separate from human narrative discussion.</p>
+<p>Human narrative discussion of a Sign belongs in Comment messages with
+parent_type == PARENT_TYPE_SIGN.</p>
+<p>annotation_type follows the convention &#34;domain/version&#34;
+(e.g. &#34;backtrace/v1&#34;, &#34;heap-summary/v1&#34;, &#34;log-context/v1&#34;).
+Well-known types are documented in the connector specification.
+Connectors and analysis services may define their own types.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>meta</td>
+<td><a href="#causes-v1-ResourceMeta">ResourceMeta</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>parent_id</td>
+<td><a href="#causes-v1-SignId">SignId</a></td>
+<td></td>
+<td>parent_id is the Sign this annotation belongs to.</td>
+</tr>
+<tr>
+<td>annotation_type</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td>annotation_type identifies the content schema. Convention: &#34;domain/version&#34; (e.g. &#34;backtrace/v1&#34;).</td>
+</tr>
+<tr>
+<td>source_type</td>
+<td><a href="#causes-v1-Annotation-SourceType">Annotation.SourceType</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>author</td>
+<td><a href="#causes-v1-FederatedIdentity">FederatedIdentity</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>content</td>
+<td><a href="#bytes">bytes</a></td>
+<td></td>
+<td>content is the annotation payload; its schema is defined by annotation_type.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes-v1-Annotation-SourceType"></a></p>
+<h3 id="annotationsourcetype">Annotation.SourceType<a class="headerlink" href="#annotationsourcetype" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Number</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SOURCE_TYPE_UNSPECIFIED</td>
+<td>0</td>
+<td></td>
+</tr>
+<tr>
+<td>SOURCE_TYPE_CONNECTOR</td>
+<td>1</td>
+<td>SOURCE_TYPE_CONNECTOR: generated by a data-source connector or analysis service.</td>
+</tr>
+<tr>
+<td>SOURCE_TYPE_HUMAN</td>
+<td>2</td>
+<td>SOURCE_TYPE_HUMAN: manually authored by a person.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes_v1_auth_service-proto"></a></p>
+<p align="right"><a href="#top">Top</a></p>
+
+<h2 id="causesv1auth_serviceproto">causes/v1/auth_service.proto<a class="headerlink" href="#causesv1auth_serviceproto" title="Permanent link">&para;</a></h2>
+<p>Authentication service: polling-based device flow login and session identity.</p>
+<p><a name="causes-v1-CompleteLoginRequest"></a></p>
+<h3 id="completeloginrequest">CompleteLoginRequest<a class="headerlink" href="#completeloginrequest" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>nonce</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>admin</td>
+<td><a href="#bool">bool</a></td>
+<td></td>
+<td>If true, create an unrestricted session with full admin powers. Default (false) creates a restricted session — admin roles are suppressed. See services/causes_api/README.md &#34;Session types&#34; for the threat model.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes-v1-CompleteLoginResponse"></a></p>
+<h3 id="completeloginresponse">CompleteLoginResponse<a class="headerlink" href="#completeloginresponse" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>pending</td>
+<td><a href="#causes-v1-Pending">Pending</a></td>
+<td></td>
+<td>The user has not yet completed sign-in.</td>
+</tr>
+<tr>
+<td>session_created</td>
+<td><a href="#causes-v1-SessionCreated">SessionCreated</a></td>
+<td></td>
+<td>Login succeeded; the session token is ready.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes-v1-Pending"></a></p>
+<h3 id="pending">Pending<a class="headerlink" href="#pending" title="Permanent link">&para;</a></h3>
+<p>Empty — signals the caller should retry after interval_secs.</p>
+<p><a name="causes-v1-SessionCreated"></a></p>
+<h3 id="sessioncreated">SessionCreated<a class="headerlink" href="#sessioncreated" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>session_token</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes-v1-StartLoginRequest"></a></p>
+<h3 id="startloginrequest">StartLoginRequest<a class="headerlink" href="#startloginrequest" title="Permanent link">&para;</a></h3>
+<p><a name="causes-v1-StartLoginResponse"></a></p>
+<h3 id="startloginresponse">StartLoginResponse<a class="headerlink" href="#startloginresponse" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>nonce</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td>Opaque nonce used to poll CompleteLogin.</td>
+</tr>
+<tr>
+<td>user_code</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td>Human-readable code to enter at the verification URL.</td>
+</tr>
+<tr>
+<td>verification_url</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td>URL where the user completes sign-in.</td>
+</tr>
+<tr>
+<td>interval_secs</td>
+<td><a href="#int32">int32</a></td>
+<td></td>
+<td>Suggested polling interval in seconds.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes-v1-WhoAmIRequest"></a></p>
+<h3 id="whoamirequest">WhoAmIRequest<a class="headerlink" href="#whoamirequest" title="Permanent link">&para;</a></h3>
+<p><a name="causes-v1-WhoAmIResponse"></a></p>
+<h3 id="whoamiresponse">WhoAmIResponse<a class="headerlink" href="#whoamiresponse" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>user_id</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>display_name</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>email</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>admin</td>
+<td><a href="#bool">bool</a></td>
+<td></td>
+<td>True if this session has unrestricted (admin) powers.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes-v1-AuthService"></a></p>
+<h3 id="authservice">AuthService<a class="headerlink" href="#authservice" title="Permanent link">&para;</a></h3>
+<p>AuthService handles human authentication via the server-driven
+Google Device Authorization Grant (RFC 8628).  The client never
+holds the OAuth client secret — the server drives the entire flow.</p>
+<p>Login is two RPCs (not streaming) so that pending state survives
+server restarts — the database holds device-flow state between polls.</p>
+<table>
+<thead>
+<tr>
+<th>Method Name</th>
+<th>Request Type</th>
+<th>Response Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>StartLogin</td>
+<td><a href="#causes-v1-StartLoginRequest">StartLoginRequest</a></td>
+<td><a href="#causes-v1-StartLoginResponse">StartLoginResponse</a></td>
+<td>StartLogin initiates a device-flow login. The server contacts the IdP and returns a user code and verification URL for the human to complete in a browser, plus a nonce for polling.</td>
+</tr>
+<tr>
+<td>CompleteLogin</td>
+<td><a href="#causes-v1-CompleteLoginRequest">CompleteLoginRequest</a></td>
+<td><a href="#causes-v1-CompleteLoginResponse">CompleteLoginResponse</a></td>
+<td>CompleteLogin polls for login completion. The client calls this repeatedly with the nonce from StartLogin until the server returns a session token or an error.</td>
+</tr>
+<tr>
+<td>WhoAmI</td>
+<td><a href="#causes-v1-WhoAmIRequest">WhoAmIRequest</a></td>
+<td><a href="#causes-v1-WhoAmIResponse">WhoAmIResponse</a></td>
+<td>WhoAmI returns the identity of the currently authenticated caller.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes_v1_comment-proto"></a></p>
+<p align="right"><a href="#top">Top</a></p>
+
+<h2 id="causesv1commentproto">causes/v1/comment.proto<a class="headerlink" href="#causesv1commentproto" title="Permanent link">&para;</a></h2>
+<p>Comment carries human discussion on a Sign, Symptom, or Plan.</p>
+<p><a name="causes-v1-Comment"></a></p>
+<h3 id="comment">Comment<a class="headerlink" href="#comment" title="Permanent link">&para;</a></h3>
+<p>Comment carries human discussion.
+Comments are first-class resources with their own journal and ResourceOrigin,
+so community comment threads on a published resource can federate back to
+the origin instance independently.</p>
+<p>Comments may be attached to Signs as well as Symptoms and Plans.  For
+machine-generated structured data on a Sign (e.g. a retraced backtrace),
+prefer Annotation (see annotation.proto) over Comment.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>meta</td>
+<td><a href="#causes-v1-ResourceMeta">ResourceMeta</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>symptom_id</td>
+<td><a href="#causes-v1-SymptomId">SymptomId</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>plan_id</td>
+<td><a href="#causes-v1-PlanId">PlanId</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>sign_id</td>
+<td><a href="#causes-v1-SignId">SignId</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>author</td>
+<td><a href="#causes-v1-FederatedIdentity">FederatedIdentity</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>body</td>
+<td><a href="#causes-v1-Markdown">Markdown</a></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes_v1_common-proto"></a></p>
+<p align="right"><a href="#top">Top</a></p>
+
+<h2 id="causesv1commonproto">causes/v1/common.proto<a class="headerlink" href="#causesv1commonproto" title="Permanent link">&para;</a></h2>
+<p>Common types shared across the causes.v1 API.</p>
+<p><a name="causes-v1-AnnotationId"></a></p>
+<h3 id="annotationid">AnnotationId<a class="headerlink" href="#annotationid" title="Permanent link">&para;</a></h3>
+<p>AnnotationId is the local identifier of an Annotation on this instance.
+value: URL-safe, non-empty (e.g. a UUID v4).</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>value</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes-v1-CommentId"></a></p>
+<h3 id="commentid">CommentId<a class="headerlink" href="#commentid" title="Permanent link">&para;</a></h3>
+<p>CommentId is the local identifier of a Comment on this instance.
+value: URL-safe, non-empty (e.g. a UUID v4).</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>value</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes-v1-FederatedIdentity"></a></p>
+<h3 id="federatedidentity">FederatedIdentity<a class="headerlink" href="#federatedidentity" title="Permanent link">&para;</a></h3>
+<p>FederatedIdentity identifies a user or service account across instances.
+Used wherever an author or actor must be attributed regardless of origin.
+local_id is either a UserId or ServiceAccountId on the named instance;
+proto3 cannot express this union directly, so the type is recorded by the
+context in which FederatedIdentity appears.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>instance_id</td>
+<td><a href="#causes-v1-InstanceId">InstanceId</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>local_id</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td>local_id is the User or ServiceAccount id on that instance. Non-empty; (instance_id, local_id) is globally unique.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes-v1-InstanceId"></a></p>
+<h3 id="instanceid">InstanceId<a class="headerlink" href="#instanceid" title="Permanent link">&para;</a></h3>
+<p>InstanceId is a UUID v4 identifying a Causes instance.
+Generated at first bootstrap; never reused.
+value: URL-safe UUID v4 (e.g. &#34;550e8400-e29b-41d4-a716-446655440000&#34;).</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>value</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes-v1-JournalEntry"></a></p>
+<h3 id="journalentry">JournalEntry<a class="headerlink" href="#journalentry" title="Permanent link">&para;</a></h3>
+<p>JournalEntry records one version of a resource.
+Every Sign, Symptom, Plan, Comment, Annotation, and link type has an
+append-only journal.  The journal is the unit of replication: downstreams
+request entries with version &gt; N to catch up incrementally.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>version</td>
+<td><a href="#uint64">uint64</a></td>
+<td></td>
+<td>version is a monotone per-resource sequence number assigned by the origin instance.</td>
+</tr>
+<tr>
+<td>at</td>
+<td><a href="#google-protobuf-Timestamp">google.protobuf.Timestamp</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>by</td>
+<td><a href="#causes-v1-FederatedIdentity">FederatedIdentity</a></td>
+<td></td>
+<td>by identifies the author of this change.</td>
+</tr>
+<tr>
+<td>op</td>
+<td><a href="#causes-v1-JournalEntry-Op">JournalEntry.Op</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>snapshot</td>
+<td><a href="#bytes">bytes</a></td>
+<td></td>
+<td>snapshot is the full serialised resource state at this version. The snapshot does not carry replication information; that belongs on replication_path below.</td>
+</tr>
+<tr>
+<td>replication_path</td>
+<td><a href="#causes-v1-ReplicationPath">ReplicationPath</a></td>
+<td></td>
+<td>replication_path records the transit path for this entry. Absent for locally-authored entries; present on every federated copy. This is per-entry information — it can differ across entries for the same resource if entries arrived via different relay paths.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes-v1-LinkId"></a></p>
+<h3 id="linkid">LinkId<a class="headerlink" href="#linkid" title="Permanent link">&para;</a></h3>
+<p>LinkId is the local identifier of a link object (PlanSignLink,
+PlanSymptomLink, or PlanDependency) on this instance.
+value: URL-safe, non-empty (e.g. a UUID v4).</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>value</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes-v1-Markdown"></a></p>
+<h3 id="markdown">Markdown<a class="headerlink" href="#markdown" title="Permanent link">&para;</a></h3>
+<p>Markdown wraps a string whose content is interpreted as Markdown.
+Using a named wrapper distinguishes Markdown fields from plain-text strings
+so renderers and validators can select the correct code path without
+inspecting field names.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>value</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes-v1-PlanId"></a></p>
+<h3 id="planid">PlanId<a class="headerlink" href="#planid" title="Permanent link">&para;</a></h3>
+<p>PlanId is the local identifier of a Plan on this instance.
+value: URL-safe, non-empty (e.g. a UUID v4).</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>value</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes-v1-ProjectId"></a></p>
+<h3 id="projectid">ProjectId<a class="headerlink" href="#projectid" title="Permanent link">&para;</a></h3>
+<p>ProjectId is the local identifier of a Project on this instance.
+value: URL-safe, non-empty (e.g. a UUID v4 or a short slug).</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>value</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes-v1-ReplicationPath"></a></p>
+<h3 id="replicationpath">ReplicationPath<a class="headerlink" href="#replicationpath" title="Permanent link">&para;</a></h3>
+<p>ReplicationPath records the transit path for a specific journal entry.
+This is per-entry information (it can differ if the same entry arrives via
+multiple relay paths); it belongs on JournalEntry, not on the resource snapshot.
+Separating ReplicationPath from ResourceOrigin avoids the ambiguity that would
+arise if both the resource snapshot and its enclosing JournalEntry carried a
+combined &#34;provenance&#34; field with overlapping semantics.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>received_from</td>
+<td><a href="#causes-v1-InstanceId">InstanceId</a></td>
+<td></td>
+<td>received_from is the instance_id of the direct upstream that delivered this entry.</td>
+</tr>
+<tr>
+<td>relay_hops</td>
+<td><a href="#causes-v1-InstanceId">InstanceId</a></td>
+<td>repeated</td>
+<td>relay_hops lists instance_ids between the origin and received_from, in order. Empty when received_from == origin instance_id.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes-v1-ResourceMeta"></a></p>
+<h3 id="resourcemeta">ResourceMeta<a class="headerlink" href="#resourcemeta" title="Permanent link">&para;</a></h3>
+<p>ResourceMeta contains fields present on every top-level resource.
+Embed as field 1 of every Sign, Symptom, Plan, Comment, Annotation, and
+link type rather than repeating these definitions.</p>
+<p>project_id is the local project on this instance under which the resource
+is filed.  It is not part of the stable resource identity (see ResourceOrigin).
+Project mapping is the responsibility of the connection originator: when
+pushing, the originator translates its project_id to the destination&#39;s before
+serialising; when pulling, it translates the source&#39;s project_id to its own
+before storing.  The snapshot therefore always arrives with the correct local
+project_id; no rewriting on ingest is required.  See ADR-012.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>id</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>project_id</td>
+<td><a href="#causes-v1-ProjectId">ProjectId</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>created_at</td>
+<td><a href="#google-protobuf-Timestamp">google.protobuf.Timestamp</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>updated_at</td>
+<td><a href="#google-protobuf-Timestamp">google.protobuf.Timestamp</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>embargoed</td>
+<td><a href="#bool">bool</a></td>
+<td></td>
+<td>embargoed suppresses federation and public visibility (see ADR-010).</td>
+</tr>
+<tr>
+<td>origin</td>
+<td><a href="#causes-v1-ResourceOrigin">ResourceOrigin</a></td>
+<td></td>
+<td>origin is absent for resources created on this instance.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes-v1-ResourceOrigin"></a></p>
+<h3 id="resourceorigin">ResourceOrigin<a class="headerlink" href="#resourceorigin" title="Permanent link">&para;</a></h3>
+<p>ResourceOrigin identifies where a resource was originally created.
+Absent (message not set) for resources created on this instance.
+Once set at creation, origin is immutable across all journal entries.
+(instance_id, id) is the globally stable identity of a federated resource,
+independent of relay path; used for deduplication when the same resource
+arrives via multiple inbound paths.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>instance_id</td>
+<td><a href="#causes-v1-InstanceId">InstanceId</a></td>
+<td></td>
+<td>instance_id is the Causes instance that created this resource.</td>
+</tr>
+<tr>
+<td>id</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td>id is the resource&#39;s local identifier on the origin instance. Stored as a plain string because at this level the resource type — and therefore the appropriate typed ID message — is not known.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes-v1-ServiceAccountId"></a></p>
+<h3 id="serviceaccountid">ServiceAccountId<a class="headerlink" href="#serviceaccountid" title="Permanent link">&para;</a></h3>
+<p>ServiceAccountId is the local identifier of a ServiceAccount on this instance.
+value: URL-safe, non-empty (e.g. a UUID v4).</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>value</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes-v1-SignId"></a></p>
+<h3 id="signid">SignId<a class="headerlink" href="#signid" title="Permanent link">&para;</a></h3>
+<p>SignId is the local identifier of a Sign on this instance.
+value: URL-safe, non-empty (e.g. a UUID v4).</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>value</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes-v1-SymptomId"></a></p>
+<h3 id="symptomid">SymptomId<a class="headerlink" href="#symptomid" title="Permanent link">&para;</a></h3>
+<p>SymptomId is the local identifier of a Symptom on this instance.
+value: URL-safe, non-empty (e.g. a UUID v4).</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>value</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes-v1-UserId"></a></p>
+<h3 id="userid">UserId<a class="headerlink" href="#userid" title="Permanent link">&para;</a></h3>
+<p>UserId is the local identifier of a User on this instance.
+value: URL-safe, non-empty (e.g. a UUID v4).</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>value</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes-v1-JournalEntry-Op"></a></p>
+<h3 id="journalentryop">JournalEntry.Op<a class="headerlink" href="#journalentryop" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Number</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>OP_UNSPECIFIED</td>
+<td>0</td>
+<td></td>
+</tr>
+<tr>
+<td>OP_CREATE</td>
+<td>1</td>
+<td></td>
+</tr>
+<tr>
+<td>OP_UPDATE</td>
+<td>2</td>
+<td></td>
+</tr>
+<tr>
+<td>OP_DELETE</td>
+<td>3</td>
+<td>Deletes are logical: a DELETE entry is appended; data is not removed.</td>
+</tr>
+<tr>
+<td>OP_UNDELETE</td>
+<td>4</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes_v1_identity-proto"></a></p>
+<p align="right"><a href="#top">Top</a></p>
+
+<h2 id="causesv1identityproto">causes/v1/identity.proto<a class="headerlink" href="#causesv1identityproto" title="Permanent link">&para;</a></h2>
+<p>Identity types: User, ServiceAccount, and FederationPeer.</p>
+<p><a name="causes-v1-FederationPeer"></a></p>
+<h3 id="federationpeer">FederationPeer<a class="headerlink" href="#federationpeer" title="Permanent link">&para;</a></h3>
+<p>FederationPeer records a trust relationship with a remote instance.
+The inbound_account_id ServiceAccount holds the permission grants that
+govern what the remote instance may do here.
+In the UI, contact_url is displayed as hostname only (e.g. &#34;causes.example.org&#34;).</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>instance_id</td>
+<td><a href="#causes-v1-InstanceId">InstanceId</a></td>
+<td></td>
+<td>instance_id is the stable UUID of the remote instance, independent of its URL.</td>
+</tr>
+<tr>
+<td>contact_url</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>outbound_account_id</td>
+<td><a href="#causes-v1-ServiceAccountId">ServiceAccountId</a></td>
+<td></td>
+<td>outbound_account_id is the ServiceAccount used when this instance connects out.</td>
+</tr>
+<tr>
+<td>inbound_account_id</td>
+<td><a href="#causes-v1-ServiceAccountId">ServiceAccountId</a></td>
+<td></td>
+<td>inbound_account_id is the ServiceAccount representing the remote&#39;s inbound connection.</td>
+</tr>
+<tr>
+<td>established_at</td>
+<td><a href="#google-protobuf-Timestamp">google.protobuf.Timestamp</a></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes-v1-RoleAssignment"></a></p>
+<h3 id="roleassignment">RoleAssignment<a class="headerlink" href="#roleassignment" title="Permanent link">&para;</a></h3>
+<p>RoleAssignment grants a role to a user, optionally scoped to a project.
+project_id is absent for instance-level roles.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>user_id</td>
+<td><a href="#causes-v1-UserId">UserId</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>project_id</td>
+<td><a href="#causes-v1-ProjectId">ProjectId</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>role</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes-v1-ServiceAccount"></a></p>
+<h3 id="serviceaccount">ServiceAccount<a class="headerlink" href="#serviceaccount" title="Permanent link">&para;</a></h3>
+<p>ServiceAccount is a non-human principal: the BFF, a connector, or a
+federated peer instance. Service session tokens are issued against a
+ServiceAccount and inherit its role assignments.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>id</td>
+<td><a href="#causes-v1-ServiceAccountId">ServiceAccountId</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>display_name</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td>display_name identifies the account (e.g. &#34;bff&#34;, &#34;github-connector&#34;, &#34;causes.example.org&#34;).</td>
+</tr>
+<tr>
+<td>kind</td>
+<td><a href="#causes-v1-ServiceAccountKind">ServiceAccountKind</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>remote_instance_id</td>
+<td><a href="#causes-v1-InstanceId">InstanceId</a></td>
+<td></td>
+<td>remote_instance_id is set when kind == SERVICE_ACCOUNT_KIND_FEDERATION.</td>
+</tr>
+<tr>
+<td>created_at</td>
+<td><a href="#google-protobuf-Timestamp">google.protobuf.Timestamp</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>last_used_at</td>
+<td><a href="#google-protobuf-Timestamp">google.protobuf.Timestamp</a></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes-v1-User"></a></p>
+<h3 id="user">User<a class="headerlink" href="#user" title="Permanent link">&para;</a></h3>
+<p>User is a person with an account on this instance.
+Email addresses are stored for authentication but never exposed in general
+API responses; only explicit admin views may access them.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>id</td>
+<td><a href="#causes-v1-UserId">UserId</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>display_name</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>email</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td>email is stored for authentication only; not returned in public API responses.</td>
+</tr>
+<tr>
+<td>auth_provider</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td>auth_provider identifies the IdP used at registration (e.g. &#34;github.com&#34;).</td>
+</tr>
+<tr>
+<td>created_at</td>
+<td><a href="#google-protobuf-Timestamp">google.protobuf.Timestamp</a></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes-v1-ServiceAccountKind"></a></p>
+<h3 id="serviceaccountkind">ServiceAccountKind<a class="headerlink" href="#serviceaccountkind" title="Permanent link">&para;</a></h3>
+<p>ServiceAccountKind classifies the type of non-human principal.</p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Number</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SERVICE_ACCOUNT_KIND_UNSPECIFIED</td>
+<td>0</td>
+<td></td>
+</tr>
+<tr>
+<td>SERVICE_ACCOUNT_KIND_BFF</td>
+<td>1</td>
+<td>SERVICE_ACCOUNT_KIND_BFF is the Backend-for-Frontend that serves the web UI.</td>
+</tr>
+<tr>
+<td>SERVICE_ACCOUNT_KIND_CONNECTOR</td>
+<td>2</td>
+<td>SERVICE_ACCOUNT_KIND_CONNECTOR is an external data source connector.</td>
+</tr>
+<tr>
+<td>SERVICE_ACCOUNT_KIND_FEDERATION</td>
+<td>3</td>
+<td>SERVICE_ACCOUNT_KIND_FEDERATION represents a remote federated instance.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes_v1_link-proto"></a></p>
+<p align="right"><a href="#top">Top</a></p>
+
+<h2 id="causesv1linkproto">causes/v1/link.proto<a class="headerlink" href="#causesv1linkproto" title="Permanent link">&para;</a></h2>
+<p>Relationship links between top-level resources.</p>
+<p>Links are stored as independent intermediate objects rather than as
+repeated ID fields on the parent resource for two reasons:</p>
+<ol>
+<li>
+<p>A downstream instance can create a local link between resources without
+     requiring write access to either linked resource.  For example, a
+     downstream can link a local Sign to a Plan without sending a change to
+     wherever that Plan originates.  Whether downstream instances can also
+     propose edits to the Plan itself is an open design question (see ADR-010
+     provisional note on cross-instance edit proposals); the link object is
+     correct regardless of how that question resolves.</p>
+</li>
+<li>
+<p>Embargo propagation: if either linked resource is embargoed, the link
+     itself must be embargoed (the server enforces this invariant).
+     Storing links separately makes embargo checks tractable — the link can
+     be hidden without revealing which embargoed resource it referenced.</p>
+</li>
+</ol>
+<p><a name="causes-v1-PlanDependency"></a></p>
+<h3 id="plandependency">PlanDependency<a class="headerlink" href="#plandependency" title="Permanent link">&para;</a></h3>
+<p>PlanDependency records that one Plan must complete before another can proceed.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>id</td>
+<td><a href="#causes-v1-LinkId">LinkId</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>plan_id</td>
+<td><a href="#causes-v1-PlanId">PlanId</a></td>
+<td></td>
+<td>plan_id is the dependent Plan (the one that waits).</td>
+</tr>
+<tr>
+<td>requires_plan_id</td>
+<td><a href="#causes-v1-PlanId">PlanId</a></td>
+<td></td>
+<td>requires_plan_id is the prerequisite Plan.</td>
+</tr>
+<tr>
+<td>embargoed</td>
+<td><a href="#bool">bool</a></td>
+<td></td>
+<td>embargoed must be true whenever either linked Plan is embargoed.</td>
+</tr>
+<tr>
+<td>created_by</td>
+<td><a href="#causes-v1-FederatedIdentity">FederatedIdentity</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>created_at</td>
+<td><a href="#google-protobuf-Timestamp">google.protobuf.Timestamp</a></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes-v1-PlanSignLink"></a></p>
+<h3 id="plansignlink">PlanSignLink<a class="headerlink" href="#plansignlink" title="Permanent link">&para;</a></h3>
+<p>PlanSignLink records that a Plan addresses a Sign (many-to-many).</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>id</td>
+<td><a href="#causes-v1-LinkId">LinkId</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>plan_id</td>
+<td><a href="#causes-v1-PlanId">PlanId</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>sign_id</td>
+<td><a href="#causes-v1-SignId">SignId</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>embargoed</td>
+<td><a href="#bool">bool</a></td>
+<td></td>
+<td>embargoed must be true whenever either linked resource is embargoed. The server enforces this invariant on creation and whenever the embargo status of either linked resource changes.</td>
+</tr>
+<tr>
+<td>created_by</td>
+<td><a href="#causes-v1-FederatedIdentity">FederatedIdentity</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>created_at</td>
+<td><a href="#google-protobuf-Timestamp">google.protobuf.Timestamp</a></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes-v1-PlanSymptomLink"></a></p>
+<h3 id="plansymptomlink">PlanSymptomLink<a class="headerlink" href="#plansymptomlink" title="Permanent link">&para;</a></h3>
+<p>PlanSymptomLink records that a Plan addresses a Symptom (many-to-many).</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>id</td>
+<td><a href="#causes-v1-LinkId">LinkId</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>plan_id</td>
+<td><a href="#causes-v1-PlanId">PlanId</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>symptom_id</td>
+<td><a href="#causes-v1-SymptomId">SymptomId</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>embargoed</td>
+<td><a href="#bool">bool</a></td>
+<td></td>
+<td>embargoed must be true whenever either linked resource is embargoed.</td>
+</tr>
+<tr>
+<td>created_by</td>
+<td><a href="#causes-v1-FederatedIdentity">FederatedIdentity</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>created_at</td>
+<td><a href="#google-protobuf-Timestamp">google.protobuf.Timestamp</a></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes_v1_plan-proto"></a></p>
+<p align="right"><a href="#top">Top</a></p>
+
+<h2 id="causesv1planproto">causes/v1/plan.proto<a class="headerlink" href="#causesv1planproto" title="Permanent link">&para;</a></h2>
+<p>Plan represents a developer&#39;s proposed change.</p>
+<p><a name="causes-v1-Plan"></a></p>
+<h3 id="plan">Plan<a class="headerlink" href="#plan" title="Permanent link">&para;</a></h3>
+<p>Plan is a developer&#39;s proposed change, linked to Signs and Symptoms it
+addresses.  Developer diagnosis and investigation discussion occurs on the
+Plan via Comments.</p>
+<p>Relationships to Signs, Symptoms, and other Plans are stored as independent
+intermediate objects (PlanSignLink, PlanSymptomLink, PlanDependency in
+link.proto) rather than as repeated ID fields here.  This allows downstream
+instances to create local links to federated Plans without modifying the
+federated resource.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>meta</td>
+<td><a href="#causes-v1-ResourceMeta">ResourceMeta</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>title</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>description</td>
+<td><a href="#causes-v1-Markdown">Markdown</a></td>
+<td></td>
+<td>description includes diagnosis notes and approach.</td>
+</tr>
+<tr>
+<td>author</td>
+<td><a href="#causes-v1-FederatedIdentity">FederatedIdentity</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>status</td>
+<td><a href="#causes-v1-Plan-Status">Plan.Status</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>target_version</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td>target_version is the intended release for this change.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes-v1-Plan-Status"></a></p>
+<h3 id="planstatus">Plan.Status<a class="headerlink" href="#planstatus" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Number</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>STATUS_UNSPECIFIED</td>
+<td>0</td>
+<td></td>
+</tr>
+<tr>
+<td>STATUS_PROPOSED</td>
+<td>1</td>
+<td></td>
+</tr>
+<tr>
+<td>STATUS_ACCEPTED</td>
+<td>2</td>
+<td></td>
+</tr>
+<tr>
+<td>STATUS_IN_PROGRESS</td>
+<td>3</td>
+<td></td>
+</tr>
+<tr>
+<td>STATUS_DONE</td>
+<td>4</td>
+<td></td>
+</tr>
+<tr>
+<td>STATUS_ABANDONED</td>
+<td>5</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes_v1_project-proto"></a></p>
+<p align="right"><a href="#top">Top</a></p>
+
+<h2 id="causesv1projectproto">causes/v1/project.proto<a class="headerlink" href="#causesv1projectproto" title="Permanent link">&para;</a></h2>
+<p>Project is the organisational unit that owns Signs, Symptoms, and Plans.</p>
+<p><a name="causes-v1-Project"></a></p>
+<h3 id="project">Project<a class="headerlink" href="#project" title="Permanent link">&para;</a></h3>
+<p>Project is the top-level container for a tracked codebase.
+Signs, Symptoms, and Plans each belong to exactly one Project.
+Projects belong to one Instance and are not themselves federated;
+federation operates at the resource level.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>id</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>name</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>description</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td>description is Markdown.</td>
+</tr>
+<tr>
+<td>visibility</td>
+<td><a href="#causes-v1-Project-Visibility">Project.Visibility</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>embargoed_by_default</td>
+<td><a href="#bool">bool</a></td>
+<td></td>
+<td>embargoed_by_default causes new Signs, Symptoms, and Plans to start embargoed.</td>
+</tr>
+<tr>
+<td>created_at</td>
+<td><a href="#google-protobuf-Timestamp">google.protobuf.Timestamp</a></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes-v1-Project-Visibility"></a></p>
+<h3 id="projectvisibility">Project.Visibility<a class="headerlink" href="#projectvisibility" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Number</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>VISIBILITY_UNSPECIFIED</td>
+<td>0</td>
+<td></td>
+</tr>
+<tr>
+<td>VISIBILITY_PUBLIC</td>
+<td>1</td>
+<td>VISIBILITY_PUBLIC allows anonymous users to read Signs, Symptoms, and Plans.</td>
+</tr>
+<tr>
+<td>VISIBILITY_PRIVATE</td>
+<td>2</td>
+<td>VISIBILITY_PRIVATE restricts access to authenticated users.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes_v1_project_service-proto"></a></p>
+<p align="right"><a href="#top">Top</a></p>
+
+<h2 id="causesv1project_serviceproto">causes/v1/project_service.proto<a class="headerlink" href="#causesv1project_serviceproto" title="Permanent link">&para;</a></h2>
+<p>Project lifecycle management.</p>
+<p><a name="causes-v1-CreateProjectRequest"></a></p>
+<h3 id="createprojectrequest">CreateProjectRequest<a class="headerlink" href="#createprojectrequest" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>name</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>description</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>visibility</td>
+<td><a href="#causes-v1-Project-Visibility">Project.Visibility</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>embargoed_by_default</td>
+<td><a href="#bool">bool</a></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes-v1-CreateProjectResponse"></a></p>
+<h3 id="createprojectresponse">CreateProjectResponse<a class="headerlink" href="#createprojectresponse" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>project</td>
+<td><a href="#causes-v1-Project">Project</a></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes-v1-DeleteProjectRequest"></a></p>
+<h3 id="deleteprojectrequest">DeleteProjectRequest<a class="headerlink" href="#deleteprojectrequest" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>name</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td>Project name (slug).</td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes-v1-DeleteProjectResponse"></a></p>
+<h3 id="deleteprojectresponse">DeleteProjectResponse<a class="headerlink" href="#deleteprojectresponse" title="Permanent link">&para;</a></h3>
+<p><a name="causes-v1-GetProjectRequest"></a></p>
+<h3 id="getprojectrequest">GetProjectRequest<a class="headerlink" href="#getprojectrequest" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>name</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td>Project name (slug).</td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes-v1-GetProjectResponse"></a></p>
+<h3 id="getprojectresponse">GetProjectResponse<a class="headerlink" href="#getprojectresponse" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>project</td>
+<td><a href="#causes-v1-Project">Project</a></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes-v1-ListProjectsRequest"></a></p>
+<h3 id="listprojectsrequest">ListProjectsRequest<a class="headerlink" href="#listprojectsrequest" title="Permanent link">&para;</a></h3>
+<p><a name="causes-v1-ListProjectsResponse"></a></p>
+<h3 id="listprojectsresponse">ListProjectsResponse<a class="headerlink" href="#listprojectsresponse" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>projects</td>
+<td><a href="#causes-v1-Project">Project</a></td>
+<td>repeated</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes-v1-RenameProjectRequest"></a></p>
+<h3 id="renameprojectrequest">RenameProjectRequest<a class="headerlink" href="#renameprojectrequest" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>name</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td>Current project name (slug).</td>
+</tr>
+<tr>
+<td>new_name</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td>New project name (slug).</td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes-v1-RenameProjectResponse"></a></p>
+<h3 id="renameprojectresponse">RenameProjectResponse<a class="headerlink" href="#renameprojectresponse" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>project</td>
+<td><a href="#causes-v1-Project">Project</a></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes-v1-ProjectService"></a></p>
+<h3 id="projectservice">ProjectService<a class="headerlink" href="#projectservice" title="Permanent link">&para;</a></h3>
+<p>ProjectService manages the lifecycle of projects.</p>
+<table>
+<thead>
+<tr>
+<th>Method Name</th>
+<th>Request Type</th>
+<th>Response Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CreateProject</td>
+<td><a href="#causes-v1-CreateProjectRequest">CreateProjectRequest</a></td>
+<td><a href="#causes-v1-CreateProjectResponse">CreateProjectResponse</a></td>
+<td>Create a new project. Caller becomes project-maintainer. Requires the developer role.</td>
+</tr>
+<tr>
+<td>GetProject</td>
+<td><a href="#causes-v1-GetProjectRequest">GetProjectRequest</a></td>
+<td><a href="#causes-v1-GetProjectResponse">GetProjectResponse</a></td>
+<td>Get a project by name.</td>
+</tr>
+<tr>
+<td>ListProjects</td>
+<td><a href="#causes-v1-ListProjectsRequest">ListProjectsRequest</a></td>
+<td><a href="#causes-v1-ListProjectsResponse">ListProjectsResponse</a> stream</td>
+<td>List all projects visible to the caller.</td>
+</tr>
+<tr>
+<td>RenameProject</td>
+<td><a href="#causes-v1-RenameProjectRequest">RenameProjectRequest</a></td>
+<td><a href="#causes-v1-RenameProjectResponse">RenameProjectResponse</a></td>
+<td>Rename a project. Requires project-maintainer or instance-admin.</td>
+</tr>
+<tr>
+<td>DeleteProject</td>
+<td><a href="#causes-v1-DeleteProjectRequest">DeleteProjectRequest</a></td>
+<td><a href="#causes-v1-DeleteProjectResponse">DeleteProjectResponse</a></td>
+<td>Delete a project and all associated data. Requires project-maintainer or instance-admin.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes_v1_sign-proto"></a></p>
+<p align="right"><a href="#top">Top</a></p>
+
+<h2 id="causesv1signproto">causes/v1/sign.proto<a class="headerlink" href="#causesv1signproto" title="Permanent link">&para;</a></h2>
+<p>Sign represents a machine-observed piece of evidence of a problem.</p>
+<p><a name="causes-v1-Sign"></a></p>
+<h3 id="sign">Sign<a class="headerlink" href="#sign" title="Permanent link">&para;</a></h3>
+<p>Sign is machine-observed evidence of a problem.
+Signs are typically sourced from external systems (crash reporters, test suites,
+monitoring) via connectors.  Causes stores a summary or reference; the source
+system holds the full data.  Signs are usually worked with in aggregate.</p>
+<p>Structured analysis data (e.g. a retraced backtrace from a crash dump, a heap
+summary, log context) is attached via Annotation messages (see annotation.proto).
+Human narrative discussion — once a developer or user has an opinion — belongs on
+linked Symptoms and Plans.  This separation is a design choice, not a hard rule:
+human Comments on Signs are also permitted (see comment.proto) for cases where
+brief annotation is more appropriate than creating a full Symptom.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>meta</td>
+<td><a href="#causes-v1-ResourceMeta">ResourceMeta</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>title</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>source</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td>source identifies the system of origin (e.g. &#34;sentry&#34;, &#34;datadog&#34;, &#34;test-suite&#34;).</td>
+</tr>
+<tr>
+<td>source_ref</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td>source_ref is the URL or identifier of this Sign in the source system.</td>
+</tr>
+<tr>
+<td>observed_at</td>
+<td><a href="#google-protobuf-Timestamp">google.protobuf.Timestamp</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>last_observed_at</td>
+<td><a href="#google-protobuf-Timestamp">google.protobuf.Timestamp</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>count</td>
+<td><a href="#uint64">uint64</a></td>
+<td></td>
+<td>count is the number of occurrences as reported by the source system.</td>
+</tr>
+<tr>
+<td>affected_version</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td>affected_version is the project version string where this was observed.</td>
+</tr>
+<tr>
+<td>severity</td>
+<td><a href="#causes-v1-Sign-Severity">Sign.Severity</a></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes-v1-Sign-Severity"></a></p>
+<h3 id="signseverity">Sign.Severity<a class="headerlink" href="#signseverity" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Number</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SEVERITY_UNSPECIFIED</td>
+<td>0</td>
+<td></td>
+</tr>
+<tr>
+<td>SEVERITY_INFO</td>
+<td>1</td>
+<td></td>
+</tr>
+<tr>
+<td>SEVERITY_WARNING</td>
+<td>2</td>
+<td></td>
+</tr>
+<tr>
+<td>SEVERITY_ERROR</td>
+<td>3</td>
+<td></td>
+</tr>
+<tr>
+<td>SEVERITY_CRITICAL</td>
+<td>4</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes_v1_symptom-proto"></a></p>
+<p align="right"><a href="#top">Top</a></p>
+
+<h2 id="causesv1symptomproto">causes/v1/symptom.proto<a class="headerlink" href="#causesv1symptomproto" title="Permanent link">&para;</a></h2>
+<p>Symptom represents a human-reported experience of a problem.</p>
+<p><a name="causes-v1-Symptom"></a></p>
+<h3 id="symptom">Symptom<a class="headerlink" href="#symptom" title="Permanent link">&para;</a></h3>
+<p>Symptom is a human-reported experience of a problem, equivalent to a bug
+report in traditional trackers.  It carries discussion via Comments and
+workaround information.  Signs (machine evidence) are linked to Symptoms
+indirectly via Plans; Symptoms do not directly reference Signs.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>meta</td>
+<td><a href="#causes-v1-ResourceMeta">ResourceMeta</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>title</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>description</td>
+<td><a href="#causes-v1-Markdown">Markdown</a></td>
+<td></td>
+<td>description includes reproduction steps and workarounds.</td>
+</tr>
+<tr>
+<td>reporter</td>
+<td><a href="#causes-v1-FederatedIdentity">FederatedIdentity</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>status</td>
+<td><a href="#causes-v1-Symptom-Status">Symptom.Status</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>duplicate_of</td>
+<td><a href="#causes-v1-SymptomId">SymptomId</a></td>
+<td></td>
+<td>duplicate_of is set when status == STATUS_DUPLICATE.</td>
+</tr>
+<tr>
+<td>affected_versions</td>
+<td><a href="#string">string</a></td>
+<td>repeated</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="causes-v1-Symptom-Status"></a></p>
+<h3 id="symptomstatus">Symptom.Status<a class="headerlink" href="#symptomstatus" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Number</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>STATUS_UNSPECIFIED</td>
+<td>0</td>
+<td></td>
+</tr>
+<tr>
+<td>STATUS_OPEN</td>
+<td>1</td>
+<td></td>
+</tr>
+<tr>
+<td>STATUS_IN_PROGRESS</td>
+<td>2</td>
+<td></td>
+</tr>
+<tr>
+<td>STATUS_RESOLVED</td>
+<td>3</td>
+<td></td>
+</tr>
+<tr>
+<td>STATUS_WONTFIX</td>
+<td>4</td>
+<td></td>
+</tr>
+<tr>
+<td>STATUS_DUPLICATE</td>
+<td>5</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2 id="scalar-value-types">Scalar Value Types<a class="headerlink" href="#scalar-value-types" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>.proto Type</th>
+<th>Notes</th>
+<th>C++</th>
+<th>Java</th>
+<th>Python</th>
+<th>Go</th>
+<th>C#</th>
+<th>PHP</th>
+<th>Ruby</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a name="double" /> double</td>
+<td></td>
+<td>double</td>
+<td>double</td>
+<td>float</td>
+<td>float64</td>
+<td>double</td>
+<td>float</td>
+<td>Float</td>
+</tr>
+<tr>
+<td><a name="float" /> float</td>
+<td></td>
+<td>float</td>
+<td>float</td>
+<td>float</td>
+<td>float32</td>
+<td>float</td>
+<td>float</td>
+<td>Float</td>
+</tr>
+<tr>
+<td><a name="int32" /> int32</td>
+<td>Uses variable-length encoding. Inefficient for encoding negative numbers – if your field is likely to have negative values, use sint32 instead.</td>
+<td>int32</td>
+<td>int</td>
+<td>int</td>
+<td>int32</td>
+<td>int</td>
+<td>integer</td>
+<td>Bignum or Fixnum (as required)</td>
+</tr>
+<tr>
+<td><a name="int64" /> int64</td>
+<td>Uses variable-length encoding. Inefficient for encoding negative numbers – if your field is likely to have negative values, use sint64 instead.</td>
+<td>int64</td>
+<td>long</td>
+<td>int/long</td>
+<td>int64</td>
+<td>long</td>
+<td>integer/string</td>
+<td>Bignum</td>
+</tr>
+<tr>
+<td><a name="uint32" /> uint32</td>
+<td>Uses variable-length encoding.</td>
+<td>uint32</td>
+<td>int</td>
+<td>int/long</td>
+<td>uint32</td>
+<td>uint</td>
+<td>integer</td>
+<td>Bignum or Fixnum (as required)</td>
+</tr>
+<tr>
+<td><a name="uint64" /> uint64</td>
+<td>Uses variable-length encoding.</td>
+<td>uint64</td>
+<td>long</td>
+<td>int/long</td>
+<td>uint64</td>
+<td>ulong</td>
+<td>integer/string</td>
+<td>Bignum or Fixnum (as required)</td>
+</tr>
+<tr>
+<td><a name="sint32" /> sint32</td>
+<td>Uses variable-length encoding. Signed int value. These more efficiently encode negative numbers than regular int32s.</td>
+<td>int32</td>
+<td>int</td>
+<td>int</td>
+<td>int32</td>
+<td>int</td>
+<td>integer</td>
+<td>Bignum or Fixnum (as required)</td>
+</tr>
+<tr>
+<td><a name="sint64" /> sint64</td>
+<td>Uses variable-length encoding. Signed int value. These more efficiently encode negative numbers than regular int64s.</td>
+<td>int64</td>
+<td>long</td>
+<td>int/long</td>
+<td>int64</td>
+<td>long</td>
+<td>integer/string</td>
+<td>Bignum</td>
+</tr>
+<tr>
+<td><a name="fixed32" /> fixed32</td>
+<td>Always four bytes. More efficient than uint32 if values are often greater than 2^28.</td>
+<td>uint32</td>
+<td>int</td>
+<td>int</td>
+<td>uint32</td>
+<td>uint</td>
+<td>integer</td>
+<td>Bignum or Fixnum (as required)</td>
+</tr>
+<tr>
+<td><a name="fixed64" /> fixed64</td>
+<td>Always eight bytes. More efficient than uint64 if values are often greater than 2^56.</td>
+<td>uint64</td>
+<td>long</td>
+<td>int/long</td>
+<td>uint64</td>
+<td>ulong</td>
+<td>integer/string</td>
+<td>Bignum</td>
+</tr>
+<tr>
+<td><a name="sfixed32" /> sfixed32</td>
+<td>Always four bytes.</td>
+<td>int32</td>
+<td>int</td>
+<td>int</td>
+<td>int32</td>
+<td>int</td>
+<td>integer</td>
+<td>Bignum or Fixnum (as required)</td>
+</tr>
+<tr>
+<td><a name="sfixed64" /> sfixed64</td>
+<td>Always eight bytes.</td>
+<td>int64</td>
+<td>long</td>
+<td>int/long</td>
+<td>int64</td>
+<td>long</td>
+<td>integer/string</td>
+<td>Bignum</td>
+</tr>
+<tr>
+<td><a name="bool" /> bool</td>
+<td></td>
+<td>bool</td>
+<td>boolean</td>
+<td>boolean</td>
+<td>bool</td>
+<td>bool</td>
+<td>boolean</td>
+<td>TrueClass/FalseClass</td>
+</tr>
+<tr>
+<td><a name="string" /> string</td>
+<td>A string must always contain UTF-8 encoded or 7-bit ASCII text.</td>
+<td>string</td>
+<td>String</td>
+<td>str/unicode</td>
+<td>string</td>
+<td>string</td>
+<td>string</td>
+<td>String (UTF-8)</td>
+</tr>
+<tr>
+<td><a name="bytes" /> bytes</td>
+<td>May contain any arbitrary sequence of bytes.</td>
+<td>string</td>
+<td>ByteString</td>
+<td>str</td>
+<td>[]byte</td>
+<td>ByteString</td>
+<td>string</td>
+<td>String (ASCII-8BIT)</td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate":null,"base":"..","features":[],"search":"../assets/javascripts/workers/search.e2d2d235.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.91a19a9e.min.js"></script>
+      
+    
+  </body>
+</html>

@@ -11,4 +11,5 @@ rmcp.workspace = true
 schemars.workspace = true
 serde.workspace = true
 tokio.workspace = true
+tokio-stream.workspace = true
 tonic.workspace = true

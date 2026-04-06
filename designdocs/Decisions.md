@@ -343,34 +343,36 @@ Only a display name is stored locally; email addresses and other personal data a
 If the remote instance is unreachable, previously stored display names remain available; further resolution fails gracefully.
 
 _Provenance:_
-Every federated resource carries a provenance record:
-- `origin_instance_id`: the `instance_id` of the instance where the resource was created.
-- `origin_id`: the resource's local identifier on the origin instance.
-- `received_from`: the `instance_id` of the direct upstream that delivered this copy.
-- `relay_hops`: ordered list of `instance_id`s between origin and `received_from` (empty when `received_from == origin_instance_id`).
+Every journal entry carries provenance:
+- `origin_instance_id`: the `instance_id` of the instance that wrote this entry.
+- `origin_id`: a stable UUID identifying the resource this entry is about.
 
-`(origin_instance_id, origin_id)` is the globally stable identifier for a resource, independent of relay path.
-If the same resource arrives via multiple paths, it is stored once and deduplicated on this key; all observed `received_from` values are retained so revoking one relay does not discard the resource.
-Provenance fields are informational — trust flows from the authenticated service account of `received_from`, not from the provenance record itself.
+`origin_id` is the globally stable identifier for a resource.
+It is assigned once at resource creation and reused by all subsequent entries, regardless of which instance writes them.
+Different entries for the same resource may have different `origin_instance_id` values.
+Journal entries are deduplicated on `(origin_instance_id, origin_id, version)`.
+
+The replication path (which upstream delivered an entry and any relay hops) is instance-local metadata populated by the receiver, not part of the immutable journal entry.
+Trust flows from the authenticated service account of the upstream, not from the provenance record itself.
 
 _Resource journal:_
-Every resource (sign, symptom, plan, and related entities) has an append-only journal of versions.
+Every resource (sign, symptom, plan, and related entities) has an append-only journal of entries.
 Each journal entry records:
-- `version`: monotone per-resource sequence number, set by the origin instance.
+- `version`: monotone sequence number, assigned at commit time on the writing instance.
 - `at`: timestamp.
 - `by`: federated identity `(instance_id, local_user_id)` of the author.
-- `op`: one of `create | update | delete | undelete`.
+- `kind`: one of `entry` or `tombstone`.
+- `previous_version`: a federated version reference pointing to the prior entry for this resource (0 for the first entry).
 - `snapshot`: full resource state at this version.
 - `provenance`: as above.
 
-Deletes are logical — a `delete` entry is appended; content is not physically removed.
-Edits are only authored on the origin instance; downstream instances are read replicas.
-_Provisional: once a resource is published to an external instance, there may be value in allowing authorised contributors on that instance to propose journal entries (e.g. community members improving a published bug report).
-This would require a protocol for the external instance to submit proposed entries to the origin for acceptance or rejection.
-Deferred pending implementation experience._
-The journal is the replication unit: a downstream requests entries with `version > N`, enabling incremental catch-up without a full re-sync.
+Deletes are logical — a `tombstone` entry is appended; content is not physically removed.
+Any instance that has replicated a resource may write entries about it.
+The `previous_version` chain links entries across instances, capturing the full edit history.
+See [ADR-013](Decisions.md#adr-013-replication-protocol) and [Replication.md](Replication.md) for the full protocol specification.
+The journal is the replication unit: a downstream requests entries via a watermark-based cursor, enabling incremental catch-up without a full re-sync.
 The journal also supports abuse handling: previous versions of edited or deleted content remain recoverable by instance admins.
-The journal gives a precise meaning to "deletion across federation boundaries": a downstream that has replicated a resource retains its journal entries even after the origin issues a `delete` entry.
+The journal gives a precise meaning to "deletion across federation boundaries": a downstream that has replicated a resource retains its journal entries even after a `tombstone` entry is written.
 
 In the UI, instances are displayed by hostname only (e.g. `causes.example.org`), with the scheme and path stripped.
 No additional slug or display name field is required; the hostname is sufficiently human-readable for admin views and attribution labels.
@@ -528,14 +530,14 @@ This eliminates drift between resource types and gives readers a single place to
 **Decision — federation provenance split:**
 Two concepts that were previously conflated in a single provenance field are now separated:
 
-- `ResourceOrigin` (carried on `ResourceMeta.origin`): the stable, immutable identity of where a resource was created — instance ID and local resource ID on that instance.
-  Absent for resources created on this instance.
-  Never changes across journal entries.
-  Used for deduplication when the same resource arrives via multiple inbound paths.
+- Entry origin (`origin_instance_id`, `origin_id`): carried on each journal entry.
+  `origin_instance_id` identifies the instance that wrote the entry.
+  `origin_id` is a stable UUID identifying the resource; it is assigned once at creation and reused by all subsequent entries regardless of which instance writes them.
+  See [ADR-013](Decisions.md#adr-013-replication-protocol) for full details.
 
-- `ReplicationPath` (carried on `JournalEntry.replication_path`): the transit path for a specific journal entry — which upstream delivered it and which relay hops it traversed.
-  Per-entry: can differ across entries for the same resource if entries arrive via different relay paths.
-  Absent for locally-authored entries.
+- Replication path: the transit path for a specific journal entry — which upstream delivered it and which relay hops it traversed.
+  Per-entry: the receiver appends the sender to the path on ingest, building up the full delivery chain.
+  Locally-authored entries start with a path of `[self]`.
 
 **Decision — link objects for relationships:**
 Many-to-many relationships between resources (Plan↔Sign, Plan↔Symptom) and ordering dependencies between Plans are stored as independent link objects (`PlanSignLink`, `PlanSymptomLink`, `PlanDependency`) in `link.proto`.
@@ -565,3 +567,59 @@ No instance learns about the project structure of non-adjacent instances.
 The `ResourceMeta` embedding pattern requires all resource messages to reserve field 1; this is a stable convention that Gazelle and code generators can enforce.
 The `ResourceOrigin`/`ReplicationPath` split makes the data model more explicit at the cost of two separate fields where one existed before; the clarity is worth it.
 Link objects add an extra round-trip to create a relationship but are the only approach that is consistent with the federation trust model.
+
+---
+
+## ADR-013: Replication protocol
+
+**Status:** Accepted
+
+**Context:** The distributed data model (ADR-001) and federation strategy (ADR-006) require a replication protocol.
+The protocol must handle multi-instance topologies (A↔B→C), embargoed content, resource renames, and integration with external systems via connectors.
+The full specification is in [Replication.md](Replication.md).
+
+**Decision — version = transaction ID:**
+Journal entry versions are assigned from the origin instance's transaction ID (or equivalent monotone-on-commit source).
+This avoids explicit sequence allocation, row locks, and write contention.
+Write transactions that create references must use snapshot isolation (REPEATABLE READ) or higher to guarantee topological ordering.
+
+**Decision — version 0 as root sentinel:**
+Version 0 is reserved and never assigned.
+It is the root of every `previous_version` chain: a create entry has `previous_version = 0`.
+A replication watermark of 0 means "start from the beginning."
+
+**Decision — `previous_version` chain:**
+Every journal entry carries `previous_version` — the version of the immediately prior entry for the same resource.
+This enables gap detection (receiver can identify missing entries) and full audit trails.
+Renames are not a special operation — they are entries where the slug changed, linked by the chain.
+
+**Decision — per-project replication watermark:**
+Downstream instances track one watermark per (upstream, project).
+This is efficient (subscribe to specific projects) and scoped to the federation authorization model (ADR-010 proposes per-project subscription scope).
+
+**Decision — at-least-once delivery with watermark:**
+Commits can land out of version order (transaction T1 starts before T2 but T2 commits first).
+Each journal entry stores a watermark — the oldest uncommitted transaction ID at commit time.
+The replication watermark winds back to ensure no entries are skipped.
+Entries already served are filtered by a bounded seen buffer.
+Receivers deduplicate on `(origin_instance_id, origin_id, version)`.
+
+**Decision — journal entries immutable, resources mutable:**
+Journal entries are immutable once created (like git commits).
+Resources are mutable — they can be renamed, updated, deleted, and undeleted (like git file paths).
+The history of a resource is the chain of its journal entries linked by `previous_version`.
+
+**Decision — embargo as journal property:**
+The `embargoed` field is per journal entry, not per resource.
+Embargoed entries are filtered during replication by default; the federation trust configuration controls per-peer access (see ADR-010).
+Un-embargoing creates a new journal entry with `embargoed = false` carrying the full content; the `previous_version` gap is expected.
+Embargo propagates transitively to references.
+
+**Decision — causal dependencies via versioned references:**
+Cross-resource references carry `(origin_instance_id, origin_id, version)` — a pointer to a specific journal entry.
+The topological ordering of the replication stream guarantees referenced entries precede referencing entries.
+This avoids the need for vector clocks or consensus protocols.
+
+**Consequences:** The protocol is simple (one RPC, one watermark per project, at-least-once with dedup) but handles complex topologies correctly.
+The topological ordering proof relies on snapshot isolation — implementations must enforce this.
+The watermark mechanism adds two columns per journal row (Postgres-specific) but is invisible in the proto wire format.

@@ -6,7 +6,7 @@ package causes.v1;
 import "causes/v1/common.proto";
 
 // Comment carries human discussion.
-// Comments are first-class resources with their own journal and ResourceOrigin,
+// Comments are first-class resources with their own journal and origin identity,
 // so community comment threads on a published resource can federate back to
 // the origin instance independently.
 //

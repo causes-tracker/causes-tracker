@@ -2,6 +2,7 @@ mod admin;
 mod db;
 mod pending_login;
 mod project;
+mod resource_id;
 mod role;
 mod session;
 
@@ -21,6 +22,7 @@ pub use project::{
     create_project, delete_project, find_project_by_name, get_project, list_projects,
     rename_project,
 };
+pub use resource_id::{InstanceId, ResourceId};
 pub use role::{
     ProjectId, Role, RoleAssignment, assign_role, get_user_instance_roles, get_user_project_roles,
     get_user_roles,

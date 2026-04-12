@@ -45,6 +45,40 @@ Each server has its own session file, stored in `$XDG_DATA_HOME/causes/` (defaul
 The filename is derived from the server URL (e.g. `causes.example.com.json`).
 Per the XDG Base Directory spec, credentials belong in `XDG_DATA_HOME`, not `XDG_CONFIG_HOME`.
 
+### `mcp`
+
+Start an MCP (Model Context Protocol) server on stdio.
+AI tools like Claude Code, Claude Desktop, and VS Code can use this to interact with the Causes instance.
+
+No pre-existing session is required.
+On first use, invoke the `login` tool to authenticate via the device flow — the MCP server handles everything, including storing the session.
+MCP sessions are stored separately from CLI sessions (`<server>_mcp.json`) so they don't interfere.
+
+#### Claude Code configuration
+
+```json
+{
+  "mcpServers": {
+    "causes": {
+      "command": "causes",
+      "args": ["--server", "https://causes.example.com", "mcp"]
+    }
+  }
+}
+```
+
+#### Available tools
+
+| Tool | Description |
+|---|---|
+| `login` | Authenticate via device flow (one-time) |
+| `whoami` | Show the authenticated user's identity |
+| `list_projects` | List all visible projects |
+| `get_project` | Get a project by name |
+| `create_project` | Create a new project |
+| `rename_project` | Rename a project |
+| `delete_project` | Delete a project |
+
 ## Environment variables
 
 | Variable | Default | Description |

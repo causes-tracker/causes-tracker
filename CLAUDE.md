@@ -67,6 +67,17 @@ run `tools/coverage.sh //...` (not bare `bazel test //...`) — it runs coverage
 For `bazel run` targets (servers, binaries): run them and confirm they start correctly before pushing — even long-running ones, which should be started, verified, then killed.
 "It builds" is not the same as "it works."
 
+## Communication style
+
+Do not validate or assess the user's points ("You're right", "Good question", "Great point", etc.).
+When the user makes a correction or observation, respond with substance — the edit, the counterpoint, the next step.
+
+## Environment
+
+Development happens in disposable containers.
+Only save session-local memories (ephemeral, current-conversation-only) outside the repo.
+Durable memories (feedback, preferences, project context) must go in-repo (CLAUDE.md, skill files, etc.) so they survive container destruction.
+
 ## Git workflow
 
 This project uses [Jujutsu (`jj`)](https://github.com/jj-vcs/jj) for local version control.

@@ -4,7 +4,7 @@ use clap::Subcommand;
 use causes_proto::auth_service_client::AuthServiceClient;
 use causes_proto::{CompleteLoginRequest, StartLoginRequest, complete_login_response};
 
-use crate::session_file::{self, SessionFile};
+use crate::session_file;
 
 /// Authentication commands.
 #[derive(clap::Args, Debug)]
@@ -72,13 +72,7 @@ async fn login(server: &str, data_dir: &std::path::Path, admin: bool) -> anyhow:
                 continue;
             }
             Some(complete_login_response::Result::SessionCreated(sc)) => {
-                session_file::save(
-                    data_dir,
-                    server,
-                    &SessionFile {
-                        session_token: sc.session_token,
-                    },
-                )?;
+                session_file::save(data_dir, server, &sc.session_token)?;
                 println!("Login successful. Session saved.");
                 return Ok(());
             }
@@ -235,10 +229,10 @@ mod tests {
             .await
             .expect("login failed");
 
-        let session = crate::session_file::load(dir.path(), &server_url)
+        let token = crate::session_file::load(dir.path(), &server_url)
             .expect("load failed")
             .expect("no session saved");
-        assert_eq!(session.session_token, "d".repeat(64));
+        assert_eq!(token, "d".repeat(64));
     }
 
     #[tokio::test]
@@ -246,14 +240,7 @@ mod tests {
         let server_url = start_mock_server().await;
         let dir = tempfile::tempdir().unwrap();
 
-        crate::session_file::save(
-            dir.path(),
-            &server_url,
-            &crate::session_file::SessionFile {
-                session_token: "e".repeat(64),
-            },
-        )
-        .expect("save failed");
+        crate::session_file::save(dir.path(), &server_url, &"e".repeat(64)).expect("save failed");
 
         super::whoami(&server_url, dir.path())
             .await

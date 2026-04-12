@@ -1,0 +1,22 @@
+[package]
+name = "causes_mcp"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+causes_proto = { path = "../causes_proto" }
+causes_session = { path = "../causes_session" }
+proto_ext = { path = "../proto_ext" }
+anyhow.workspace = true
+rmcp.workspace = true
+schemars.workspace = true
+tokio.workspace = true
+tokio-stream.workspace = true
+tonic.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+rcgen.workspace = true
+tempfile.workspace = true
+rustls = { version = "0.23", default-features = false, features = ["ring"] }

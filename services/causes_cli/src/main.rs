@@ -28,6 +28,8 @@ enum Command {
     Admin(admin::AdminArgs),
     /// Manage authentication.
     Auth(auth::AuthArgs),
+    /// Start MCP (Model Context Protocol) server on stdio.
+    Mcp,
     /// Manage projects.
     Project(project::ProjectArgs),
 }
@@ -40,6 +42,18 @@ async fn main() -> anyhow::Result<()> {
     match cli.command {
         Command::Admin(args) => admin::run(&cli.server, &data_dir, args).await,
         Command::Auth(args) => auth::run(&cli.server, &data_dir, args).await,
+        Command::Mcp => {
+            use anyhow::Context;
+            use rmcp::ServiceExt;
+            let handler = causes_mcp::CausesTools::new(cli.server.clone(), data_dir.to_path_buf());
+            let transport = rmcp::transport::io::stdio();
+            let server = handler
+                .serve(transport)
+                .await
+                .context("MCP server failed")?;
+            server.waiting().await?;
+            Ok(())
+        }
         Command::Project(args) => project::run(&cli.server, &data_dir, args).await,
     }
 }

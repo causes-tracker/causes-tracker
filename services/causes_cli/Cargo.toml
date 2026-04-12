@@ -5,11 +5,12 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+causes_mcp = { path = "../../lib/rust/causes_mcp" }
 causes_proto = { path = "../../lib/rust/causes_proto" }
+causes_session = { path = "../../lib/rust/causes_session" }
 clap.workspace = true
+rmcp.workspace = true
 anyhow.workspace = true
-serde.workspace = true
-serde_json.workspace = true
 tokio.workspace = true
 tokio-stream.workspace = true
 tonic.workspace = true

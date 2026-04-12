@@ -1,0 +1,24 @@
+load("//build:rust.bzl", "rust_library", "rust_test")
+
+rust_library(
+    name = "causes_mcp",
+    srcs = glob(["src/**/*.rs"]),
+    visibility = ["//visibility:public"],
+    deps = [
+        "//lib/rust/causes_proto",
+        "//lib/rust/proto_ext",
+        "@crates//:anyhow",
+        "@crates//:rmcp",
+        "@crates//:schemars",
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:tokio",
+        "@crates//:tokio-stream",
+        "@crates//:tonic",
+    ],
+)
+
+rust_test(
+    name = "causes_mcp_test",
+    crate = ":causes_mcp",
+)

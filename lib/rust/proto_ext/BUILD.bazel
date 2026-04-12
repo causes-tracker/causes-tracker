@@ -1,0 +1,15 @@
+load("//build:rust.bzl", "rust_library", "rust_test")
+
+rust_library(
+    name = "proto_ext",
+    srcs = glob(["src/**/*.rs"]),
+    visibility = ["//visibility:public"],
+    deps = [
+        "@crates//:tonic",
+    ],
+)
+
+rust_test(
+    name = "proto_ext_test",
+    crate = ":proto_ext",
+)

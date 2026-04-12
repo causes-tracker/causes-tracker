@@ -111,18 +111,13 @@ message FederatedIdentity {
   string local_id = 2;
 }
 
-// ResourceOrigin identifies where a resource was originally created.
-// Absent (message not set) for resources created on this instance.
-// Once set at creation, origin is immutable across all journal entries.
-// (instance_id, id) is the globally stable identity of a federated resource,
-// independent of relay path; used for deduplication when the same resource
-// arrives via multiple inbound paths.
+// ResourceOrigin identifies the writing instance and the resource.
+// instance_id is the instance that wrote the journal entry (different entries
+// for the same resource may have different values).  id is the stable resource
+// UUID, assigned once at creation and reused by all subsequent entries.
+// Always present — local resources use the local instance's own instance_id.
 message ResourceOrigin {
-  // instance_id is the Causes instance that created this resource.
   InstanceId instance_id = 1;
-  // id is the resource's local identifier on the origin instance.
-  // Stored as a plain string because at this level the resource type —
-  // and therefore the appropriate typed ID message — is not known.
   string id = 2;
 }
 
@@ -141,54 +136,92 @@ message ReplicationPath {
 }
 
 // ResourceMeta contains fields present on every top-level resource.
-// Embed as field 1 of every Sign, Symptom, Plan, Comment, Annotation, and
-// link type rather than repeating these definitions.
-//
-// project_id is the local project on this instance under which the resource
-// is filed.  It is not part of the stable resource identity (see ResourceOrigin).
-// Project mapping is the responsibility of the connection originator: when
-// pushing, the originator translates its project_id to the destination's before
-// serialising; when pulling, it translates the source's project_id to its own
-// before storing.  The snapshot therefore always arrives with the correct local
-// project_id; no rewriting on ingest is required.  See ADR-012.
+// Used by resource protos (plan.proto, sign.proto, etc.) for the API layer.
 message ResourceMeta {
   string id = 1;
   ProjectId project_id = 2;
   google.protobuf.Timestamp created_at = 3;
   google.protobuf.Timestamp updated_at = 4;
-  // embargoed suppresses federation and public visibility (see ADR-010).
   bool embargoed = 5;
-  // origin is absent for resources created on this instance.
   ResourceOrigin origin = 6;
 }
 
-// JournalEntry records one version of a resource.
-// Every Sign, Symptom, Plan, Comment, Annotation, and link type has an
-// append-only journal.  The journal is the unit of replication: downstreams
-// request entries with version > N to catch up incrementally.
+// FederatedVersion uniquely identifies a single journal entry across the
+// entire federation.  Used for previous_version links, cross-resource
+// references, and as the identity of a journal entry itself.
+message FederatedVersion {
+  ResourceOrigin origin = 1;
+  // version is the entry's version on the writing instance.
+  // 0 is reserved as the root sentinel (never assigned).
+  uint64 version = 2;
+}
+
+// JournalEntryHeader is the immutable distributed identity and metadata for
+// a single journal entry.  Every resource journal entry embeds this as its
+// first field.
+//
+// Journal entries are immutable — once created they never change.
+// Resources are mutable (they can be renamed, updated, deleted); the history
+// of a resource is the chain of its journal entries linked by previous_version.
+// See designdocs/Replication.md for the full protocol specification.
+message JournalEntryHeader {
+  enum Kind {
+    KIND_UNSPECIFIED = 0;
+    // KIND_ENTRY: the resource exists at this version.
+    KIND_ENTRY = 1;
+    // KIND_TOMBSTONE: the resource is deleted at this version.
+    KIND_TOMBSTONE = 2;
+  }
+
+  Kind kind = 1;
+  google.protobuf.Timestamp at = 2;
+  // author of this entry.
+  FederatedIdentity author = 3;
+  // version assigned at commit time on the writing instance.
+  uint64 version = 4;
+  // previous_version links to the prior entry for this resource.
+  // Version 0 means this is the first entry (no prior entry).
+  FederatedVersion previous_version = 5;
+  // embargoed suppresses replication to untrusted peers (see ADR-010).
+  bool embargoed = 6;
+  // origin identifies the instance that wrote this entry and the resource
+  // it is about.  origin.instance_id is the writing instance (different
+  // entries for the same resource may have different values).  origin.id
+  // is the stable resource UUID, assigned once at creation and reused by
+  // all subsequent entries regardless of which instance writes them.
+  ResourceOrigin origin = 7;
+}
+
+// ResourceEntryMeta carries resource-level metadata in every journal entry.
+// Embed as field 2 of every resource journal entry (after the header).
+message ResourceEntryMeta {
+  // slug is the human-readable identifier for the resource within its project.
+  // Immutable within a single entry; may differ across entries (rename).
+  string slug = 1;
+  // project_id is the project on the origin instance.  Project mapping during
+  // replication is the responsibility of the connection originator (see ADR-012).
+  ProjectId project_id = 2;
+  // created_at is the timestamp of the resource's creation, copied from the
+  // first entry into all subsequent entries.
+  google.protobuf.Timestamp created_at = 3;
+}
+
+// JournalEntry records one version of a resource using the original
+// operation-based model.  See JournalEntryHeader for the journal entry
+// model used by the replication protocol.
 message JournalEntry {
   enum Op {
     OP_UNSPECIFIED = 0;
     OP_CREATE = 1;
     OP_UPDATE = 2;
-    // Deletes are logical: a DELETE entry is appended; data is not removed.
     OP_DELETE = 3;
     OP_UNDELETE = 4;
   }
 
-  // version is a monotone per-resource sequence number assigned by the origin instance.
   uint64 version = 1;
   google.protobuf.Timestamp at = 2;
-  // by identifies the author of this change.
   FederatedIdentity by = 3;
   Op op = 4;
-  // snapshot is the full serialised resource state at this version.
-  // The snapshot does not carry replication information; that belongs on
-  // replication_path below.
   bytes snapshot = 5;
-  // replication_path records the transit path for this entry.
-  // Absent for locally-authored entries; present on every federated copy.
-  // This is per-entry information — it can differ across entries for the same
-  // resource if entries arrived via different relay paths.
   ReplicationPath replication_path = 6;
 }

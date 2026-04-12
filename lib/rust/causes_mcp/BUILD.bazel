@@ -11,6 +11,8 @@ rust_library(
         "@crates//:anyhow",
         "@crates//:rmcp",
         "@crates//:schemars",
+        "@crates//:serde",
+        "@crates//:serde_json",
         "@crates//:tokio",
         "@crates//:tokio-stream",
         "@crates//:tonic",

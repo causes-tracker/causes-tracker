@@ -1,0 +1,1695 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A bug tracker built to free developers from the tedium of manual bug gardening.">
+      
+      
+      
+      
+        <link rel="prev" href="./..">
+      
+      
+        <link rel="next" href="../Design-Choices/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.32">
+    
+    
+      
+        <title>Causes - Causes</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../assets/stylesheets/modern/main.53a7feaf.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,a=__md_scope)=>JSON.parse(t.getItem(a.pathname+"."+e)),__md_set=(e,t,a=localStorage,_=__md_scope)=>{try{a.setItem(_.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-label="Navigation"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#causes" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="./.." title="Causes" class="md-header__button md-logo" aria-label="Causes" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Causes
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Causes
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+    </div>
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="./.." title="Causes" class="md-nav__button md-logo" aria-label="Causes" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    Causes
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="./.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manifesto
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="././" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manifesto
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#why" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#minimum-viable-product" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Minimum viable product
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Features
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Features">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dedicated-user-developer-and-project-manager-interfaces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dedicated user, developer and project manager interfaces
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sensible-assumptions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sensible assumptions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#does-one-thing-well" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Does one thing well
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#work-with-your-bugs-on-the-road" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Work with your bugs on the road
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#work-privately-with-a-public-projects-bugs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Work privately with a public project's bugs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#integrates-with-your-existing-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integrates with your existing data
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#manage-work-in-progress" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Manage work in progress
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#clearly-shows-what-you-and-your-collaborators-have-done" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Clearly shows what you and your collaborators have done
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#implementation-principles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementation principles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#project-governance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Project governance
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#values" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Values
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#archetypes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Archetypes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Archetypes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#projects" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Projects
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#users" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Users
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#organisations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Organisations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#prior-art-inspiration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prior art / inspiration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#axioms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Axioms
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#non-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Non-features
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Non-features">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cross-project-bugs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cross-project bugs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#distribution-bug-tracking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Distribution bug tracking
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#project-timelines-kanban-vcs-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Project timelines, Kanban, VCS integration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#repository" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Repository
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#subscriptions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Subscriptions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#notification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Notification
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Notification">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#http-daemon" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HTTP daemon
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#smtp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SMTP
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        UI
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="UI">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#browser-ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Browser UI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#smtp-ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SMTP UI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CLI
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#missing-open-items-2026-update" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Missing / open items (2026 update)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Design-Choices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design Choices
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Decisions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Decisions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Proto-Reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Proto Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Raw-Discussion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Raw Discussion
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  
+                    
+                    
+                    
+                      
+                    
+                    
+                      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+                      <div class="md-sidebar-button__wrapper">
+                        <label class="md-sidebar-button" for="__toc"></label>
+                      </div>
+                    
+                  
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#why" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#minimum-viable-product" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Minimum viable product
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Features
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Features">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dedicated-user-developer-and-project-manager-interfaces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dedicated user, developer and project manager interfaces
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sensible-assumptions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sensible assumptions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#does-one-thing-well" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Does one thing well
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#work-with-your-bugs-on-the-road" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Work with your bugs on the road
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#work-privately-with-a-public-projects-bugs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Work privately with a public project's bugs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#integrates-with-your-existing-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integrates with your existing data
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#manage-work-in-progress" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Manage work in progress
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#clearly-shows-what-you-and-your-collaborators-have-done" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Clearly shows what you and your collaborators have done
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#implementation-principles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementation principles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#project-governance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Project governance
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#values" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Values
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#archetypes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Archetypes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Archetypes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#projects" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Projects
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#users" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Users
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#organisations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Organisations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#prior-art-inspiration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prior art / inspiration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#axioms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Axioms
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#non-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Non-features
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Non-features">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cross-project-bugs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cross-project bugs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#distribution-bug-tracking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Distribution bug tracking
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#project-timelines-kanban-vcs-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Project timelines, Kanban, VCS integration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#repository" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Repository
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#subscriptions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Subscriptions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#notification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Notification
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Notification">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#http-daemon" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HTTP daemon
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#smtp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SMTP
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        UI
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="UI">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#browser-ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Browser UI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#smtp-ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SMTP UI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CLI
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#missing-open-items-2026-update" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Missing / open items (2026 update)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+<h1 id="causes">Causes<a class="headerlink" href="#causes" title="Permanent link">&para;</a></h1>
+<p>A bug tracker built to free developers from the tedium of manual assessment and 'bug gardening'.
+Uses automation and statistics to present information about the project and the experiences users are having.
+Bridges the gap between users and developers by explicitly gathering symptoms and signs from users, while letting developers track proposed fixes separately.
+Inspired by many conversations around what bug trackers need to deliver for projects.</p>
+<p>Causes models bug reports as the interaction between four separate things:</p>
+<ul>
+<li>A project timeline which records things like releases, commits and the like.
+  This takes the place of the 'project' or 'component' in other bug tracking tools.</li>
+<li>Signs: observed issues with the project.
+  For instance, a segfault on the &frac34;/2013 by version 0.2 of the project is a sign of a problem.
+  Signs often live in different systems (e.g. Sentry, Datadog, Honeybadger) and Causes merely stores summary or reference information to them.
+  Signs are generally worked with in aggregate.</li>
+<li>Symptoms: human reported and discussed issues with the project.
+  These take the place of regular bug reports in tools like Bugzilla and Launchpad.
+  'I would like to be able to do X' or 'When I try Y this weird thing happens' are typical symptoms.
+  Workarounds and ways to mitigate typically get written about in the symptom.</li>
+<li>Plans which document intended changes to the project.
+  Sometimes called specifications or story cards.
+  Plans may stand alone or be linked to Symptoms or Signs that they are intended to address.
+  Plans can range from very small — indeed trivial — to large complex documents with numerous dependencies.
+  Developer discussion about diagnosis and investigation would typically occur on a plan.</li>
+</ul>
+<h2 id="why">Why?<a class="headerlink" href="#why" title="Permanent link">&para;</a></h2>
+<p>Good bug trackers make a big difference to projects.
+They help users communicate with developers and find solutions/workarounds to issues they have.
+They help developers find out about issues with their products and converge on good solutions.
+They help project managers assess the health of the project and plan/manage releases; they help multiple service providers coordinate work on a project.</p>
+<p>At the time of writing there are many bug trackers that do a comprehensive job, but most either are too complex or still not-quite-right.</p>
+<p>We are arrogant enough to think we can do better.</p>
+<p>Should we contribute our ideas to an existing tracker like Launchpad, Trac or Bugzilla?
+Perhaps.
+On the plus side existing implementations have existing communities, code, infrastructure and user bases.
+On the down side they have existing communities, code, infrastructure and users that provide a brake on radical do-overs — and what we are proposing is in some ways very different.
+If we provide a minimal implementation that gathers sufficient interest existing tools may gather the social buy-in necessary to change — and we could stop our new tool.
+Win.
+Or we might gather a community to maintain it and just be another (better) tool.
+Either way, doing a new tool seems like less overall effort, and since we have a significant number of 'what if' questions to answer, the easier we can answer them the better.</p>
+<h2 id="minimum-viable-product">Minimum viable product<a class="headerlink" href="#minimum-viable-product" title="Permanent link">&para;</a></h2>
+<p><strong>Option A</strong> — the smallest implementation we can use ourselves:</p>
+<ol>
+<li>Persistent storage (so data entered is kept)</li>
+<li>Plans, Project and Symptom objects (so that the basic workflow is encodable).
+   Signs — later, perhaps a specialised Symptom?</li>
+<li>An interface of some sort.
+   Text files for editing and a CLI query interface may be enough to see if there is value.</li>
+</ol>
+<blockquote>
+<p><strong>Discussion:</strong> Martin Pool notes a primitive UI may not be enough to validate the structural hypotheses.
+The key question is at what point users will adopt it — likely when a specific need is served, e.g. deduplication or offline replication.</p>
+</blockquote>
+<p><strong>Option B</strong> — import-first:</p>
+<ol>
+<li>Persistent storage</li>
+<li>Ability to import an existing bug database and run automated analysis over it, split bugs into plans etc.</li>
+<li>An interface of some sort — CLI may be enough for initial validation.</li>
+</ol>
+<hr />
+<h2 id="features">Features<a class="headerlink" href="#features" title="Permanent link">&para;</a></h2>
+<h3 id="dedicated-user-developer-and-project-manager-interfaces">Dedicated user, developer and project manager interfaces<a class="headerlink" href="#dedicated-user-developer-and-project-manager-interfaces" title="Permanent link">&para;</a></h3>
+<p>Users are usually not really interested in bug reports.
+Users are interested in:</p>
+<ul>
+<li>Solving/working around the problem they have encountered</li>
+<li>Knowing if it is fixed in a later release</li>
+<li>Assessing if/when they will be able to get a fix (that hasn't been written yet)</li>
+<li>Obtaining developer time to fix their problem</li>
+</ul>
+<p>Tracking symptoms and signs separately from proposed changes provides dedicated interfaces that meet users' needs, developers' needs, and the needs of folk that do planning.
+The interfaces should be fluid, not rigidly partitioned — people wear multiple hats, especially on small projects.
+[not validated — experience with Bazaar, Ubuntu etc was a strong indicator]</p>
+<h3 id="sensible-assumptions">Sensible assumptions<a class="headerlink" href="#sensible-assumptions" title="Permanent link">&para;</a></h3>
+<p>In the absence of explicit decisions, Causes makes sensible assumptions — and updates those as the facts change.
+For instance, a symptom many users are experiencing is assumed to be more important to the project than one that only a single user has reported.
+If a developer overrides that, the override sticks until removed.
+[Importance: not validated]</p>
+<h3 id="does-one-thing-well">Does one thing well<a class="headerlink" href="#does-one-thing-well" title="Permanent link">&para;</a></h3>
+<p>Causes is a new take on bug trackers.
+This is a rich subject that is worth doing well.
+Causes is not a project management tool, nor a kanban tool, nor a VCS history viewer.
+Causes offers an API permitting it to trigger events in other systems, and likewise be updated in response to events in other systems.
+We consider it a bug if slick automation cannot be easily created to connect Causes to services such as VCS hosting, CI systems, crash reporting systems.</p>
+<blockquote>
+<p><strong>Discussion:</strong> Causes does need to consume timelines to infer well, but it doesn't need to own releases the way Launchpad does.
+It needs to know which plans and symptoms are relevant to which versions — that's not strictly tied to releases.</p>
+</blockquote>
+<h3 id="work-with-your-bugs-on-the-road">Work with your bugs on the road<a class="headerlink" href="#work-with-your-bugs-on-the-road" title="Permanent link">&para;</a></h3>
+<p>We've all been in the situation of needing to work with bugs at a conference with poor connectivity, or copy a bunch of symptoms for reproduction of a problem while travelling.
+Causes allows you to run a local Causes repository that integrates with your project's main online repository.</p>
+<blockquote>
+<p><strong>Discussion:</strong> Martin Pool noted offline was a lower priority in 2013 as connectivity improved.
+The counter-argument: offline support is a natural consequence of the distributed/replication architecture needed for other goals — private deployments, external data sources, graceful degradation.
+If we need most of the pieces anyway, we should do it well.</p>
+</blockquote>
+<h3 id="work-privately-with-a-public-projects-bugs">Work privately with a public project's bugs<a class="headerlink" href="#work-privately-with-a-public-projects-bugs" title="Permanent link">&para;</a></h3>
+<p>Many organisations work on public projects but cannot share all their discussion about particular issues with the public project.
+Wouldn't it be great to use the same bug tracking software upstream and locally, with a full copy of the public data set mirrored into your local repository?
+Causes supports this as just another case of distributed data.</p>
+<h3 id="integrates-with-your-existing-data">Integrates with your existing data<a class="headerlink" href="#integrates-with-your-existing-data" title="Permanent link">&para;</a></h3>
+<p>There are many sources of data that help manage a bug report.
+Commits to VCS can be excluded as causes if they happened after the report was filed.
+Crash database reports (from systems like Sentry or Datadog) can provide backtraces and variable values.
+Bug reports in distribution trackers can provide more context or reproduction instructions.
+Commits can indicate that a bug is probably fixed.
+The same core logic that drives offline access and behind-the-firewall replication is used to work with other data sources.</p>
+<blockquote>
+<p><strong>Discussion:</strong> Jelmer Vernooij raised the question of data ownership — does Causes pull all external data into its own store, or just reference it?
+The working answer: take a strong SOA approach; assume nothing is copied in except when selected for replication/federation.</p>
+</blockquote>
+<h3 id="manage-work-in-progress">Manage work in progress<a class="headerlink" href="#manage-work-in-progress" title="Permanent link">&para;</a></h3>
+<p>While Causes is not a Kanban system, it does know about work in progress: plans that have been made but not actioned, plans that are pending review, symptoms where reproduction discussion has stalled, and so on.
+Causes shows you a clear list of things you have started but not finished, including things where other people are waiting on you, or you are waiting on other people.
+Similarly it can show a project-wide view of in-progress work.
+[unvalidated, but a direct application of the automate-tedious-stuff principle]</p>
+<h3 id="clearly-shows-what-you-and-your-collaborators-have-done">Clearly shows what you and your collaborators have done<a class="headerlink" href="#clearly-shows-what-you-and-your-collaborators-have-done" title="Permanent link">&para;</a></h3>
+<p>The flip side of knowing what you are doing is knowing what you have done.
+Causes can summarise this for you, making it easy to talk about what you have done for a project.
+Similarly, see what has happened in the whole project recently, over the last month or year.
+[not validated; keep-aware-of-things is fairly obvious; the advertise-myself aspect less so]</p>
+<hr />
+<h2 id="implementation-principles">Implementation principles<a class="headerlink" href="#implementation-principles" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Open source.</strong>
+   We all have day jobs and are not interested in doing a startup in competition with GitHub Issues, Linear, Jira, Plane etc.
+   Apache V2 or MIT licence (see <a href="../Decisions/#adr-005-open-source-licence">ADR-005</a>).</li>
+<li><strong>Clean and lean.</strong>
+   We don't want a bag-of-everything to maintain.
+   We may end up creating several narrow but cooperating sub-projects (core, notification/subscriptions, web UI).
+   Validated by past experience.</li>
+<li><strong>Easily deployed.</strong>
+   Minimally for local testing via Docker Compose; also for self-hosted production use.
+   We don't anticipate running a central service, so if folk cannot deploy it, they cannot use it.
+   Validated by past experience.</li>
+<li><strong>Easily operated.</strong>
+   If it cannot be run by non-developers, we will paint ourselves into a run-a-central-service or only-we-use-it corner.</li>
+</ol>
+<hr />
+<h2 id="project-governance">Project governance<a class="headerlink" href="#project-governance" title="Permanent link">&para;</a></h2>
+<ol>
+<li>Code on GitHub.</li>
+<li>CI from the get-go (GitHub Actions: lint, test, build, container image).</li>
+<li>Weak consensus decision making.</li>
+</ol>
+<hr />
+<h2 id="values">Values<a class="headerlink" href="#values" title="Permanent link">&para;</a></h2>
+<ol>
+<li>Only encourage effort that is valuable to projects.
+   Wasted effort is something we don't like.</li>
+</ol>
+<blockquote>
+<p><strong>Discussion:</strong> Martin Pool notes effort on bugs that never get done is prima facie wasted; the tool should help avoid it.
+There is still value in communicating to users about bugs unlikely to be fixed — workarounds, low priority, out of scope.
+Both positions should be explicitly supported.</p>
+</blockquote>
+<ol>
+<li>Respect time and effort involved in contributions from all parties: users, intermediaries, developers, project leaders.
+   Encourage people to be good to each other, even though there will be conflicting interests and opinions.</li>
+<li>Work well for projects with mildly different needs.
+   Not validated; can be validated as soon as we encounter a 'can't use this without X' situation.</li>
+<li>Learn and infer as much as possible.
+   Not validated; is perhaps the key hypothesis about the design.
+   LLMs and modern ML make this significantly more feasible than in 2013.</li>
+<li>Keep human/intentional things and machine-set/inferred/gathered things separate.
+   Applies to storage, UI, and processing — a pervasive separation up and down the stack.
+   Not validated; perhaps a derivative of 'learn and infer'.</li>
+</ol>
+<hr />
+<h2 id="archetypes">Archetypes<a class="headerlink" href="#archetypes" title="Permanent link">&para;</a></h2>
+<h3 id="projects">Projects<a class="headerlink" href="#projects" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Freegen</strong> — a small personal project, 5–10 open bugs, activity happens rarely.
+   Does lightweight releases, does not track multiple stable versions.
+   Users are highly technical.
+   Bugs are usually shallow and hard to confuse with other bugs.
+   No related projects.</li>
+<li><strong>Market</strong> — a small commercially funded project, 2000 open bugs, low but regular activity from users.
+   Developer activity a few times a week from 3–4 developers.
+   Does releases, tracks multiple stable versions.
+   Users are often non-technical but sometimes very technical.
+   Actively tries to bring users across the fold to become developers.
+   Bugs can be very subtle and hard to differentiate from other bugs.
+   Has related projects for plugins, and multiple organisations doing commercial support.
+   Bugs often require private data of users to reproduce.</li>
+<li><strong>BigVector</strong> — a big commercially funded project with 5000 open bugs, activity from hundreds of users a week, and likewise from hundreds of developers.
+   Does releases, tracks multiple stable versions.
+   Users are usually technical but not aware of project internals.
+   Bugs are generally easy to differentiate.
+   Has related projects for different facets of the project, multiple organisations doing commercial development and support.
+   Bugs rarely require private data to reproduce, but the project has regular security vulnerabilities that have to be disclosed with care.</li>
+</ol>
+<h3 id="users">Users<a class="headerlink" href="#users" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Fred</strong> — a user of Market.
+   Not very technical, but enthusiastic and happy to try new code branches.
+   Fred has a couple of bugs open with Market that are driving him up the wall.</li>
+<li><strong>Gary</strong> — a user of BigVector.
+   Has a commercial support contract with BigVendor, 4 open bugs that affect him, and is a personal contributor to Market.</li>
+<li><strong>Jo</strong> — the developer of Freegen.
+   Works on it a few hours a month, as time permits.</li>
+<li><strong>Mary</strong> — a developer on BigVector, working for BigVendor.
+   Spends most of her time writing code with some planning and user support time thrown in.
+   Deals with private data from BigVendor clients when needed, and is part of the release team for BigVector.</li>
+</ol>
+<h3 id="organisations">Organisations<a class="headerlink" href="#organisations" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Speculative</strong> — a tech company that funds Market.
+   Drives Market as a project and collaborates with ServiceCo supporting users of Market.</li>
+<li><strong>ServiceCo</strong> — a systems integrator with users using Market.
+   Manages the bugs filed by their users and takes care of analysing and fixing them.</li>
+<li><strong>SwitchCo</strong> — a network switch vendor that contributes to the development of BigVector, has users using it and provides support to them.
+   Manages tickets from their users in a private system.</li>
+<li><strong>MachineCo</strong> — a PC server vendor that contributes to the development of BigVector, has users using it and supports them.
+   Also manages tickets in private.</li>
+</ol>
+<hr />
+<h2 id="prior-art-inspiration">Prior art / inspiration<a class="headerlink" href="#prior-art-inspiration" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Launchpad</strong> has a very good bug tracker.
+  Its UI is very complex, it is very hard to run private instances, has a very limited notification/event raising mechanism, and no machine learning embedded in it.
+  It conflates work tracking and planning.
+  LP is very straightforward to use, with a battle-tested balance between capability and clutter.
+  LP also models the needs of Linux distributions well — quite unique in that regard.</li>
+<li><strong>GitHub Issues / GitLab Issues</strong> — far more capable than in 2013; now a serious comparison point.</li>
+<li><strong>Linear</strong> — modern, fast, opinionated issue tracker with good developer ergonomics.</li>
+<li><strong>Plane</strong> — single-vendor AGPL Linear alternative; good reference for self-hostable modern trackers, but the licence is a compliance trap rather than genuine open source.</li>
+<li><strong>Pivotal Tracker</strong> — an agile story tracker, not a bug tracker (though it can double for small projects).</li>
+<li><strong>Bugzilla</strong> — well known, but not in any sense simple.</li>
+<li><a href="https://web.archive.org/web/20130101000000*/http://pqxx.org/development/libpqxx/wiki/AllSoftwareIsBroken">AllSoftwareIsBroken</a> — an experiment that tries to serve both users and developers in the categorisation of bug reports.
+  <em>(original link dead; use Wayback Machine)</em></li>
+<li><a href="https://lists.launchpad.net/launchpad-dev/msg07824.html">Launchpad bug modelling thread</a> — the start of a thread about modelling bugs in Launchpad, with some useful principles.</li>
+<li><strong>git</strong> — a very successful distributed source control system; most interesting as prior art for an effective user model of distributed data.</li>
+</ul>
+<hr />
+<h2 id="axioms">Axioms<a class="headerlink" href="#axioms" title="Permanent link">&para;</a></h2>
+<p>Things we are going to assume but not try to validate:</p>
+<ul>
+<li>We can make something useful in our spare time, despite us all having interesting day jobs.</li>
+</ul>
+<hr />
+<h2 id="non-features">Non-features<a class="headerlink" href="#non-features" title="Permanent link">&para;</a></h2>
+<h3 id="cross-project-bugs">Cross-project bugs<a class="headerlink" href="#cross-project-bugs" title="Permanent link">&para;</a></h3>
+<p>The cross-project bug feature in Launchpad is arguably a special case of replicated discussion about a distributed bug.
+As we don't want to build a single point of service, cross-project bugs as a specific feature are uninteresting.
+We may support federation, and if so there is no particular reason to preclude federating with a bug in another project in the same tracker instance.</p>
+<p>Cross-project bugs are not a first-class feature.</p>
+<h3 id="distribution-bug-tracking">Distribution bug tracking<a class="headerlink" href="#distribution-bug-tracking" title="Permanent link">&para;</a></h3>
+<p>Tracking bugs for distributions is somewhat different to bug tracking for individual projects.
+They do interact — many software projects are shipped by distributions, and thus symptoms users experience may be farmed from the shipping distribution's bug trackers.
+However, there are at least a thousand times more software projects than Linux distributions, and proportionally fewer chances to be adopted as the bug tracker for a distribution.
+It will be nice if what we build is suitable for tracking the bugs of a distribution, and we won't reject volunteer work to make it suitable.</p>
+<p>But we won't set out to make it suitable at this stage.</p>
+<blockquote>
+<p><strong>Discussion:</strong> Jelmer Vernooij notes packages in a distribution aren't fundamentally different from upstream projects.
+The practical distinction is scale — 20K subprojects in one project — and the intrinsic downstreamness.</p>
+</blockquote>
+<h3 id="project-timelines-kanban-vcs-integration">Project timelines, Kanban, VCS integration<a class="headerlink" href="#project-timelines-kanban-vcs-integration" title="Permanent link">&para;</a></h3>
+<p>While such things are important, we want to keep Causes focused.
+We won't add things to Causes itself that are not part of its necessary core features.
+We may create a collection of 'you probably want this' API scripts/extensions.
+For instance, integrating with GitHub is probably a must-do.</p>
+<hr />
+<h2 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h2>
+<p>Key decisions have been extracted into <a href="../Decisions/">Decisions.md</a>.</p>
+<h3 id="repository">Repository<a class="headerlink" href="#repository" title="Permanent link">&para;</a></h3>
+<p>A repository stores data for a project.
+Repositories can be easily and quickly created, and interacted with entirely via a CLI.
+CLI access uses local credentials.
+Repositories can trigger local hooks in response to events.
+They are individually queryable, and have no authentication at the repository layer (authentication is handled by the HTTP daemon).
+They are local artefacts but may be configured with network identities (HTTP, SMTP etc) to allow push notifications to reach them for replicated items.
+Repositories store only their replication subscription configuration, not the list of subscribers.
+HTTP notifications use WebSub content notifications (generated only when the HTTP daemon is running).</p>
+<h3 id="subscriptions">Subscriptions<a class="headerlink" href="#subscriptions" title="Permanent link">&para;</a></h3>
+<p>Subscription information is stored logically separately from the repository, though it may be easiest to manage within the repository store.
+Subscriptions map any notifiable object to a notification endpoint (such as an email address), possibly with wildcards.</p>
+<h3 id="notification">Notification<a class="headerlink" href="#notification" title="Permanent link">&para;</a></h3>
+<p>For HTTP notifications, WebSub updates are generated for predictable feeds: one for the object itself, one for each container the object is in, one for any aggregates.
+The issue of updates for search results is not addressed.</p>
+<p>HTTP webhooks are also supported; they can be recorded in the subscription store and delivered by the repository hook that calls into the notification system.</p>
+<p>A dedicated daemon provides websocket streams (or Server-Sent Events) for attached browser clients.
+This daemon is stateless and easily scaled — it proxies between browser clients and WebSub, and the client requests appropriate feeds based on what the HTTP UI instructs.</p>
+<p>For SMTP, a local repository hook delivers new content notifications to an SMTP handler, which then consults the subscription store to determine where to send the notification.</p>
+<h4 id="http-daemon">HTTP daemon<a class="headerlink" href="#http-daemon" title="Permanent link">&para;</a></h4>
+<p>A lightweight HTTP daemon provides HTTP API services for multiple repositories and multiple subscription stores.
+On startup this daemon establishes WebSub subscriptions to remote repositories for all local subscriptions and checks for missed notifications.
+Once started the daemon answers content requests from WebSub hubs as well as serving the browser UI.
+User authentication is handled here.
+This daemon is stateless — several can be run in parallel for HA or performance.</p>
+<h4 id="smtp">SMTP<a class="headerlink" href="#smtp" title="Permanent link">&para;</a></h4>
+<p>Similar to HTTP, but probably no daemon — just a handler for incoming mail.
+Routes incoming notifications from subscribed SMTP-only systems (e.g. Bugzilla) into a WebSub handler that will poll and update replicated content appropriately.</p>
+<h3 id="ui">UI<a class="headerlink" href="#ui" title="Permanent link">&para;</a></h3>
+<h4 id="browser-ui">Browser UI<a class="headerlink" href="#browser-ui" title="Permanent link">&para;</a></h4>
+<p>RESTful API to the server, JSON representation of data.
+Atom feeds for most everything.
+Server-side rendering of static views for search engines.
+Websockets or SSE to notify clients of interesting events.
+New browser sessions establish subscriptions for everything the user is subscribed to, and ask for an initial push of interesting content.</p>
+<p>Framework choice is TBD (see <a href="../Decisions/#adr-008-language-stack-open">ADR-008</a>).
+Original design specified Handlebars templates; current alternatives include HTMX, React, Vue, and Svelte.</p>
+<h4 id="smtp-ui">SMTP UI<a class="headerlink" href="#smtp-ui" title="Permanent link">&para;</a></h4>
+<p>Probably limited to notifications.
+If an email-based workflow is added later, it would be a responsibility of the incoming SMTP handler.</p>
+<h4 id="cli">CLI<a class="headerlink" href="#cli" title="Permanent link">&para;</a></h4>
+<p>Local client operations form the core of the system — and may be the mechanism the HTTP daemon builds on, keeping things in clean layers.</p>
+<p>Operations:</p>
+<ul>
+<li><code>init</code> — initialise a project repository</li>
+<li><code>symptom add</code> — add a symptom</li>
+<li><code>sign add</code> — add a sign</li>
+<li><code>plan add</code> — add a plan</li>
+<li><code>timeline add</code> — add a timeline event: <code>[subject, verb, date, details, url]</code></li>
+<li><code>timeline query</code> — query the timeline</li>
+<li><code>edit</code> — edit a sign/symptom/plan</li>
+<li><code>comment</code> — comment on a sign/symptom/plan/timeline event</li>
+<li><code>display</code> — display an object</li>
+<li><code>link</code> / <code>unlink</code> — link a plan to an aggregate symptom/sign</li>
+<li><code>aggregate</code> — aggregate two symptoms or two signs</li>
+</ul>
+<hr />
+<h2 id="missing-open-items-2026-update">Missing / open items (2026 update)<a class="headerlink" href="#missing-open-items-2026-update" title="Permanent link">&para;</a></h2>
+<p>The following were not addressed in the original 2013 design and need decisions before implementation:</p>
+<ul>
+<li><strong>Language and stack</strong> — see <a href="../Decisions/#adr-008-language-stack-open">ADR-008</a></li>
+<li><strong>Security model</strong> (authentication, authorisation, private disclosure workflow) — see <a href="../Decisions/#adr-010-security-model-open">ADR-010</a></li>
+<li><strong>API specification format</strong> (recommend OpenAPI 3.x) — see <a href="../Decisions/#adr-009-api-specification-format-open">ADR-009</a></li>
+<li><strong>Deployment</strong> (Docker Compose for local dev; OCI containers for production) — see <a href="../Design-Choices/#deployment">Design-Choices.md</a></li>
+<li><strong>CI/CD pipeline</strong> (GitHub Actions: lint, test, build, publish container image)</li>
+<li><strong>Data schema</strong> — the four entity types are described in prose; a concrete schema definition is needed</li>
+<li><strong>LLM-assisted triage</strong> — duplicate detection and auto-triage using LLMs is now practical and worth revisiting as part of the "learn and infer" value</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate":null,"base":"..","features":[],"search":"../assets/javascripts/workers/search.e2d2d235.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.91a19a9e.min.js"></script>
+      
+    
+  </body>
+</html>

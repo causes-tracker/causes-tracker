@@ -1,0 +1,1202 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A bug tracker built to free developers from the tedium of manual bug gardening.">
+      
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.32">
+    
+    
+      
+        <title>Replication Protocol - Causes</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../assets/stylesheets/modern/main.53a7feaf.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,a=__md_scope)=>JSON.parse(t.getItem(a.pathname+"."+e)),__md_set=(e,t,a=localStorage,_=__md_scope)=>{try{a.setItem(_.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-label="Navigation"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#replication-protocol" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="./.." title="Causes" class="md-header__button md-logo" aria-label="Causes" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Causes
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Replication Protocol
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+    </div>
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="./.." title="Causes" class="md-nav__button md-logo" aria-label="Causes" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    Causes
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="./.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Manifesto/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manifesto
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Design-Choices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design Choices
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Decisions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Decisions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Proto-Reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Proto Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Raw-Discussion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Raw Discussion
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  
+                    
+                    
+                    
+                      
+                    
+                    
+                      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+                      <div class="md-sidebar-button__wrapper">
+                        <label class="md-sidebar-button" for="__toc"></label>
+                      </div>
+                    
+                  
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data model
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data model">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#layered-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layered structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#federated-version-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Federated version reference
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kind" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kind
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tombstone-retention" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tombstone retention
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#resource-identity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resource identity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#slug" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Slug
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#version" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#version-0" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version 0
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#previous-version-chain" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Previous version chain
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#causal-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Causal dependencies
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#replication-protocol_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Replication protocol
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Replication protocol">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pull-rpc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pull RPC
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#watermark" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Watermark
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#at-least-once-delivery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        At-least-once delivery
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ordering-guarantees" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ordering guarantees
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#embargo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Embargo
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Embargo">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#embargo-as-a-journal-property" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Embargo as a journal property
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#replication-filtering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Replication filtering
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#un-embargo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Un-embargo
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#transitive-embargo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Transitive embargo
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#renames" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Renames
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#implementor-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementor requirements
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Implementor requirements">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#topological-ordering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Topological ordering
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#version-source" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version source
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#delivery-guarantee" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Delivery guarantee
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deduplication" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deduplication
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#postgres-implementation-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Postgres implementation notes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Postgres implementation notes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#local-version-and-watermark-columns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Local version and watermark columns
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#topological-ordering-via-transaction-ids" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Topological ordering via transaction IDs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#at-least-once-delivery-via-watermark" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        At-least-once delivery via watermark
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#serving-pseudocode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Serving pseudocode
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#receiving-pseudocode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Receiving pseudocode
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#multi-hop-ordering-proof" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multi-hop ordering proof
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#isolation-level-enforcement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Isolation level enforcement
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+<h1 id="replication-protocol">Replication Protocol<a class="headerlink" href="#replication-protocol" title="Permanent link">&para;</a></h1>
+<p>This document specifies the Causes replication protocol.
+It is the specification for implementors building a Causes-compatible instance or alternative storage backend.</p>
+<p>For the design rationale behind these decisions, see <a href="../Decisions/#adr-013-replication-protocol">ADR-013</a> in Decisions.md.
+For the broader federation strategy, see <a href="../Decisions/#adr-006-federation-strategy--distribute-dont-federate-by-default">ADR-006</a>.</p>
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
+<p>Causes uses pull-based replication to distribute data between instances.
+Any instance can replicate from any other by initiating an outbound connection and pulling journal entries.
+No instance needs a public URL to replicate from an upstream — all connections are client-initiated.</p>
+<p>Replication operates at the project level: a downstream instance subscribes to specific projects on an upstream and receives all journal entries for those projects.</p>
+<h2 id="data-model">Data model<a class="headerlink" href="#data-model" title="Permanent link">&para;</a></h2>
+<h3 id="layered-structure">Layered structure<a class="headerlink" href="#layered-structure" title="Permanent link">&para;</a></h3>
+<p>Journal entries have a layered structure separating immutable, per-entry, and instance-local data.
+The layers, from innermost to outermost:</p>
+<p><strong>JournalEntryHeader</strong> — immutable distributed identity and metadata for a single entry:</p>
+<ul>
+<li><code>kind</code>: one of <code>ENTRY</code> or <code>TOMBSTONE</code> (see <a href="#kind">Kind</a>)</li>
+<li><code>at</code>: timestamp of the entry</li>
+<li><code>author</code>: <code>FederatedIdentity</code> — <code>(instance_id, local_id)</code> of the author</li>
+<li><code>version</code>: 64-bit unsigned integer, assigned at commit time on the origin instance</li>
+<li><code>previous_version</code>: <code>FederatedVersionRef</code> pointing to the prior entry for this resource (version = 0 for the first entry)</li>
+<li><code>embargoed</code>: whether this entry is under embargo</li>
+<li><code>origin_instance_id</code>: the instance that wrote this entry</li>
+<li><code>origin_id</code>: UUID identifying the resource this entry is about</li>
+</ul>
+<p><strong>ResourceEntryMeta</strong> — resource-level metadata, carried in every entry:</p>
+<ul>
+<li><code>slug</code>: human-readable identifier for the resource within its project (immutable per entry, may differ across entries for the same resource when renamed)</li>
+<li><code>project_id</code>: the project this resource belongs to on the origin instance</li>
+<li><code>created_at</code>: timestamp of the resource's creation, copied from the first entry into all subsequent entries</li>
+</ul>
+<p><strong>Resource entry</strong> (e.g. PlanEntry, SignEntry) — the complete immutable journal entry:</p>
+<ul>
+<li><code>header</code>: JournalEntryHeader</li>
+<li><code>meta</code>: ResourceEntryMeta</li>
+<li>Resource-specific fields (title, description, status, etc.)</li>
+</ul>
+<p><strong>Local entry wrapper</strong> — per-instance data, transmitted in the replication stream but replaced by the receiver:</p>
+<ul>
+<li>The resource entry itself</li>
+<li><code>project_id</code>: local project filing (may differ from origin's project_id per ADR-012)</li>
+<li><code>replication_path</code>: the sender transmits its replication path; the receiver appends the sender to it, building up the full delivery chain</li>
+<li><code>local_version</code>: position in this instance's commit order (implementation-specific)</li>
+<li><code>watermark</code>: safe resume point for replication serving (implementation-specific)</li>
+</ul>
+<h3 id="federated-version-reference">Federated version reference<a class="headerlink" href="#federated-version-reference" title="Permanent link">&para;</a></h3>
+<p>A <code>FederatedVersionRef</code> is a triple <code>(origin_instance_id, origin_id, version)</code> that uniquely identifies a single journal entry across the entire federation.
+It is used for cross-resource references (e.g. "this comment is on plan X at version N").</p>
+<h3 id="kind">Kind<a class="headerlink" href="#kind" title="Permanent link">&para;</a></h3>
+<p>Journal entries have a <code>kind</code> field:</p>
+<ul>
+<li><code>ENTRY</code>: the resource exists at this version</li>
+<li><code>TOMBSTONE</code>: the resource is deleted at this version</li>
+</ul>
+<p>Whether an entry represents a creation, update, or rename is derivable from context:</p>
+<ul>
+<li>Creation: <code>previous_version == 0</code></li>
+<li>Update: <code>previous_version != 0</code> and slug is unchanged</li>
+<li>Rename: <code>previous_version != 0</code> and slug differs from the previous entry's slug</li>
+<li>Undelete: kind is <code>ENTRY</code> and the previous entry's kind is <code>TOMBSTONE</code></li>
+</ul>
+<h3 id="tombstone-retention">Tombstone retention<a class="headerlink" href="#tombstone-retention" title="Permanent link">&para;</a></h3>
+<p>Tombstones are journal entries like any other — they are replicated and stored.
+Discarding a tombstone requires that:</p>
+<ul>
+<li>Peers that have already received entries for the resource must also have received the tombstone.</li>
+<li>Peers that have never received any entry for the resource will not receive any in the future.</li>
+<li>The journal entry graph remains intact — no remaining entries reference the discarded entries.</li>
+</ul>
+<h3 id="resource-identity">Resource identity<a class="headerlink" href="#resource-identity" title="Permanent link">&para;</a></h3>
+<p><code>origin_instance_id</code> is the <code>InstanceId</code> (UUID v4) of the instance that wrote the journal entry.
+Different entries for the same resource may have different <code>origin_instance_id</code> values — any instance can write entries about any resource it has replicated.</p>
+<p><code>origin_id</code> is a UUID that identifies the resource.
+It is assigned once when the resource is first created (i.e. when <code>previous_version</code> has version = 0) and is reused by all subsequent entries about that resource, regardless of which instance writes the entry.
+A new <code>origin_id</code> is only allocated for genuinely new resources.
+It is not human-readable; the <code>slug</code> field in ResourceEntryMeta provides the human-readable name.</p>
+<p>The primary key for journal entries is <code>(origin_instance_id, origin_id, version)</code>.</p>
+<h3 id="slug">Slug<a class="headerlink" href="#slug" title="Permanent link">&para;</a></h3>
+<p>The <code>slug</code> in ResourceEntryMeta is the human-readable identifier for a resource within its project.
+It is immutable within a single journal entry but may differ across entries for the same resource (i.e. a rename changes the slug).</p>
+<h3 id="version">Version<a class="headerlink" href="#version" title="Permanent link">&para;</a></h3>
+<p>Each journal entry has a <code>version</code> — a 64-bit unsigned integer assigned at commit time on the writing instance.
+Versions may have gaps (not every integer is used).
+Versions from different instances are independent and not comparable.
+The globally unique identity of a journal entry is the <code>FederatedVersionRef</code>: <code>(origin_instance_id, origin_id, version)</code>.</p>
+<p>See <a href="#implementor-requirements">Implementor requirements</a> for the causal ordering properties that the version source must satisfy.</p>
+<h3 id="version-0">Version 0<a class="headerlink" href="#version-0" title="Permanent link">&para;</a></h3>
+<p>Version 0 is reserved and never assigned.
+It serves as the root of every <code>previous_version</code> chain: the first entry for a resource has <code>previous_version = 0</code>.
+A replication watermark of 0 means "give me everything from the beginning."</p>
+<h3 id="previous-version-chain">Previous version chain<a class="headerlink" href="#previous-version-chain" title="Permanent link">&para;</a></h3>
+<p>Every journal entry carries a <code>previous_version</code> field — a <code>FederatedVersionRef</code> pointing to the immediately prior entry.</p>
+<ul>
+<li>First entry: <code>previous_version</code> has version = 0 (no prior entry)</li>
+<li>Subsequent entries: <code>previous_version</code> points to the prior entry for this resource (same origin_id, possibly different origin_instance_id)</li>
+</ul>
+<p>When instance B edits a resource that was created on instance A, B writes a new entry with <code>origin_instance_id = B</code>, the same <code>origin_id</code>, and <code>previous_version</code> pointing to the last entry (which has <code>origin_instance_id = A</code>).
+The <code>previous_version</code> chain captures the full history across instances.</p>
+<p>The chain serves three purposes:</p>
+<ol>
+<li><strong>Gap detection</strong>: if an entry's <code>previous_version</code> refers to an entry the receiver does not have, the chain has a gap.
+   Gaps are normal — they arise from embargo filtering, thin clones, and partial replication.</li>
+<li><strong>Rename tracking</strong>: a rename is an entry where <code>slug</code> differs from the previous entry's slug.
+   The chain links old and new names together without a special operation.</li>
+<li><strong>Audit trail</strong>: the full history of a resource is recoverable by following the chain, potentially across instances.</li>
+</ol>
+<h3 id="causal-dependencies">Causal dependencies<a class="headerlink" href="#causal-dependencies" title="Permanent link">&para;</a></h3>
+<p>When a resource references another (e.g. a comment on a plan), the reference carries <code>(origin_instance_id, origin_id, version)</code> — a pointer to a specific journal entry of the referenced resource.</p>
+<p>The replication stream's topological ordering guarantees that referenced entries precede referencing entries.
+A downstream processing a replication stream in order will always have the referenced entry before the referencing entry.</p>
+<p>See <a href="#ordering-guarantees">Ordering guarantees</a> for the proof.</p>
+<h2 id="replication-protocol_1">Replication protocol<a class="headerlink" href="#replication-protocol_1" title="Permanent link">&para;</a></h2>
+<h3 id="pull-rpc">Pull RPC<a class="headerlink" href="#pull-rpc" title="Permanent link">&para;</a></h3>
+<p>Replication is driven by the downstream instance, which calls the upstream's Pull RPC:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Pull(project_id, after_watermark) -&gt; stream PullResponse
+</span></code></pre></div>
+<p>The request includes:</p>
+<ul>
+<li><code>project_id</code>: which project to replicate</li>
+<li><code>after_watermark</code>: resume point from a previous session (0 for initial replication)</li>
+</ul>
+<p>The upstream returns a stream of journal entries for the requested project, across all resource types, ordered by the upstream's local commit order.</p>
+<p>The upstream identifies the requesting instance from the authenticated service account (see ADR-010).
+Federation service accounts carry a <code>remote_instance_id</code>; the server uses this to filter out entries where <code>origin_instance_id</code> matches the requester.
+The requester originated those entries and already has them by definition.
+This filtering is safe regardless of relay topology — an instance always has its own entries.</p>
+<p>Normal user tokens do not carry a <code>remote_instance_id</code>, so no origin filtering is applied.
+This allows users to query the replication stream for debugging or export without origin-based filtering.</p>
+<p>Each response in the stream contains:</p>
+<ul>
+<li><code>watermark</code>: the safe resume point for this entry (see <a href="#watermark">Watermark</a>)</li>
+<li><code>entry</code>: the journal entry (JournalEntryHeader + ResourceEntryMeta + resource-specific fields)</li>
+</ul>
+<p>Receivers that encounter a resource type they do not understand should abort the replication stream.
+Skipping unknown entries risks dangling references in future entries that link to the skipped content.</p>
+<h3 id="watermark">Watermark<a class="headerlink" href="#watermark" title="Permanent link">&para;</a></h3>
+<p>The watermark is a per-(upstream, project) value that the downstream stores between replication sessions.
+It represents a position in the upstream's local commit order below which all entries are guaranteed delivered.</p>
+<ul>
+<li>Initial value: 0 (start from the beginning)</li>
+<li>After a replication session: the downstream stores the highest <code>watermark</code> value received</li>
+</ul>
+<p>On the next Pull call, the downstream passes its stored watermark to resume from where it left off.</p>
+<h3 id="at-least-once-delivery">At-least-once delivery<a class="headerlink" href="#at-least-once-delivery" title="Permanent link">&para;</a></h3>
+<p>The replication stream provides at-least-once delivery: the same entry may be delivered more than once across successive Pull calls.
+Receivers must deduplicate on <code>(origin_instance_id, origin_id, version)</code>.</p>
+<p>The watermark in each <code>PullResponse</code> is a safe resume point.
+The downstream stores the highest watermark received and uses it as <code>after_watermark</code> for the next Pull.
+The serving instance is responsible for ensuring that no entries are permanently skipped.
+See <a href="#postgres-implementation-notes">Postgres implementation notes</a> for how the reference implementation achieves this.</p>
+<h2 id="ordering-guarantees">Ordering guarantees<a class="headerlink" href="#ordering-guarantees" title="Permanent link">&para;</a></h2>
+<p>The replication stream is topologically ordered: if entry B depends on entry A (via <code>previous_version</code> or a cross-resource reference), then A appears before B in the stream.</p>
+<p>This guarantee allows a downstream processing a stream in order to never encounter a dangling reference (except for gaps due to embargo filtering, thin clones, or partial replication).</p>
+<p>The implementation must ensure this property.
+See <a href="#postgres-implementation-notes">Postgres implementation notes</a> for how the reference implementation achieves topological ordering and at-least-once delivery.</p>
+<h2 id="embargo">Embargo<a class="headerlink" href="#embargo" title="Permanent link">&para;</a></h2>
+<h3 id="embargo-as-a-journal-property">Embargo as a journal property<a class="headerlink" href="#embargo-as-a-journal-property" title="Permanent link">&para;</a></h3>
+<p>The <code>embargoed</code> field is on each journal entry, not on the resource as a whole.
+When a resource is embargoed, all its journal entries are marked <code>embargoed = true</code>.</p>
+<p>Embargoed entries are filtered during replication by default.
+The serving instance decides per-peer whether to include embargoed entries, based on its federation trust configuration (see ADR-010).</p>
+<h3 id="replication-filtering">Replication filtering<a class="headerlink" href="#replication-filtering" title="Permanent link">&para;</a></h3>
+<p>The serving side applies the embargo filter based on the peer's federation trust configuration.
+By default, embargoed entries are excluded from the replication stream.
+The mechanism for granting a peer access to embargoed content is part of the federation trust model (ADR-010), not the replication protocol.</p>
+<h3 id="un-embargo">Un-embargo<a class="headerlink" href="#un-embargo" title="Permanent link">&para;</a></h3>
+<p>Un-embargoing a resource creates a new journal entry with <code>embargoed = false</code>.
+This entry carries the full resource content (a complete snapshot) and has <code>previous_version</code> pointing to the last embargoed entry.</p>
+<p>The un-embargo entry is the first entry for this resource that filtered peers receive.
+The <code>previous_version</code> gap is indistinguishable from other gaps (thin clones, partial replication) and is handled the same way — the receiver tolerates it.</p>
+<h3 id="transitive-embargo">Transitive embargo<a class="headerlink" href="#transitive-embargo" title="Permanent link">&para;</a></h3>
+<p>Embargo propagates transitively to references.
+If a plan is embargoed, any comment on that plan must also be embargoed.
+The server enforces this invariant at write time.
+Link objects (PlanSignLink, PlanSymptomLink, PlanDependency) are embargoed whenever either linked resource is embargoed.</p>
+<h2 id="renames">Renames<a class="headerlink" href="#renames" title="Permanent link">&para;</a></h2>
+<p>A rename is a journal entry where <code>slug</code> differs from the previous entry's slug.
+The resource's stable identity <code>(origin_instance_id, origin_id)</code> does not change.
+The primary key <code>(origin_instance_id, origin_id, version)</code> is unaffected by renames.</p>
+<p>The <code>previous_version</code> chain links entries across the rename.
+A receiver can detect a rename by comparing the slug of an entry to the slug of the entry at <code>previous_version</code>.</p>
+<h2 id="implementor-requirements">Implementor requirements<a class="headerlink" href="#implementor-requirements" title="Permanent link">&para;</a></h2>
+<p>An implementation of the Causes replication protocol must satisfy the following properties.</p>
+<h3 id="topological-ordering">Topological ordering<a class="headerlink" href="#topological-ordering" title="Permanent link">&para;</a></h3>
+<p>The replication stream must be topologically ordered: if entry B depends on entry A, then A must appear before B in the stream.
+Dependencies are <code>previous_version</code> links and cross-resource <code>FederatedVersionRef</code> references.</p>
+<h3 id="version-source">Version source<a class="headerlink" href="#version-source" title="Permanent link">&para;</a></h3>
+<p>The version source must never return 0 (reserved as the root sentinel).
+Versions must be 64-bit unsigned integers.
+Gaps in the version sequence are permitted.
+Versions from different instances are independent and not comparable.</p>
+<h3 id="delivery-guarantee">Delivery guarantee<a class="headerlink" href="#delivery-guarantee" title="Permanent link">&para;</a></h3>
+<p>The serving instance must ensure that every entry is eventually delivered to a downstream that requests it.
+The same entry may be delivered more than once.</p>
+<h3 id="deduplication">Deduplication<a class="headerlink" href="#deduplication" title="Permanent link">&para;</a></h3>
+<p>The receiver must deduplicate incoming entries on <code>(origin_instance_id, origin_id, version)</code>.
+Receiving a duplicate must not corrupt state or halt replication.</p>
+<h2 id="postgres-implementation-notes">Postgres implementation notes<a class="headerlink" href="#postgres-implementation-notes" title="Permanent link">&para;</a></h2>
+<p>These details are specific to the Postgres-based implementation.
+They are not protocol requirements — other implementations may use different mechanisms that satisfy the same properties.</p>
+<p>The minimum supported PostgreSQL version is 13, which introduced <code>pg_current_xact_id()</code> (64-bit transaction IDs).
+The 64-bit <code>xid8</code> type is monotonically increasing and does not wrap in practice.
+The project only tests against the single PostgreSQL version pinned in the repository (currently 17).</p>
+<p>The use of transaction IDs and snapshot visibility for change tracking in Postgres is not novel.
+See <a href="https://github.com/cognitedata/txid-syncing">cognitedata/txid-syncing</a> for prior work on the same technique in a different application context.</p>
+<h3 id="local-version-and-watermark-columns">Local version and watermark columns<a class="headerlink" href="#local-version-and-watermark-columns" title="Permanent link">&para;</a></h3>
+<p>Each journal table includes two Postgres-specific columns:</p>
+<div class="language-sql highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">local_version</span><span class="w">  </span><span class="nb">BIGINT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="n">pg_current_xact_id</span><span class="p">()::</span><span class="nb">bigint</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">watermark</span><span class="w">      </span><span class="nb">BIGINT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="n">pg_snapshot_xmin</span><span class="p">(</span><span class="n">pg_current_snapshot</span><span class="p">())::</span><span class="nb">bigint</span>
+</span></code></pre></div>
+<p><code>local_version</code> is the transaction ID at commit time on this instance.
+For locally-created entries, <code>local_version</code> equals <code>version</code> (both are the same txid).
+For replicated entries, <code>version</code> is the origin's value (set explicitly) while <code>local_version</code> is the receiving instance's txid (set by DEFAULT).</p>
+<p><code>watermark</code> is the oldest still-in-progress transaction ID at commit time.
+Everything with <code>local_version</code> below the watermark is guaranteed committed.</p>
+<p><code>local_version</code> is local bookkeeping — used for query ordering on the serving side but never transmitted.
+<code>watermark</code> is transmitted in <code>PullResponse</code> so the receiver knows where to resume, but it is not part of the journal entry itself.</p>
+<h3 id="topological-ordering-via-transaction-ids">Topological ordering via transaction IDs<a class="headerlink" href="#topological-ordering-via-transaction-ids" title="Permanent link">&para;</a></h3>
+<p>Under REPEATABLE READ or higher isolation, a transaction can only read data committed before its snapshot was taken.
+Committed data has a strictly lower transaction ID than the reading transaction.
+Therefore, if entry B references entry A, then <code>A.local_version &lt; B.local_version</code> on the instance where B was written.</p>
+<p>This means the <code>local_version</code> ordering is topologically sorted for locally-created entries.
+Replicated entries are committed before any local entry can reference them, so the combined <code>local_version</code> ordering across all origins is also topologically sorted.</p>
+<p>When two replication streams run concurrently, each stream is independently topologically sorted.
+Interleaving them by concurrent commits preserves topological ordering: if entry Y references entry X, then X must have been committed (and assigned a <code>local_version</code>) before Y's transaction could read it.</p>
+<h3 id="at-least-once-delivery-via-watermark">At-least-once delivery via watermark<a class="headerlink" href="#at-least-once-delivery-via-watermark" title="Permanent link">&para;</a></h3>
+<p>Entries may become visible out of <code>local_version</code> order because transactions can commit in a different order than they started.
+If transaction T1 starts before T2 but T2 commits first, T2's entry may be served before T1's.</p>
+<p>The <code>watermark</code> column ensures T1's entry is not skipped.
+The serving loop winds the query position back to <code>batch.last().watermark</code> rather than advancing to <code>batch.last().local_version</code>.
+A bounded seen buffer filters entries already sent in the current session.</p>
+<h3 id="serving-pseudocode">Serving pseudocode<a class="headerlink" href="#serving-pseudocode" title="Permanent link">&para;</a></h3>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>watermark = receiver&#39;s after_watermark (0 initially)
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>seen = bounded set of recently-served (origin_instance_id, origin_id, version) tuples
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>loop:
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    batch = query entries WHERE local_version &gt;= watermark
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>                            AND project_id = project
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>                          ORDER BY local_version
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>    if batch is empty:
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>        wait for notification or timeout
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>        continue
+</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>
+</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>    for entry in batch:
+</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>        key = (entry.origin_instance_id, entry.origin_id, entry.version)
+</span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>        if key not in seen:
+</span><span id="__span-2-16"><a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>            send PullResponse {
+</span><span id="__span-2-17"><a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a>                watermark: entry.watermark,
+</span><span id="__span-2-18"><a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a>                entry: entry
+</span><span id="__span-2-19"><a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a>            }
+</span><span id="__span-2-20"><a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a>            add key to seen
+</span><span id="__span-2-21"><a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a>
+</span><span id="__span-2-22"><a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a>    watermark = batch.last().watermark
+</span></code></pre></div>
+<p>The seen buffer is bounded.
+Entries can be evicted from the buffer once the watermark advances past their <code>local_version</code> — they will not appear in future queries.</p>
+<h3 id="receiving-pseudocode">Receiving pseudocode<a class="headerlink" href="#receiving-pseudocode" title="Permanent link">&para;</a></h3>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>watermark = load stored watermark for (upstream_id, project_id), default 0
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>stream = upstream.Pull(project_id, after_watermark=watermark)
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>for response in stream:
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    key = (entry.origin_instance_id, entry.origin_id, entry.version)
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>    begin transaction (repeatable read)
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>        if key already exists locally:
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>            skip (dedup)
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>        else:
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>            insert entry into appropriate journal table
+</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a>            (local_version and watermark are set automatically by DEFAULT)
+</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>        update stored watermark to max(watermark, response.watermark)
+</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>    commit
+</span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a>
+</span><span id="__span-3-17"><a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a>    # previous_version gaps are normal:
+</span><span id="__span-3-18"><a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a>    # embargo filtering, thin clones, and partial replication
+</span><span id="__span-3-19"><a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a>    # all produce chains where previous_version points to an
+</span><span id="__span-3-20"><a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a>    # entry the receiver does not have.
+</span><span id="__span-3-21"><a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a>    # The chain is informational, not a hard constraint.
+</span></code></pre></div>
+<h3 id="multi-hop-ordering-proof">Multi-hop ordering proof<a class="headerlink" href="#multi-hop-ordering-proof" title="Permanent link">&para;</a></h3>
+<p>Consider instances A, B, C where C replicates from B, and B replicates bidirectionally with A.</p>
+<ol>
+<li>A's entries are topologically sorted by A's <code>local_version</code> ordering (see above).</li>
+<li>B receives A's entries and stores them.
+   B's local entries may reference A's entries.
+   Since A's entries are committed on B before B's referencing entries, B's <code>local_version</code> ordering is topologically sorted across both origins.</li>
+<li>C replicates from B.
+   B's stream to C is ordered by B's <code>local_version</code>, which is topologically sorted.
+   C commits entries in stream order.
+   C's <code>local_version</code> ordering is topologically sorted.</li>
+</ol>
+<p>When B replicates back to A, B filters out entries that originated at A (A already has them).
+Every entry from B that references an A-originated entry is topologically ordered with respect to A's entries, so A can commit them without dangling references.</p>
+<h3 id="isolation-level-enforcement">Isolation level enforcement<a class="headerlink" href="#isolation-level-enforcement" title="Permanent link">&para;</a></h3>
+<div class="language-sql highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">CREATE</span><span class="w"> </span><span class="k">FUNCTION</span><span class="w"> </span><span class="n">check_repeatable_read</span><span class="p">()</span><span class="w"> </span><span class="k">RETURNS</span><span class="w"> </span><span class="n">void</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="err">$$</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="k">BEGIN</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span><span class="k">IF</span><span class="w"> </span><span class="n">current_setting</span><span class="p">(</span><span class="s1">&#39;transaction_isolation&#39;</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">IN</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">     </span><span class="p">(</span><span class="s1">&#39;repeatable read&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;serializable&#39;</span><span class="p">)</span><span class="w"> </span><span class="k">THEN</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="n">RAISE</span><span class="w"> </span><span class="k">EXCEPTION</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">      </span><span class="s1">&#39;journal writes require repeatable read or higher isolation&#39;</span><span class="p">;</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">  </span><span class="k">END</span><span class="w"> </span><span class="k">IF</span><span class="p">;</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="k">END</span><span class="p">;</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="err">$$</span><span class="w"> </span><span class="k">LANGUAGE</span><span class="w"> </span><span class="n">plpgsql</span><span class="p">;</span>
+</span></code></pre></div>
+<p>This function is called by write operations on journal tables to enforce the snapshot isolation requirement.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate":null,"base":"..","features":[],"search":"../assets/javascripts/workers/search.e2d2d235.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.91a19a9e.min.js"></script>
+      
+    
+  </body>
+</html>

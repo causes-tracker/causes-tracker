@@ -1,0 +1,813 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A bug tracker built to free developers from the tedium of manual bug gardening.">
+      
+      
+      
+      
+        <link rel="prev" href="../Manifesto/">
+      
+      
+        <link rel="next" href="../Decisions/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.32">
+    
+    
+      
+        <title>Design Choices - Causes</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../assets/stylesheets/modern/main.53a7feaf.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,a=__md_scope)=>JSON.parse(t.getItem(a.pathname+"."+e)),__md_set=(e,t,a=localStorage,_=__md_scope)=>{try{a.setItem(_.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-label="Navigation"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#design-choices" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="./.." title="Causes" class="md-header__button md-logo" aria-label="Causes" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Causes
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Design Choices
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+    </div>
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="./.." title="Causes" class="md-nav__button md-logo" aria-label="Causes" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    Causes
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="./.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Manifesto/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manifesto
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design Choices
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="././" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design Choices
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#data-distribution-centralised-distributed-replicated" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data distribution: centralised / distributed / replicated
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#no-hard-dependencies-on-hosted-only-web-services" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        No hard dependencies on hosted-only web services
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-signs-symptoms-plans-split" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The signs / symptoms / plans split
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#web-ui-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Web UI layer
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#atom-feeds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Atom feeds
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#push-notifications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Push notifications
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-specification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API specification
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#security" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#deployment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deployment
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#language-and-stack" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Language and stack
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Decisions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Decisions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Proto-Reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Proto Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Raw-Discussion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Raw Discussion
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  
+                    
+                    
+                    
+                      
+                    
+                    
+                      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+                      <div class="md-sidebar-button__wrapper">
+                        <label class="md-sidebar-button" for="__toc"></label>
+                      </div>
+                    
+                  
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#data-distribution-centralised-distributed-replicated" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data distribution: centralised / distributed / replicated
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#no-hard-dependencies-on-hosted-only-web-services" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        No hard dependencies on hosted-only web services
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-signs-symptoms-plans-split" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The signs / symptoms / plans split
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#web-ui-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Web UI layer
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#atom-feeds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Atom feeds
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#push-notifications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Push notifications
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-specification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API specification
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#security" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#deployment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deployment
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#language-and-stack" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Language and stack
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+<h1 id="design-choices">Design Choices<a class="headerlink" href="#design-choices" title="Permanent link">&para;</a></h1>
+<p>This document captures the technical design decisions for Causes, freeing <a href="../Manifesto/">Manifesto.md</a> to focus on conceptual analysis.
+Implementers should read both.
+For the rationale behind each decision, see <a href="../Decisions/">Decisions.md</a>.</p>
+<h2 id="data-distribution-centralised-distributed-replicated">Data distribution: centralised / distributed / replicated<a class="headerlink" href="#data-distribution-centralised-distributed-replicated" title="Permanent link">&para;</a></h2>
+<p>Distributed and replicated.
+Some data sets (e.g. crash reports) may be too large to replicate everywhere; others (current project plans) are highly useful offline.
+The architecture supports both.
+The private-company use case — full local mirror of a public project's bugs, with selective upstream publishing — is a good test of the design.</p>
+<p>See <a href="../Decisions/#adr-001-distributed-and-replicated-data-model">ADR-001</a>.</p>
+<h2 id="no-hard-dependencies-on-hosted-only-web-services">No hard dependencies on hosted-only web services<a class="headerlink" href="#no-hard-dependencies-on-hosted-only-web-services" title="Permanent link">&para;</a></h2>
+<p>We can use anything for which a completely offline, self-hostable implementation exists.
+Anything else would prevent running private sites.</p>
+<p>See <a href="../Decisions/#adr-003-no-hard-dependencies-on-proprietary-or-hosted-only-web-services">ADR-003</a>.</p>
+<h2 id="the-signs-symptoms-plans-split">The signs / symptoms / plans split<a class="headerlink" href="#the-signs-symptoms-plans-split" title="Permanent link">&para;</a></h2>
+<p>A strongly-held design principle.
+Signs separate machine-oriented data (where mass analysis and automation rule) from symptoms (human-reported, discussion-heavy) and plans (developer proposals for change).
+The split may be soft at the code level but is important at the data model and UI level.</p>
+<p>Key motivation: duplicating two symptoms because they share a fix loses triangulation data if the fix is later found to address only one.
+Plans decouple "what users experience" from "what we intend to change".</p>
+<p>See <a href="../Decisions/#adr-002-signs-symptoms-plans-separation">ADR-002</a>.</p>
+<h2 id="web-ui-layer">Web UI layer<a class="headerlink" href="#web-ui-layer" title="Permanent link">&para;</a></h2>
+<p>Browsers connect to a Backend-for-Frontend (BFF), not directly to the instance API.
+The BFF manages browser sessions and proxies requests to the instance using a service-account API token.
+The BFF and instance may run in the same binary but are structurally separate layers.
+Neither the BFF nor the instance is assumed to have a public URL — both may be behind NAT.
+Human authentication uses OIDC Device Flow by default; redirect-based social login is an optional enhancement for public deployments.
+See <a href="../Decisions/#adr-010-security-model">ADR-010</a>.</p>
+<p>The BFF serves a JavaScript front-end.
+The original design specified Handlebars templates; current alternatives include React, Vue, Svelte, and HTMX.
+Choice should follow the language/stack decision (see <a href="../Decisions/#adr-008-language-stack-open">ADR-008</a>).</p>
+<p>Requirements regardless of framework:</p>
+<ul>
+<li>Server-side rendering of static views for search engine indexing</li>
+<li>Server-Sent Events (SSE) for real-time client updates (BFF fans SSE from instance to browser)</li>
+<li>Accessible markup (WCAG 2.1 AA minimum)</li>
+</ul>
+<h2 id="atom-feeds">Atom feeds<a class="headerlink" href="#atom-feeds" title="Permanent link">&para;</a></h2>
+<p>Atom feeds remain a valid choice for content syndication and allow efficient indexing by search engines.
+<a href="https://www.jsonfeed.org/">JSON Feed</a> is a simpler alternative if Atom's XML is a maintenance burden.</p>
+<h2 id="push-notifications">Push notifications<a class="headerlink" href="#push-notifications" title="Permanent link">&para;</a></h2>
+<p>All push between non-browser parties uses gRPC streaming.
+Every connection is client-initiated outbound, so no party needs a public URL.
+The BFF is the single conversion point: it holds a gRPC event stream from the instance and fans it out to browsers as SSE.
+SSE does not appear anywhere else in the system.</p>
+<p>Webhooks are not part of the core model; they may be offered as an optional outbound integration for external tools that cannot speak gRPC.</p>
+<p>See <a href="../Decisions/#adr-007-push-notifications--grpc-streaming">ADR-007</a>.</p>
+<h2 id="api-specification">API specification<a class="headerlink" href="#api-specification" title="Permanent link">&para;</a></h2>
+<p>The API is defined in <code>.proto</code> files.
+An OpenAPI spec is generated from the proto definitions and published for third-party integrations.
+Proto service definitions are the contract at component boundaries, making the backend language an implementation detail per component.
+The choice of RPC framework (Connect, grpc-gateway, tonic, etc.) follows the language decision in ADR-008.
+Real-time browser updates use Server-Sent Events (SSE), which is browser-native and requires no client library.
+See <a href="../Decisions/#adr-009-api-specification-format--protobuf">ADR-009</a>.</p>
+<h2 id="security">Security<a class="headerlink" href="#security" title="Permanent link">&para;</a></h2>
+<p>See <a href="../Decisions/#adr-010-security-model">ADR-010</a> for the full analysis.
+Key decisions: OIDC Device Flow as the universal default for human authentication (works behind NAT); BFF-only browser access; API tokens for service-to-service; no shared CA across instances.
+Key open areas: authorisation model, federation trust establishment, private disclosure workflow, GDPR handling, and connector credential management.</p>
+<h2 id="deployment">Deployment<a class="headerlink" href="#deployment" title="Permanent link">&para;</a></h2>
+<p>A fully functional public instance must run on a $10/month commodity VPS (1–2 vCPU, 1–2 GB RAM).
+This is a design goal, not a post-hoc validation: architectural decisions that would require more resources at modest scale should be reconsidered.</p>
+<p>The baseline deployment modes are:</p>
+<ul>
+<li><strong>Local dev:</strong> Docker Compose (one command to start all services)</li>
+<li><strong>Production:</strong> OCI container images; Docker or Kubernetes depending on scale</li>
+<li><strong>Minimal/single-node:</strong> single binary (if the language choice supports it) or a simple <code>systemd</code> unit</li>
+</ul>
+<p>No external managed services should be required for a basic self-hosted deployment.</p>
+<h2 id="language-and-stack">Language and stack<a class="headerlink" href="#language-and-stack" title="Permanent link">&para;</a></h2>
+<p>Not yet decided.
+See <a href="../Decisions/#adr-008-language-stack-open">ADR-008</a>.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate":null,"base":"..","features":[],"search":"../assets/javascripts/workers/search.e2d2d235.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.91a19a9e.min.js"></script>
+      
+    
+  </body>
+</html>

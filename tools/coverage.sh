@@ -18,6 +18,9 @@ SKIP_FILES=(
 	"services/causes_api/src/store.rs"                 # trait delegation to api_db
 )
 
+# Structural checks that Bazel can't model as hermetic tests.
+tools/require_readme_test.sh
+
 bazel coverage "$@"
 
 if [[ ! -f "$REPORT" ]]; then

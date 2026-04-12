@@ -470,8 +470,10 @@ name = "causes_cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "causes_mcp",
  "causes_proto",
  "clap",
+ "rmcp",
  "serde",
  "serde_json",
  "tempfile",

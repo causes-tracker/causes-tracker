@@ -1,7 +1,9 @@
 [workspace]
 members = [
   "lib/rust/api_db",
+  "lib/rust/causes_mcp",
   "lib/rust/causes_proto",
+  "lib/rust/proto_ext",
   "services/causes_api",
   "services/causes_cli",
   "tools/proto-gen",
@@ -61,6 +63,8 @@ rustls-acme = { version = "0.15", features = ["tokio"] }
 futures = "0.3"
 tokio-stream = "0.1"
 tower = { version = "0.5", features = ["util"] }
+rmcp = { version = "1", features = ["server", "transport-io", "macros"] }
+schemars = "1"
 mockall = "0.14"
 tempfile = "3"
 wiremock = "0.6"

@@ -31,6 +31,8 @@ jobs:
             echo "ERROR: Use //build:rust.bzl macros instead of @rules_rs directly."
             exit 1
           fi
+      - name: Check package READMEs
+        run: tools/require_readme_test.sh
       - name: Check formatting
         run: bazel run $BB_FLAGS //:format.check
       - name: Test, build docs, and check coverage

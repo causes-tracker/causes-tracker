@@ -17,6 +17,21 @@ This project uses Jujutsu (`jj`) for all version control.
 Never run raw `git` commands — they corrupt jj's operation log.
 All git interaction goes through `jj git fetch` and `jj git push`.
 
+## Pre-push checklist (mandatory after any rebase/reorder)
+
+Before every `jj git push --all` after graph changes:
+
+1. `jj log` — are bookmarks where you expect them?
+2. Any open PR whose **base branch is moving** in this push?
+   → `gh pr edit <N> --base master` to temp-base it first.
+   (The risk: if a PR's head becomes reachable from its base after the push,
+   GitHub falsely marks it "merged" — code never reaches master.)
+3. `jj git push --all`
+4. Fix PR bases back: `gh pr edit <N> --base <correct-branch>`
+5. Verify bijection: `gh pr list --json number,headRefName,baseRefName`
+
+Skip this checklist only for routine pushes with no rebase/reorder.
+
 ## Critical rules
 
 1. **No raw git.** Never run `git commit`, `git push`, `git checkout`, etc.
@@ -57,6 +72,35 @@ All git interaction goes through `jj git fetch` and `jj git push`.
    simple messages.
    For longer messages with a body, use `jj describe` (opens editor) or
    pass a multi-line string.
+
+## Stacked vs merge-all: choosing the right PR shape
+
+Before creating PRs from multiple commits, decide: **stacked** or **merge-all**?
+
+**Stacked (linear chain):** Each PR targets the previous PR's branch.
+Use when commits are **sequential** — commit B's diff only makes sense applied
+after commit A (e.g. both edit the same file, or B calls a function A introduces).
+
+```
+master ← A ← B ← C       (PR-A base=master, PR-B base=branch-A, ...)
+```
+
+**Merge-all (independent siblings):** Each PR targets master directly.
+Use when commits are **independent** — they touch different files/areas and
+their diffs apply cleanly in any order.
+
+```
+master ← A
+       ← B                (PR-A base=master, PR-B base=master, ...)
+       ← C
+```
+
+**The decision criterion is semantic, not textual.**
+Ask: "does it make sense to merge B into master without A?"
+If B calls a function A introduces, or extends behaviour A defines, they must
+be stacked — even if the diffs touch different files and rebase cleanly.
+If A and B are genuinely independent features that make sense in either order,
+they should be siblings.
 
 ## This repo's workflow
 
@@ -125,41 +169,15 @@ jj rebase -r <X> -A master -B <merge>    # independent branch off master
 
 ### Safe reorder with open PRs
 
-**CRITICAL:** When reordering commits in a stack with open PRs, GitHub can
-falsely mark a PR as "merged" — closing it without any code reaching master.
+When reordering commits with open PRs, GitHub can falsely mark a PR as
+"merged" if its head becomes reachable from its base branch after the push.
+The PR closes (purple) but code never reaches master.
 
-**How it happens:** In a stack where PR-B has `--base branch-A --head branch-B`,
-if you reorder so that B's commit becomes an ancestor of A's commit and then
-push both branches, GitHub sees B's head reachable from A (B's base branch)
-and concludes B was merged into A.
-The PR shows as "merged" (purple) but the code never went through the merge
-queue and is not on master.
+**How it happens:** PR-B has `--base branch-A --head branch-B`.
+You reorder so B's commit becomes an ancestor of A's, then push both.
+GitHub sees B's head reachable from A and concludes B was merged into A.
 
-**Safe reorder protocol:**
-
-1. **Before pushing**, list all open PRs affected by the reorder.
-2. **Temporarily set PR bases to `master`** for any PR whose base branch will
-   move, be deleted, or gain new ancestors:
-   ```sh
-   gh pr edit <N> --base master
-   ```
-   This is safe because master is guaranteed not to contain any in-flight
-   branch heads.
-3. **Push all branch updates:**
-   ```sh
-   jj git push --all
-   ```
-4. **Create PRs** for any new bookmarks that need them.
-5. **Fix PR bases** to the correct stacked branch:
-   ```sh
-   gh pr edit <N> --base <correct-branch>
-   ```
-
-The key invariant: **at no point during the push should a PR's head be
-reachable from its base branch's HEAD.**
-
-After any reorder, verify by querying open PRs and confirming there is a
-bijection between open PRs and the branches being worked on.
+**Follow the pre-push checklist at the top of this document.**
 
 ### Resolving conflicts
 

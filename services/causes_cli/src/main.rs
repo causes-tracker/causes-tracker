@@ -2,6 +2,7 @@ use clap::Parser;
 
 mod admin;
 mod auth;
+mod mcp;
 mod project;
 pub(crate) mod rpc;
 mod session_file;
@@ -28,6 +29,9 @@ enum Command {
     Admin(admin::AdminArgs),
     /// Manage authentication.
     Auth(auth::AuthArgs),
+    /// Start MCP (Model Context Protocol) server on stdio.
+    #[command(hide = true)]
+    Mcp,
     /// Manage projects.
     Project(project::ProjectArgs),
 }
@@ -40,6 +44,7 @@ async fn main() -> anyhow::Result<()> {
     match cli.command {
         Command::Admin(args) => admin::run(&cli.server, &data_dir, args).await,
         Command::Auth(args) => auth::run(&cli.server, &data_dir, args).await,
+        Command::Mcp => mcp::run(&cli.server, &data_dir).await,
         Command::Project(args) => project::run(&cli.server, &data_dir, args).await,
     }
 }

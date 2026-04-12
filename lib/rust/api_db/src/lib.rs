@@ -1,5 +1,6 @@
 mod admin;
 mod db;
+pub mod journal;
 mod pending_login;
 mod project;
 mod role;

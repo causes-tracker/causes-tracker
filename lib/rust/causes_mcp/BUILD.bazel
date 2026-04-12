@@ -1,14 +1,15 @@
-load("//build:rust.bzl", "rust_binary", "rust_test")
+load("//build:rust.bzl", "rust_library", "rust_test")
 
-rust_binary(
-    name = "causes_cli",
+rust_library(
+    name = "causes_mcp",
     srcs = glob(["src/**/*.rs"]),
+    visibility = ["//visibility:public"],
     deps = [
-        "//lib/rust/causes_mcp",
         "//lib/rust/causes_proto",
+        "//lib/rust/proto_ext",
         "@crates//:anyhow",
-        "@crates//:clap",
         "@crates//:rmcp",
+        "@crates//:schemars",
         "@crates//:serde",
         "@crates//:serde_json",
         "@crates//:tokio",
@@ -18,9 +19,6 @@ rust_binary(
 )
 
 rust_test(
-    name = "causes_cli_test",
-    crate = ":causes_cli",
-    deps = [
-        "@crates//:tempfile",
-    ],
+    name = "causes_mcp_test",
+    crate = ":causes_mcp",
 )

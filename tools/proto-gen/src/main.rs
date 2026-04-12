@@ -37,6 +37,7 @@ fn main() {
         .out_dir(&out_dir)
         .compile_protos(
             &[
+                proto_dir.join("causes/v1/common.proto"),
                 proto_dir.join("causes/v1/admin_service.proto"),
                 proto_dir.join("causes/v1/auth_service.proto"),
                 proto_dir.join("causes/v1/project_service.proto"),

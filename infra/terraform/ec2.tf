@@ -3,6 +3,8 @@
 # Runs the causes-api container with direct TLS termination via rustls-acme.
 # ~$4.70/month in ap-southeast-2.
 
+data "aws_caller_identity" "current" {}
+
 data "aws_ssm_parameter" "al2023_x86_64" {
   name = "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64"
 }
@@ -124,6 +126,14 @@ resource "aws_instance" "causes_api" {
   key_name                    = aws_key_pair.deployer.key_name
   associate_public_ip_address = true
 
+  # IMDSv2 defaults to hop_limit=1, which blocks IMDS from Docker bridge
+  # containers (the bridge adds one hop, so TTL reaches 0).  Bump to 2
+  # so the AWS SDK inside the container can obtain IAM credentials.
+  metadata_options {
+    http_tokens                 = "required"
+    http_put_response_hop_limit = 2
+  }
+
   user_data = <<-USERDATA
     #!/bin/bash
     set -euo pipefail
@@ -138,18 +148,6 @@ resource "aws_instance" "causes_api" {
     docker load < /tmp/causes-api.tar
     rm /tmp/causes-api.tar
 
-    # Pull the DB password from Secrets Manager and build DATABASE_URL.
-    # The RDS-managed password may contain shell-special and URI-special
-    # characters, so we URL-encode it via jq @uri.
-    DB_SECRET=$(aws secretsmanager get-secret-value \
-      --secret-id "${aws_rds_cluster.causes.master_user_secret[0].secret_arn}" \
-      --query SecretString --output text)
-    DB_USER=$(echo "$DB_SECRET" | jq -r .username)
-    DB_PASS=$(echo "$DB_SECRET" | jq -r '.password | @uri')
-    DB_HOST="${aws_rds_cluster.causes.endpoint}"
-    DB_PORT="${aws_rds_cluster.causes.port}"
-    DATABASE_URL="postgresql://$DB_USER:$DB_PASS@$DB_HOST:$DB_PORT/causes"
-
     # Mount the persistent EBS volume for TLS cert cache.
     # Format only if not already formatted (first attach).
     while [ ! -e /dev/xvdf ]; do sleep 1; done
@@ -160,14 +158,46 @@ resource "aws_instance" "causes_api" {
     mount /dev/xvdf /var/lib/causes/certs
     echo '/dev/xvdf /var/lib/causes/certs ext4 defaults,nofail 0 2' >> /etc/fstab
 
+    # Create the application database user with IAM authentication.
+    # The master user (postgres) cannot use IAM auth, so we create a
+    # separate "causes" user with rds_iam and full privileges on the
+    # causes database.  Idempotent: the IF NOT EXISTS / GRANT are safe
+    # to re-run.
+    dnf install -y postgresql16
+    DB_SECRET=$(aws secretsmanager get-secret-value \
+      --secret-id "${aws_rds_cluster.causes.master_user_secret[0].secret_arn}" \
+      --query SecretString --output text)
+    DB_PASS=$(echo "$DB_SECRET" | jq -r .password)
+    PGPASSWORD="$DB_PASS" psql \
+      -h "${aws_rds_cluster.causes.endpoint}" \
+      -p "${aws_rds_cluster.causes.port}" \
+      -U "${aws_rds_cluster.causes.master_username}" \
+      -d causes \
+      -c "DO \$\$
+          BEGIN
+            IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'causes') THEN
+              CREATE USER causes;
+            END IF;
+          END \$\$;" \
+      -c "GRANT rds_iam TO causes" \
+      -c "GRANT ALL ON DATABASE causes TO causes" \
+      -c "GRANT ALL ON SCHEMA public TO causes" \
+      -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO causes" \
+      -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO causes"
+
     # Allow binding port 443 without root.
     sysctl -w net.ipv4.ip_unprivileged_port_start=0
 
-    # Start causes-api
+    # Start causes-api with IAM database authentication.
+    # The container discovers IAM credentials via the EC2 Instance
+    # Metadata Service (IMDS) — no secrets are passed as env vars.
     docker run -d --name causes-api --restart unless-stopped \
       -p 443:443 \
       -v /var/lib/causes/certs:/var/lib/causes/certs \
-      -e DATABASE_URL="$DATABASE_URL" \
+      -e DB_HOST="${aws_rds_cluster.causes.endpoint}" \
+      -e DB_PORT="${aws_rds_cluster.causes.port}" \
+      -e DB_USER="causes" \
+      -e AWS_DEFAULT_REGION="${var.region}" \
       -e GOOGLE_CLIENT_ID="${var.google_client_id}" \
       -e GOOGLE_CLIENT_SECRET="${var.google_client_secret}" \
       -e HONEYCOMB_API_KEY="${var.honeycomb_api_key}" \
@@ -188,7 +218,7 @@ resource "aws_eip" "causes_api" {
   tags     = { Name = "causes-api" }
 }
 
-# ── IAM role for Secrets Manager + S3 access ─────────────────────────────────
+# ── IAM role for RDS IAM auth + S3 access ────────────────────────────────────
 
 resource "aws_iam_role" "causes_api" {
   name = "causes-api"
@@ -213,6 +243,22 @@ resource "aws_iam_role_policy" "causes_api_secrets" {
       Effect   = "Allow"
       Action   = ["secretsmanager:GetSecretValue"]
       Resource = [aws_rds_cluster.causes.master_user_secret[0].secret_arn]
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "causes_api_rds_iam" {
+  name = "causes-api-rds-iam"
+  role = aws_iam_role.causes_api.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = ["rds-db:connect"]
+      Resource = [
+        "arn:aws:rds-db:${var.region}:${data.aws_caller_identity.current.account_id}:dbuser:${aws_rds_cluster.causes.cluster_resource_id}/causes"
+      ]
     }]
   })
 }

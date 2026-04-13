@@ -64,3 +64,9 @@ tower = { version = "0.5", features = ["util"] }
 mockall = "0.14"
 tempfile = "3"
 wiremock = "0.6"
+arc-swap = "1"
+aws-config = { version = "1", features = ["behavior-version-latest"] }
+aws-credential-types = "1"
+aws-sdk-rds = "1"
+aws-smithy-async = { version = "1", features = ["test-util"] }
+aws-types = "1"

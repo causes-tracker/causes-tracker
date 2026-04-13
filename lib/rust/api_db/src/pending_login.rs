@@ -52,7 +52,7 @@ pub async fn create_pending_login(
         device_code,
         interval_secs,
     )
-    .execute(&pool.0)
+    .execute(&pool.pool())
     .await
     .context("inserting pending login")?;
 
@@ -71,7 +71,7 @@ pub async fn lookup_pending_login(
          FROM pending_logins WHERE nonce = $1",
         nonce.as_str(),
     )
-    .fetch_optional(&pool.0)
+    .fetch_optional(&pool.pool())
     .await
     .context("looking up pending login")?;
 
@@ -84,7 +84,7 @@ pub async fn delete_pending_login(pool: &DbPool, nonce: &LoginNonce) -> anyhow::
         "DELETE FROM pending_logins WHERE nonce = $1",
         nonce.as_str(),
     )
-    .execute(&pool.0)
+    .execute(&pool.pool())
     .await
     .context("deleting pending login")?;
 
@@ -96,7 +96,7 @@ pub async fn delete_pending_login(pool: &DbPool, nonce: &LoginNonce) -> anyhow::
 pub async fn gc_pending_logins(pool: &DbPool, max_age: std::time::Duration) -> anyhow::Result<u64> {
     let cutoff = sqlx::types::chrono::Utc::now() - max_age;
     let result = sqlx::query!("DELETE FROM pending_logins WHERE created_at < $1", cutoff,)
-        .execute(&pool.0)
+        .execute(&pool.pool())
         .await
         .context("garbage-collecting pending logins")?;
 
@@ -147,7 +147,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn create_and_lookup_pending_login(pool: sqlx::PgPool) {
-        let pool = DbPool(pool);
+        let pool = DbPool::from_pool(pool);
 
         let nonce = create_pending_login(&pool, "dev-code-xyz", 5)
             .await
@@ -164,7 +164,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn lookup_missing_nonce_returns_none(pool: sqlx::PgPool) {
-        let pool = DbPool(pool);
+        let pool = DbPool::from_pool(pool);
         let bogus = LoginNonce::from_raw("a".repeat(64)).unwrap();
 
         let row = lookup_pending_login(&pool, &bogus)
@@ -176,7 +176,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn delete_removes_pending_login(pool: sqlx::PgPool) {
-        let pool = DbPool(pool);
+        let pool = DbPool::from_pool(pool);
 
         let nonce = create_pending_login(&pool, "dev-code", 5)
             .await
@@ -195,7 +195,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn gc_removes_old_pending_logins(pool: sqlx::PgPool) {
-        let pool = DbPool(pool);
+        let pool = DbPool::from_pool(pool);
 
         // Create a login, then GC with zero max age (everything is "old").
         create_pending_login(&pool, "dev-code", 5)

@@ -16,6 +16,10 @@ rust_library(
     visibility = ["//visibility:public"],
     deps = [
         "@crates//:anyhow",
+        "@crates//:arc-swap",
+        "@crates//:aws-config",
+        "@crates//:aws-sdk-rds",
+        "@crates//:aws-types",
         "@crates//:email_address",
         "@crates//:futures",
         "@crates//:sqlx",
@@ -42,6 +46,8 @@ rust_test(
     rustc_env = {"SQLX_OFFLINE": "true"},
     tags = ["manual"],
     deps = [
+        "@crates//:aws-credential-types",
+        "@crates//:aws-smithy-async",
         "@crates//:tokio",
     ],
 )

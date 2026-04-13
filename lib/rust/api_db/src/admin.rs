@@ -159,7 +159,7 @@ impl std::fmt::Display for UserId {
 /// Return the number of rows in the `users` table.
 pub async fn user_count(pool: &DbPool) -> anyhow::Result<i64> {
     Ok(sqlx::query_scalar!("SELECT COUNT(*) FROM users")
-        .fetch_one(&pool.0)
+        .fetch_one(&pool.pool())
         .await
         .context("counting users")?
         .unwrap_or(0))
@@ -176,7 +176,7 @@ pub async fn create_admin(
     subject: &Subject,
 ) -> anyhow::Result<UserId> {
     let user_id = UserId::new();
-    let mut tx = pool.0.begin().await.context("beginning transaction")?;
+    let mut tx = pool.pool().begin().await.context("beginning transaction")?;
 
     sqlx::query!(
         "INSERT INTO users (id, display_name, email, auth_provider) VALUES ($1, $2, $3, $4)",
@@ -223,7 +223,7 @@ pub async fn create_user(
     subject: &Subject,
 ) -> anyhow::Result<UserId> {
     let user_id = UserId::new();
-    let mut tx = pool.0.begin().await.context("beginning transaction")?;
+    let mut tx = pool.pool().begin().await.context("beginning transaction")?;
 
     sqlx::query!(
         "INSERT INTO users (id, display_name, email, auth_provider) VALUES ($1, $2, $3, $4)",
@@ -385,7 +385,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn create_admin_inserts_rows(pool: sqlx::PgPool) {
-        let pool = DbPool(pool);
+        let pool = DbPool::from_pool(pool);
 
         let user_id = create_admin(
             &pool,
@@ -401,7 +401,7 @@ mod tests {
             "SELECT COUNT(*) FROM external_identities WHERE user_id = $1",
             user_id.as_str(),
         )
-        .fetch_one(&pool.0)
+        .fetch_one(&pool.pool())
         .await
         .unwrap()
         .unwrap_or(0);
@@ -411,7 +411,7 @@ mod tests {
             "SELECT role FROM role_assignments WHERE user_id = $1",
             user_id.as_str()
         )
-        .fetch_one(&pool.0)
+        .fetch_one(&pool.pool())
         .await
         .unwrap();
         assert_eq!(role, "instance-admin");
@@ -419,7 +419,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn create_user_inserts_rows_without_role(pool: sqlx::PgPool) {
-        let pool = DbPool(pool);
+        let pool = DbPool::from_pool(pool);
 
         let user_id = create_user(
             &pool,
@@ -435,7 +435,7 @@ mod tests {
             "SELECT COUNT(*) FROM external_identities WHERE user_id = $1",
             user_id.as_str(),
         )
-        .fetch_one(&pool.0)
+        .fetch_one(&pool.pool())
         .await
         .unwrap();
         assert_eq!(ext_count.unwrap_or(0), 1);
@@ -444,7 +444,7 @@ mod tests {
             "SELECT role FROM role_assignments WHERE user_id = $1",
             user_id.as_str(),
         )
-        .fetch_optional(&pool.0)
+        .fetch_optional(&pool.pool())
         .await
         .unwrap();
         assert!(role.is_none(), "expected no role_assignments");
@@ -452,7 +452,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn user_count_returns_nonnegative(pool: sqlx::PgPool) {
-        let pool = DbPool(pool);
+        let pool = DbPool::from_pool(pool);
 
         let count = user_count(&pool).await.expect("user_count failed");
         assert!(count >= 0);

@@ -72,9 +72,10 @@ resource "aws_rds_cluster" "causes" {
   engine                      = "aurora-postgresql"
   engine_version              = "16.6"
   database_name               = "causes"
-  master_username             = "causes"
-  manage_master_user_password = true
-  db_subnet_group_name        = aws_db_subnet_group.causes.name
+  master_username             = "postgres"
+  manage_master_user_password              = true
+  iam_database_authentication_enabled      = true
+  db_subnet_group_name                     = aws_db_subnet_group.causes.name
   vpc_security_group_ids      = [aws_security_group.causes_db.id]
   skip_final_snapshot         = true
 

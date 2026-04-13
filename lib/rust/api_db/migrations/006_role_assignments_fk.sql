@@ -8,11 +8,13 @@
 
 ALTER TABLE role_assignments DROP CONSTRAINT role_assignments_pkey;
 
+ALTER TABLE role_assignments
+    ALTER COLUMN project_id DROP DEFAULT,
+    ALTER COLUMN project_id DROP NOT NULL;
+
 UPDATE role_assignments SET project_id = NULL WHERE project_id = '';
 
 ALTER TABLE role_assignments
-    ALTER COLUMN project_id DROP DEFAULT,
-    ALTER COLUMN project_id DROP NOT NULL,
     ADD CONSTRAINT role_assignments_project_id_fkey
         FOREIGN KEY (project_id) REFERENCES projects(id);
 

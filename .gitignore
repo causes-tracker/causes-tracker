@@ -45,3 +45,6 @@ cabal-dev
 .virthualenv
 *~
 *.swp
+
+# VS Code settings for the project — never commit; otherwise contributors cannot customise work.
+.vscode

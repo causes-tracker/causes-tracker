@@ -13,13 +13,13 @@ pub fn authed_request<T>(
     server: &str,
     inner: T,
 ) -> anyhow::Result<tonic::Request<T>> {
-    let session = session_file::load(data_dir, server)?
+    let token = session_file::load(data_dir, server)?
         .ok_or_else(|| anyhow::anyhow!("not logged in — run `causes auth login` first"))?;
 
     let mut req = tonic::Request::new(inner);
     req.metadata_mut().insert(
         "authorization",
-        format!("Bearer {}", session.session_token)
+        format!("Bearer {token}")
             .parse()
             .context("invalid session token")?,
     );
@@ -40,14 +40,8 @@ mod tests {
     #[test]
     fn authed_request_sets_bearer_header() {
         let dir = tempfile::tempdir().unwrap();
-        session_file::save(
-            dir.path(),
-            "http://localhost:50051",
-            &session_file::SessionFile {
-                session_token: "a".repeat(64),
-            },
-        )
-        .unwrap();
+        let token = "a".repeat(64);
+        session_file::save(dir.path(), "http://localhost:50051", &token).unwrap();
 
         let req = authed_request(dir.path(), "http://localhost:50051", ()).unwrap();
         let auth = req
@@ -56,6 +50,6 @@ mod tests {
             .unwrap()
             .to_str()
             .unwrap();
-        assert_eq!(auth, format!("Bearer {}", "a".repeat(64)));
+        assert_eq!(auth, format!("Bearer {token}"));
     }
 }

@@ -1,0 +1,20 @@
+load("//build:rust.bzl", "rust_library", "rust_test")
+
+rust_library(
+    name = "causes_session",
+    srcs = glob(["src/**/*.rs"]),
+    visibility = ["//visibility:public"],
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:serde",
+        "@crates//:serde_json",
+    ],
+)
+
+rust_test(
+    name = "causes_session_test",
+    crate = ":causes_session",
+    deps = [
+        "@crates//:tempfile",
+    ],
+)

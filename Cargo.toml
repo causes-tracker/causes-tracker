@@ -68,7 +68,7 @@ rmcp = { version = "1", features = ["server", "transport-io", "macros"] }
 schemars = "1"
 mockall = "0.14"
 tempfile = "3"
-rcgen = "0.13"
+rcgen = "0.14"
 wiremock = "0.6"
 arc-swap = "1"
 aws-config = { version = "1", features = ["behavior-version-latest"] }

@@ -161,7 +161,7 @@ pub async fn create_project(
     creator_user_id: &UserId,
 ) -> Result<ProjectRow, ProjectError> {
     let id = Uuid::new_v4().to_string();
-    let mut tx = pool.0.begin().await.context("beginning transaction")?;
+    let mut tx = pool.pool().begin().await.context("beginning transaction")?;
 
     let row = sqlx::query!(
         "INSERT INTO projects (id, name, description, visibility, embargoed_by_default) \
@@ -220,7 +220,7 @@ pub async fn get_project(
          FROM projects WHERE id = $1",
         project_id.as_str(),
     )
-    .fetch_optional(&pool.0)
+    .fetch_optional(&pool.pool())
     .await
     .context("looking up project")?;
 
@@ -256,7 +256,7 @@ async fn is_unrestricted_admin(pool: &DbPool, session: &SessionRow) -> anyhow::R
          WHERE user_id = $1 AND project_id IS NULL AND role = 'instance-admin'",
         session.user_id.as_str(),
     )
-    .fetch_one(&pool.0)
+    .fetch_one(&pool.pool())
     .await
     .context("checking instance-admin")?;
     Ok(count.unwrap_or(0) > 0)
@@ -293,7 +293,7 @@ async fn visible_projects(
             session.user_id.as_str(),
             &private_ids[..] as &[&str],
         )
-        .fetch_all(&pool.0)
+        .fetch_all(&pool.pool())
         .await
         .context("bulk visibility check")?;
         rows.into_iter()
@@ -322,7 +322,7 @@ pub async fn find_project_by_name(
          FROM projects WHERE name = $1",
         name,
     )
-    .fetch_optional(&pool.0)
+    .fetch_optional(&pool.pool())
     .await
     .context("finding project by name")?;
 
@@ -381,11 +381,12 @@ pub async fn list_projects(
 
         let mut batch = Vec::with_capacity(VISIBILITY_BATCH_SIZE);
 
+        let db = pool.pool();
         let mut stream = sqlx::query!(
             "SELECT id, name, description, visibility, embargoed_by_default, created_at \
              FROM projects ORDER BY name"
         )
-        .fetch(&pool.0);
+        .fetch(&db);
 
         loop {
             match stream.try_next().await {
@@ -463,7 +464,7 @@ pub async fn rename_project(
         new_name.as_str(),
         project_id.as_str(),
     )
-    .fetch_optional(&pool.0)
+    .fetch_optional(&pool.pool())
     .await
     .map_err(|e| {
         if is_unique_violation(&e) {
@@ -487,7 +488,7 @@ pub async fn rename_project(
 
 /// Delete a project and its role assignments. Returns false if not found.
 pub async fn delete_project(pool: &DbPool, project_id: &ProjectId) -> anyhow::Result<bool> {
-    let mut tx = pool.0.begin().await.context("beginning transaction")?;
+    let mut tx = pool.pool().begin().await.context("beginning transaction")?;
 
     sqlx::query!(
         "DELETE FROM role_assignments WHERE project_id = $1",
@@ -601,7 +602,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn create_private_project_succeeds(pool: sqlx::PgPool) {
-        let pool = DbPool(pool);
+        let pool = DbPool::from_pool(pool);
         let user_id = seed_admin(&pool).await;
         let session = session_for(&user_id, false);
 
@@ -627,7 +628,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn create_project_inserts_row_and_role(pool: sqlx::PgPool) {
-        let pool = DbPool(pool);
+        let pool = DbPool::from_pool(pool);
         let user_id = seed_admin(&pool).await;
         let session = session_for(&user_id, false);
 
@@ -663,7 +664,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn create_project_rejects_duplicate_name(pool: sqlx::PgPool) {
-        let pool = DbPool(pool);
+        let pool = DbPool::from_pool(pool);
         let user_id = seed_admin(&pool).await;
         let name = ProjectName::new("dupe").unwrap();
 
@@ -678,7 +679,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn get_project_returns_none_for_missing(pool: sqlx::PgPool) {
-        let pool = DbPool(pool);
+        let pool = DbPool::from_pool(pool);
         let user_id = seed_admin(&pool).await;
         let session = session_for(&user_id, false);
         let pid = ProjectId::new(Uuid::new_v4().to_string()).unwrap();
@@ -690,7 +691,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn rename_project_updates_name(pool: sqlx::PgPool) {
-        let pool = DbPool(pool);
+        let pool = DbPool::from_pool(pool);
         let user_id = seed_admin(&pool).await;
 
         let pid = create_project(
@@ -714,7 +715,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn rename_missing_returns_none(pool: sqlx::PgPool) {
-        let pool = DbPool(pool);
+        let pool = DbPool::from_pool(pool);
         let pid = ProjectId::new(Uuid::new_v4().to_string()).unwrap();
         let result = rename_project(&pool, &pid, &ProjectName::new("xx").unwrap())
             .await
@@ -724,7 +725,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn delete_project_removes_row_and_roles(pool: sqlx::PgPool) {
-        let pool = DbPool(pool);
+        let pool = DbPool::from_pool(pool);
         let user_id = seed_admin(&pool).await;
         let session = session_for(&user_id, false);
 
@@ -754,14 +755,14 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn delete_missing_returns_false(pool: sqlx::PgPool) {
-        let pool = DbPool(pool);
+        let pool = DbPool::from_pool(pool);
         let pid = ProjectId::new(Uuid::new_v4().to_string()).unwrap();
         assert!(!delete_project(&pool, &pid).await.unwrap());
     }
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn list_projects_returns_all(pool: sqlx::PgPool) {
-        let pool = DbPool(pool);
+        let pool = DbPool::from_pool(pool);
         let user_id = seed_admin(&pool).await;
         let session = session_for(&user_id, false);
 
@@ -794,7 +795,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn full_lifecycle(pool: sqlx::PgPool) {
-        let pool = DbPool(pool);
+        let pool = DbPool::from_pool(pool);
         let user_id = seed_admin(&pool).await;
         let session = session_for(&user_id, false);
 
@@ -898,7 +899,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn get_project_hides_private_from_stranger(pool: sqlx::PgPool) {
-        let pool = DbPool(pool);
+        let pool = DbPool::from_pool(pool);
         let creator = seed_admin(&pool).await;
         let stranger = seed_user(&pool, "stranger@example.com").await;
         let stranger_session = session_for(&stranger, false);
@@ -923,7 +924,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn get_project_shows_private_to_member(pool: sqlx::PgPool) {
-        let pool = DbPool(pool);
+        let pool = DbPool::from_pool(pool);
         let creator = seed_admin(&pool).await;
         let session = session_for(&creator, false);
 
@@ -947,7 +948,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn get_project_shows_private_to_unrestricted_admin(pool: sqlx::PgPool) {
-        let pool = DbPool(pool);
+        let pool = DbPool::from_pool(pool);
         let admin = seed_admin(&pool).await;
         let other = seed_user(&pool, "other@example.com").await;
         let admin_session = session_for(&admin, false); // unrestricted
@@ -973,7 +974,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn get_project_hides_private_from_restricted_admin(pool: sqlx::PgPool) {
-        let pool = DbPool(pool);
+        let pool = DbPool::from_pool(pool);
         let admin = seed_admin(&pool).await;
         let other = seed_user(&pool, "other@example.com").await;
         let restricted_session = session_for(&admin, true); // restricted
@@ -999,7 +1000,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn list_projects_filters_private(pool: sqlx::PgPool) {
-        let pool = DbPool(pool);
+        let pool = DbPool::from_pool(pool);
         let creator = seed_admin(&pool).await;
         let stranger = seed_user(&pool, "stranger@example.com").await;
         let creator_session = session_for(&creator, false);
@@ -1038,7 +1039,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn find_project_by_name_hides_private(pool: sqlx::PgPool) {
-        let pool = DbPool(pool);
+        let pool = DbPool::from_pool(pool);
         let creator = seed_admin(&pool).await;
         let stranger = seed_user(&pool, "stranger@example.com").await;
         let creator_session = session_for(&creator, false);
@@ -1103,7 +1104,7 @@ mod tests {
 
         use futures::StreamExt;
 
-        let pool = DbPool(pool);
+        let pool = DbPool::from_pool(pool);
         let user_id = seed_admin(&pool).await;
         let session = session_for(&user_id, false);
 
@@ -1156,7 +1157,7 @@ mod tests {
                     query.push_str(&format!("('{id}', '{name}', '', 'public', false, now())"));
                 }
                 sqlx::query(&query)
-                    .execute(&pool.0)
+                    .execute(&pool.pool())
                     .await
                     .unwrap_or_else(|e| {
                         panic!(
@@ -1171,7 +1172,7 @@ mod tests {
             // Update planner statistics after bulk insert so Postgres
             // doesn't fall back to sequential scan + sort.
             sqlx::query("ANALYZE projects")
-                .execute(&pool.0)
+                .execute(&pool.pool())
                 .await
                 .expect("ANALYZE failed");
 
@@ -1181,7 +1182,7 @@ mod tests {
                  SELECT id, name, description, visibility, embargoed_by_default, created_at \
                  FROM projects",
             )
-            .fetch_all(&pool.0)
+            .fetch_all(&pool.pool())
             .await
             .expect("EXPLAIN failed");
             log!("\n-- EXPLAIN at {total} projects --");

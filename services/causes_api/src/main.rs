@@ -26,9 +26,15 @@ async fn main() -> anyhow::Result<()> {
     let cfg = config::Config::parse();
 
     info!("connecting to database");
-    let pool = api_db::DbPool::connect(&cfg.database_url)
-        .await
-        .context("connecting to database")?;
+    let pool = api_db::DbPool::from_config(
+        cfg.db_host.as_deref(),
+        cfg.db_user.as_deref(),
+        cfg.db_port,
+        cfg.database_url.as_deref(),
+    )
+    .await
+    .context("connecting to database")?;
+    let _refresh_task = pool.start_background_refresh();
 
     main_inner(cfg, pool, async {
         tokio::signal::ctrl_c()
@@ -125,7 +131,10 @@ mod tests {
         db.expect_user_count().returning(|| Ok(1));
 
         let cfg = config::Config {
-            database_url: "unused".to_string(),
+            database_url: Some("unused".to_string()),
+            db_host: None,
+            db_user: None,
+            db_port: 5432,
             google_client_id: String::new(),
             google_client_secret: String::new(),
             honeycomb_api_key: None,

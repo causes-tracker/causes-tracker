@@ -66,7 +66,7 @@ pub async fn create_session(
         expires_at,
         restricted,
     )
-    .execute(&pool.0)
+    .execute(&pool.pool())
     .await
     .context("inserting session")?;
 
@@ -84,7 +84,7 @@ pub async fn lookup_session(
         "SELECT user_id, expires_at, restricted FROM sessions WHERE token = $1",
         token.as_str(),
     )
-    .fetch_optional(&pool.0)
+    .fetch_optional(&pool.pool())
     .await
     .context("looking up session")?;
 
@@ -104,7 +104,7 @@ pub async fn find_user_by_identity(
         issuer,
         subject,
     )
-    .fetch_optional(&pool.0)
+    .fetch_optional(&pool.pool())
     .await
     .context("finding user by identity")?;
 
@@ -119,7 +119,7 @@ pub async fn find_user_by_id(pool: &DbPool, user_id: &UserId) -> anyhow::Result<
         "SELECT display_name, email FROM users WHERE id = $1",
         user_id.as_str(),
     )
-    .fetch_optional(&pool.0)
+    .fetch_optional(&pool.pool())
     .await
     .context("finding user by id")?;
 
@@ -131,7 +131,7 @@ pub async fn find_user_by_id(pool: &DbPool, user_id: &UserId) -> anyhow::Result<
 /// Errors if multiple users share the same email (ambiguous).
 pub async fn find_user_by_email(pool: &DbPool, email: &str) -> anyhow::Result<Option<UserId>> {
     let rows = sqlx::query_scalar!("SELECT id FROM users WHERE email = $1", email,)
-        .fetch_all(&pool.0)
+        .fetch_all(&pool.pool())
         .await
         .context("finding user by email")?;
 
@@ -146,7 +146,7 @@ pub async fn find_user_by_email(pool: &DbPool, email: &str) -> anyhow::Result<Op
 /// Called periodically to garbage-collect sessions past their `expires_at`.
 pub async fn gc_expired_sessions(pool: &DbPool) -> anyhow::Result<u64> {
     let result = sqlx::query!("DELETE FROM sessions WHERE expires_at < now()")
-        .execute(&pool.0)
+        .execute(&pool.pool())
         .await
         .context("garbage-collecting expired sessions")?;
 
@@ -257,7 +257,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn create_and_lookup_session(pool: sqlx::PgPool) {
-        let pool = DbPool(pool);
+        let pool = DbPool::from_pool(pool);
         let user_id = seed_admin(&pool).await;
 
         let token = create_session(&pool, &user_id, std::time::Duration::from_secs(3600), true)
@@ -276,7 +276,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn create_unrestricted_session(pool: sqlx::PgPool) {
-        let pool = DbPool(pool);
+        let pool = DbPool::from_pool(pool);
         let user_id = seed_admin(&pool).await;
 
         let token = create_session(&pool, &user_id, std::time::Duration::from_secs(3600), false)
@@ -294,7 +294,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn lookup_missing_token_returns_none(pool: sqlx::PgPool) {
-        let pool = DbPool(pool);
+        let pool = DbPool::from_pool(pool);
         let bogus = SessionToken::from_raw("a".repeat(64)).unwrap();
 
         let row = lookup_session(&pool, &bogus)
@@ -306,7 +306,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn find_user_by_identity_returns_match(pool: sqlx::PgPool) {
-        let pool = DbPool(pool);
+        let pool = DbPool::from_pool(pool);
         let user_id = seed_admin(&pool).await;
 
         let found = find_user_by_identity(&pool, "accounts.google.com", "test-sub-42")
@@ -318,7 +318,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn find_user_by_identity_returns_none_for_unknown(pool: sqlx::PgPool) {
-        let pool = DbPool(pool);
+        let pool = DbPool::from_pool(pool);
 
         let found = find_user_by_identity(&pool, "unknown.issuer", "no-such-sub")
             .await
@@ -329,7 +329,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn find_user_by_id_returns_match(pool: sqlx::PgPool) {
-        let pool = DbPool(pool);
+        let pool = DbPool::from_pool(pool);
         let user_id = seed_admin(&pool).await;
 
         let row = find_user_by_id(&pool, &user_id)
@@ -343,7 +343,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn find_user_by_id_returns_none_for_unknown(pool: sqlx::PgPool) {
-        let pool = DbPool(pool);
+        let pool = DbPool::from_pool(pool);
         let bogus = UserId::new();
 
         let row = find_user_by_id(&pool, &bogus)

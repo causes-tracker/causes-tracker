@@ -42,6 +42,24 @@ pub fn default_data_dir() -> PathBuf {
         .join("causes")
 }
 
+/// Trait for loading and saving session tokens.
+pub trait SessionStorage: Send + Sync {
+    fn load(&self) -> anyhow::Result<Option<String>>;
+    fn save(&self, token: &str) -> anyhow::Result<()>;
+}
+
+/// No-op session store that never persists.
+pub struct NullSessionStore;
+
+impl SessionStorage for NullSessionStore {
+    fn load(&self) -> anyhow::Result<Option<String>> {
+        Ok(None)
+    }
+    fn save(&self, _token: &str) -> anyhow::Result<()> {
+        Ok(())
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 struct SessionFile {
     session_token: String,
@@ -62,15 +80,16 @@ impl SessionKind {
     }
 }
 
-/// A session store that persists tokens to `<data_dir>/<sanitised_url><suffix>.json`.
+/// File-backed session store.
+/// Persists tokens to `<data_dir>/<sanitised_url><suffix>.json`.
 #[derive(Clone)]
-pub struct SessionStore {
+pub struct FileSessionStore {
     data_dir: PathBuf,
     server: String,
     suffix: &'static str,
 }
 
-impl SessionStore {
+impl FileSessionStore {
     pub fn new(kind: SessionKind, data_dir: &Path, server: &str) -> Self {
         Self {
             data_dir: data_dir.to_path_buf(),
@@ -83,10 +102,10 @@ impl SessionStore {
         let stem = sanitise_server(&self.server);
         self.data_dir.join(format!("{stem}{}.json", self.suffix))
     }
+}
 
-    /// Load a session token, returning `None` if no file exists or the
-    /// token is invalid.
-    pub fn load(&self) -> anyhow::Result<Option<String>> {
+impl SessionStorage for FileSessionStore {
+    fn load(&self) -> anyhow::Result<Option<String>> {
         let path = self.path();
         if !path.exists() {
             return Ok(None);
@@ -100,8 +119,7 @@ impl SessionStore {
         Ok(Some(session.session_token))
     }
 
-    /// Save a session token.
-    pub fn save(&self, token: &str) -> anyhow::Result<()> {
+    fn save(&self, token: &str) -> anyhow::Result<()> {
         std::fs::create_dir_all(&self.data_dir).context("creating data directory")?;
         let session = SessionFile {
             session_token: token.to_string(),
@@ -124,8 +142,8 @@ mod tests {
 
     #[test]
     fn cli_and_mcp_use_different_files() {
-        let cli = SessionStore::new(SessionKind::Cli, Path::new("/tmp"), "https://example.com");
-        let mcp = SessionStore::new(SessionKind::Mcp, Path::new("/tmp"), "https://example.com");
+        let cli = FileSessionStore::new(SessionKind::Cli, Path::new("/tmp"), "https://example.com");
+        let mcp = FileSessionStore::new(SessionKind::Mcp, Path::new("/tmp"), "https://example.com");
         assert_ne!(cli.path(), mcp.path());
         assert!(cli.path().to_str().unwrap().ends_with("example.com.json"));
         assert!(
@@ -140,7 +158,7 @@ mod tests {
     fn round_trip_save_and_load() {
         let dir = tempfile::tempdir().unwrap();
         let token = "d".repeat(64);
-        let store = SessionStore::new(SessionKind::Mcp, dir.path(), "http://localhost:50051");
+        let store = FileSessionStore::new(SessionKind::Mcp, dir.path(), "http://localhost:50051");
         store.save(&token).unwrap();
         assert_eq!(store.load().unwrap().unwrap(), token);
     }
@@ -148,14 +166,14 @@ mod tests {
     #[test]
     fn load_returns_none_when_missing() {
         let dir = tempfile::tempdir().unwrap();
-        let store = SessionStore::new(SessionKind::Cli, dir.path(), "http://nonexistent:1");
+        let store = FileSessionStore::new(SessionKind::Cli, dir.path(), "http://nonexistent:1");
         assert!(store.load().unwrap().is_none());
     }
 
     #[test]
     fn load_returns_none_for_invalid_token() {
         let dir = tempfile::tempdir().unwrap();
-        let store = SessionStore::new(SessionKind::Mcp, dir.path(), "http://localhost:50051");
+        let store = FileSessionStore::new(SessionKind::Mcp, dir.path(), "http://localhost:50051");
 
         std::fs::write(store.path(), r#"{"session_token":""}"#).unwrap();
         assert!(store.load().unwrap().is_none());
@@ -173,8 +191,8 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let token_a = "a".repeat(64);
         let token_b = "b".repeat(64);
-        let store_a = SessionStore::new(SessionKind::Cli, dir.path(), "http://server-a:50051");
-        let store_b = SessionStore::new(SessionKind::Cli, dir.path(), "http://server-b:50051");
+        let store_a = FileSessionStore::new(SessionKind::Cli, dir.path(), "http://server-a:50051");
+        let store_b = FileSessionStore::new(SessionKind::Cli, dir.path(), "http://server-b:50051");
         store_a.save(&token_a).unwrap();
         store_b.save(&token_b).unwrap();
         assert_eq!(store_a.load().unwrap().unwrap(), token_a);

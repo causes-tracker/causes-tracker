@@ -2,16 +2,16 @@
 
 pub use causes_session::default_data_dir;
 
-use causes_session::{SessionKind, SessionStore};
+use causes_session::{FileSessionStore, SessionKind, SessionStorage};
 
 /// Load the session token for a server, returning `None` if absent or invalid.
 pub fn load(data_dir: &std::path::Path, server: &str) -> anyhow::Result<Option<String>> {
-    SessionStore::new(SessionKind::Cli, data_dir, server).load()
+    FileSessionStore::new(SessionKind::Cli, data_dir, server).load()
 }
 
 /// Save a session token for a server.
 pub fn save(data_dir: &std::path::Path, server: &str, token: &str) -> anyhow::Result<()> {
-    SessionStore::new(SessionKind::Cli, data_dir, server).save(token)
+    FileSessionStore::new(SessionKind::Cli, data_dir, server).save(token)
 }
 
 #[cfg(test)]

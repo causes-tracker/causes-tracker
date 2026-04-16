@@ -2,6 +2,8 @@
 //!
 //! Transport-agnostic: callers bind this to stdio (CLI) or Streamable HTTP (BFF).
 
+mod project;
+
 use rmcp::ServerHandler;
 use rmcp::handler::server::router::tool::ToolRouter;
 use rmcp::tool;
@@ -19,7 +21,8 @@ use tokio::sync::RwLock;
 use tonic::transport::Channel;
 use tracing::debug;
 
-type AuthedChannel = tonic::service::interceptor::InterceptedService<Channel, BearerInterceptor>;
+pub(crate) type AuthedChannel =
+    tonic::service::interceptor::InterceptedService<Channel, BearerInterceptor>;
 
 /// State saved between the first login call (which returns the URL/code)
 /// and the second call (which polls for completion).
@@ -39,7 +42,7 @@ struct PendingLogin {
 #[derive(Clone)]
 pub struct CausesTools {
     server_url: String,
-    session: causes_session::SessionStore,
+    session: Arc<dyn causes_session::SessionStorage>,
     channel: Channel,
     cached_channel: Arc<RwLock<Option<AuthedChannel>>>,
     pending_login: Arc<RwLock<Option<PendingLogin>>>,
@@ -58,17 +61,17 @@ impl CausesTools {
                 .tls_config(tonic::transport::ClientTlsConfig::new().with_native_roots())
                 .expect("TLS config");
         }
-        let session = causes_session::SessionStore::new(
+        let session = causes_session::FileSessionStore::new(
             causes_session::SessionKind::Mcp,
             &data_dir,
             &server_url,
         );
-        Self::with_channel(server_url, session, endpoint.connect_lazy())
+        Self::with_channel(server_url, Arc::new(session), endpoint.connect_lazy())
     }
 
-    fn with_channel(
+    pub(crate) fn with_channel(
         server_url: String,
-        session: causes_session::SessionStore,
+        session: Arc<dyn causes_session::SessionStorage>,
         channel: Channel,
     ) -> Self {
         Self {
@@ -78,7 +81,7 @@ impl CausesTools {
             cached_channel: Arc::new(RwLock::new(None)),
             pending_login: Arc::new(RwLock::new(None)),
             login_timeout: std::time::Duration::from_secs(600),
-            tool_router: Self::tool_router(),
+            tool_router: Self::tool_router() + Self::project_router(),
         }
     }
 
@@ -86,7 +89,7 @@ impl CausesTools {
         Ok(AuthServiceClient::new(self.authed_channel().await?))
     }
 
-    async fn authed_channel(&self) -> Result<AuthedChannel, String> {
+    pub(crate) async fn authed_channel(&self) -> Result<AuthedChannel, String> {
         if let Some(ch) = self.cached_channel.read().await.clone() {
             debug!("using cached authed channel");
             return Ok(ch);
@@ -108,7 +111,7 @@ impl CausesTools {
         Ok(ch)
     }
 
-    async fn set_authed_channel(&self, token: &str) {
+    pub(crate) async fn set_authed_channel(&self, token: &str) {
         let ch = tonic::service::interceptor::InterceptedService::new(
             self.channel.clone(),
             BearerInterceptor::new(token.to_string()),
@@ -277,9 +280,28 @@ impl CausesTools {
 // delegating tool dispatch to the ToolRouter populated by #[tool_router] above.
 #[tool_handler]
 impl ServerHandler for CausesTools {
+    async fn list_tools(
+        &self,
+        _request: Option<rmcp::model::PaginatedRequestParams>,
+        _context: rmcp::service::RequestContext<rmcp::RoleServer>,
+    ) -> Result<rmcp::model::ListToolsResult, rmcp::ErrorData> {
+        // Manually implemented because the `#[tool_handler]` macro's generated
+        // `list_tools` uses the first `#[tool_router]`-generated router only,
+        // not the merged `self.tool_router` field.  Using the field directly
+        // includes both login/whoami and project tools.
+        Ok(rmcp::model::ListToolsResult {
+            tools: self.tool_router.list_all(),
+            meta: None,
+            next_cursor: None,
+        })
+    }
+
     fn get_info(&self) -> rmcp::model::ServerInfo {
         let mut info = rmcp::model::ServerInfo::default();
         info.server_info = rmcp::model::Implementation::new("causes", env!("CARGO_PKG_VERSION"));
+        info.capabilities = rmcp::model::ServerCapabilities::builder()
+            .enable_tools()
+            .build();
         info.instructions = Some(
             "Causes project tracker. Use the login tool to authenticate, \
              then use project tools to manage projects."
@@ -297,8 +319,7 @@ mod tests {
 
     use causes_proto::auth_service_server::{AuthService, AuthServiceServer};
     use causes_proto::*;
-
-    // ── Mock services ───────────────────────────────────────────────────────
+    use causes_session::SessionStorage;
 
     struct MockAuthService {
         poll_count: AtomicU32,
@@ -359,7 +380,25 @@ mod tests {
         }
     }
 
+    async fn start_mock_grpc() -> String {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+
+        let mock = Arc::new(MockAuthService::new());
+        tokio::spawn(async move {
+            tonic::transport::Server::builder()
+                .add_service(AuthServiceServer::from_arc(mock))
+                .serve_with_incoming(tokio_stream::wrappers::TcpListenerStream::new(listener))
+                .await
+                .unwrap();
+        });
+
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        format!("http://127.0.0.1:{port}")
+    }
+
     /// Mock that always returns Pending — login never completes.
+    /// Only used by the timeout test in this module.
     struct AlwaysPendingAuthService;
 
     #[tonic::async_trait]
@@ -393,41 +432,6 @@ mod tests {
         }
     }
 
-    // ── Test helpers ────────────────────────────────────────────────────────
-
-    /// Start a mock gRPC server, returning the URL.
-    async fn start_mock_grpc() -> String {
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let port = listener.local_addr().unwrap().port();
-
-        let mock = Arc::new(MockAuthService::new());
-        tokio::spawn(async move {
-            tonic::transport::Server::builder()
-                .add_service(AuthServiceServer::from_arc(mock))
-                .serve_with_incoming(tokio_stream::wrappers::TcpListenerStream::new(listener))
-                .await
-                .unwrap();
-        });
-
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-        format!("http://127.0.0.1:{port}")
-    }
-
-    /// Complete the two-call login flow, returning the tools instance.
-    async fn logged_in_tools() -> (CausesTools, tempfile::TempDir) {
-        let url = start_mock_grpc().await;
-        let dir = tempfile::tempdir().unwrap();
-        let tools = CausesTools::new(url, dir.path().to_path_buf());
-        let first = tools.login().await;
-        assert!(first.contains("Login started"), "first login: {first}");
-        let second = tools.login().await;
-        assert!(
-            second.contains("Login successful"),
-            "second login: {second}"
-        );
-        (tools, dir)
-    }
-
     // ── Login tests ─────────────────────────────────────────────────────────
 
     #[tokio::test]
@@ -453,14 +457,21 @@ mod tests {
         let second = tools.login().await;
         assert!(second.contains("Login successful"), "got: {second}");
 
-        let store =
-            causes_session::SessionStore::new(causes_session::SessionKind::Mcp, dir.path(), &url);
+        let store = causes_session::FileSessionStore::new(
+            causes_session::SessionKind::Mcp,
+            dir.path(),
+            &url,
+        );
         assert_eq!(store.load().unwrap().unwrap(), "d".repeat(64));
     }
 
     #[tokio::test]
     async fn login_skips_when_already_logged_in() {
-        let (tools, _dir) = logged_in_tools().await;
+        let url = start_mock_grpc().await;
+        let dir = tempfile::tempdir().unwrap();
+        let tools = CausesTools::new(url, dir.path().to_path_buf());
+        tools.login().await;
+        tools.login().await;
 
         let result = tools.login().await;
         assert!(result.contains("Already logged in"), "got: {result}");
@@ -506,7 +517,11 @@ mod tests {
 
     #[tokio::test]
     async fn whoami_works_after_login() {
-        let (tools, _dir) = logged_in_tools().await;
+        let url = start_mock_grpc().await;
+        let dir = tempfile::tempdir().unwrap();
+        let tools = CausesTools::new(url, dir.path().to_path_buf());
+        tools.login().await;
+        tools.login().await;
 
         let result = tools.whoami().await;
         assert!(result.contains("uid-42"), "got: {result}");
@@ -517,7 +532,7 @@ mod tests {
     #[tokio::test]
     async fn whoami_reports_connection_failure() {
         let dir = tempfile::tempdir().unwrap();
-        let store = causes_session::SessionStore::new(
+        let store = causes_session::FileSessionStore::new(
             causes_session::SessionKind::Mcp,
             dir.path(),
             "http://127.0.0.1:1",
@@ -570,9 +585,12 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
 
         let channel = Channel::from_shared(url.clone()).unwrap().connect_lazy();
-        let session =
-            causes_session::SessionStore::new(causes_session::SessionKind::Mcp, dir.path(), &url);
-        let tools = CausesTools::with_channel(url, session, channel);
+        let session = causes_session::FileSessionStore::new(
+            causes_session::SessionKind::Mcp,
+            dir.path(),
+            &url,
+        );
+        let tools = CausesTools::with_channel(url, Arc::new(session), channel);
 
         let result = tokio::time::timeout(std::time::Duration::from_secs(5), tools.login())
             .await
@@ -599,9 +617,12 @@ mod tests {
             .unwrap()
             .connect_lazy();
 
-        let session =
-            causes_session::SessionStore::new(causes_session::SessionKind::Mcp, dir.path(), &url);
-        let mut tools = CausesTools::with_channel(url.clone(), session, channel);
+        let session = causes_session::FileSessionStore::new(
+            causes_session::SessionKind::Mcp,
+            dir.path(),
+            &url,
+        );
+        let mut tools = CausesTools::with_channel(url.clone(), Arc::new(session), channel);
         tools.login_timeout = std::time::Duration::from_secs(10);
 
         let first = tokio::time::timeout(std::time::Duration::from_secs(5), tools.login())
@@ -614,8 +635,11 @@ mod tests {
             .expect("second login should not hang");
         assert!(second.contains("Login successful"), "got: {second}");
 
-        let store =
-            causes_session::SessionStore::new(causes_session::SessionKind::Mcp, dir.path(), &url);
+        let store = causes_session::FileSessionStore::new(
+            causes_session::SessionKind::Mcp,
+            dir.path(),
+            &url,
+        );
         assert_eq!(store.load().unwrap().unwrap(), "d".repeat(64));
     }
 }

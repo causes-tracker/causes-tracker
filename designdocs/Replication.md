@@ -284,8 +284,8 @@ See [cognitedata/txid-syncing](https://github.com/cognitedata/txid-syncing) for 
 Each journal table includes two Postgres-specific columns:
 
 ```sql
-local_version  BIGINT NOT NULL DEFAULT pg_current_xact_id()::bigint
-watermark      BIGINT NOT NULL DEFAULT pg_snapshot_xmin(pg_current_snapshot())::bigint
+local_version  BIGINT NOT NULL DEFAULT pg_current_xact_id()::text::bigint
+watermark      BIGINT NOT NULL DEFAULT pg_snapshot_xmin(pg_current_snapshot())::text::bigint
 ```
 
 `local_version` is the transaction ID at commit time on this instance.

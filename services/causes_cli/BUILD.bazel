@@ -1,4 +1,5 @@
 load("//build:rust.bzl", "rust_binary", "rust_test")
+load("//tools/lint:format_check.bzl", "format_srcs")
 
 rust_binary(
     name = "causes_cli",
@@ -23,3 +24,5 @@ rust_test(
         "@crates//:tempfile",
     ],
 )
+
+format_srcs()

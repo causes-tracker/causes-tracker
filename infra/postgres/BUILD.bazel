@@ -1,5 +1,6 @@
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//tools/lint:format_check.bzl", "format_srcs")
 load("//tools/lint:linters.bzl", "markdown_lint_test")
 load(":defs.bzl", "extract_tarball")
 
@@ -51,3 +52,5 @@ markdown_lint_test(
     name = "pymarkdown",
     srcs = ["README.md"],
 )
+
+format_srcs()

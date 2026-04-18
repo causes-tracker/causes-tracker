@@ -1,4 +1,5 @@
 load("//build:rust.bzl", "rust_binary")
+load("//tools/lint:format_check.bzl", "format_srcs")
 
 rust_binary(
     name = "proto_gen",
@@ -8,3 +9,5 @@ rust_binary(
         "@crates//:tonic-prost-build",
     ],
 )
+
+format_srcs()

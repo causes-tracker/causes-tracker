@@ -1,6 +1,7 @@
 load("@aspect_bazel_lib//lib:tar.bzl", "tar")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
 load("//build:rust.bzl", "rust_binary", "rust_test")
+load("//tools/lint:format_check.bzl", "format_srcs")
 
 rust_binary(
     name = "causes_api",
@@ -67,3 +68,5 @@ filegroup(
     srcs = [":image_load"],
     output_group = "tarball",
 )
+
+format_srcs()

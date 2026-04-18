@@ -1,6 +1,7 @@
 load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@npm__at_devcontainers_cli__0.84.1//:package_json.bzl", devcontainers_cli_bin = "bin")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//tools/lint:format_check.bzl", "format_srcs")
 
 npm_link_all_packages()
 
@@ -20,3 +21,5 @@ sh_test(
         "requires-docker",
     ],
 )
+
+format_srcs()

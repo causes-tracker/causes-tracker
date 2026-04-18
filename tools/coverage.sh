@@ -18,6 +18,9 @@ SKIP_FILES=(
 	"services/causes_api/src/store.rs"                 # trait delegation to api_db
 )
 
+# Runs every test in one bazel invocation, including the format_check_auto
+# tagged sh_tests. Those produce no Rust coverage data — they're bundled
+# here so the hook pays only one bazel analysis phase instead of two.
 bazel coverage "$@"
 
 if [[ ! -f "$REPORT" ]]; then

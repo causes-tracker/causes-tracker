@@ -3,6 +3,7 @@ load(
     "py_console_script_binary",
 )
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load(":format_check.bzl", "format_srcs")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -24,7 +25,14 @@ py_console_script_binary(
     script = "pymarkdown",
 )
 
-exports_files(["run_pymarkdown.sh"])
+exports_files([
+    "run_pymarkdown.sh",
+    "run_rustfmt_check.sh",
+    "run_buildifier_check.sh",
+    "run_taplo_check.sh",
+    "run_shfmt_check.sh",
+    "run_yamlfmt_check.sh",
+])
 
 sh_binary(
     name = "run_pymarkdown",
@@ -57,3 +65,5 @@ sh_binary(
         "@bazel_tools//tools/bash/runfiles",
     ],
 )
+
+format_srcs()

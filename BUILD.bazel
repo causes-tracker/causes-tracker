@@ -1,6 +1,13 @@
 load("@aspect_rules_lint//format:defs.bzl", "format_multirun")
 load("@gazelle//:def.bzl", "gazelle")
 load("@rules_python//python:pip.bzl", "compile_pip_requirements")
+load(
+    "//tools/lint:format_check.bzl",
+    "buildifier_check",
+    "shfmt_check",
+    "taplo_check",
+    "yamlfmt_check",
+)
 load("//tools/lint:linters.bzl", "markdown_lint_test", "yamllint_lint_test")
 
 package(default_visibility = ["//visibility:public"])
@@ -9,9 +16,11 @@ exports_files([
     ".clippy.toml",
     ".pymarkdown.json",
     ".shellcheckrc",
+    ".yamlfmt",
     ".yamllint",
     "Cargo.toml",
     "Cargo.lock",
+    "rustfmt.toml",
 ])
 
 # Run with: bazel run //:gazelle
@@ -72,4 +81,132 @@ markdown_lint_test(
         "*.md",
         "designdocs/**/*.md",
     ]),
+)
+
+# ── Cacheable format check ────────────────────────────────────────────────────
+# Per-language aggregator filegroups + sh_test targets. Each language's
+# sh_test only invalidates when its own inputs change, so an unchanged tree
+# hits the bazel test cache instantly instead of re-running formatters.
+# Run with:
+#   bazel test //... --test_tag_filters=format_check_auto --build_tests_only
+# Every rust_* target emits a tagged _rustfmt_check sibling via build/rust.bzl;
+# the four aggregators below cover Starlark, TOML, shell, and YAML.
+
+# Root-level sources (.github/workflows/* belongs to the root package since
+# that subtree has no BUILD.bazel of its own).
+filegroup(
+    name = "starlark_format_srcs",
+    srcs = glob(
+        [
+            "*.bzl",
+            "BUILD.bazel",
+            "*.bazel",
+        ],
+        allow_empty = True,
+    ),
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "toml_format_srcs",
+    srcs = glob(
+        ["*.toml"],
+        allow_empty = True,
+    ),
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "shell_format_srcs",
+    srcs = glob(
+        ["*.sh"],
+        allow_empty = True,
+    ),
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "yaml_format_srcs",
+    srcs = glob(
+        [
+            "*.yml",
+            "*.yaml",
+            ".github/**/*.yml",
+            ".github/**/*.yaml",
+        ],
+        allow_empty = True,
+    ),
+    visibility = ["//visibility:public"],
+)
+
+# Every subpackage calls format_srcs() to emit its own per-language filegroups.
+# Adding a new package means appending it here — the only non-Rust commit
+# discipline this design costs.
+_FORMAT_PACKAGES = [
+    "//.devcontainer:",
+    "//build:",
+    "//build/patches:",
+    "//docs:",
+    "//infra:",
+    "//infra/postgres:",
+    "//lib/rust/api_db:",
+    "//lib/rust/causes_mcp:",
+    "//lib/rust/causes_proto:",
+    "//lib/rust/causes_session:",
+    "//lib/rust/proto_ext:",
+    "//proto:",
+    "//services/causes_api:",
+    "//services/causes_cli:",
+    "//tools:",
+    "//tools/lint:",
+    "//tools/proto-gen:",
+]
+
+# Aggregate each language's per-package filegroups into one non-empty filegroup.
+# `$(rootpaths ...)` in sh_test args errors on empty expansions, so we can't
+# reference per-package filegroups individually — they'd be empty for packages
+# without files of that language.
+
+filegroup(
+    name = "_all_starlark_format_srcs",
+    srcs = [":starlark_format_srcs"] +
+           [p + "starlark_format_srcs" for p in _FORMAT_PACKAGES],
+)
+
+filegroup(
+    name = "_all_toml_format_srcs",
+    srcs = [":toml_format_srcs"] +
+           [p + "toml_format_srcs" for p in _FORMAT_PACKAGES],
+)
+
+filegroup(
+    name = "_all_shell_format_srcs",
+    srcs = [":shell_format_srcs"] +
+           [p + "shell_format_srcs" for p in _FORMAT_PACKAGES],
+)
+
+filegroup(
+    name = "_all_yaml_format_srcs",
+    srcs = [":yaml_format_srcs"] +
+           [p + "yaml_format_srcs" for p in _FORMAT_PACKAGES],
+)
+
+buildifier_check(
+    name = "format_starlark_check",
+    srcs = [":_all_starlark_format_srcs"],
+)
+
+taplo_check(
+    name = "format_toml_check",
+    srcs = [":_all_toml_format_srcs"],
+)
+
+shfmt_check(
+    name = "format_shell_check",
+    srcs = [":_all_shell_format_srcs"],
+)
+
+yamlfmt_check(
+    name = "format_yaml_check",
+    srcs = [":_all_yaml_format_srcs"],
 )

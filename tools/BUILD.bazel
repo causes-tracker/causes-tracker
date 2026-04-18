@@ -2,6 +2,7 @@ load("@rules_python//python:defs.bzl", "py_binary")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//build:rust.bzl", "rust_binary")
+load("//tools/lint:format_check.bzl", "format_srcs")
 
 exports_files([
     "proto_gen_impl.sh",
@@ -133,3 +134,5 @@ sh_test(
         "@rust_host_tools//:rustfmt",
     ],
 )
+
+format_srcs()

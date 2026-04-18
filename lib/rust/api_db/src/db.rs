@@ -143,6 +143,19 @@ impl DbPool {
             .await
             .context("running database migrations")
     }
+
+    /// Return this instance's stable identity (UUID v4).
+    ///
+    /// Generated once during migration 007 and stored in `instance_config`.
+    /// This value never changes for the lifetime of the database.
+    pub async fn instance_id(&self) -> anyhow::Result<String> {
+        let row =
+            sqlx::query_scalar!("SELECT value FROM instance_config WHERE key = 'instance_id'")
+                .fetch_one(&self.pool())
+                .await
+                .context("reading instance_id from instance_config")?;
+        Ok(row)
+    }
 }
 
 /// Build a new `PgPool` using a freshly generated IAM auth token.
@@ -231,5 +244,28 @@ mod tests {
     async fn background_refresh_is_noop_in_static_mode(pool: sqlx::PgPool) {
         let db = DbPool::from_pool(pool);
         assert!(db.start_background_refresh().is_none());
+    }
+
+    /// Verify that instance_id is generated during migration and is a valid UUID.
+    #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
+    async fn instance_id_is_generated(pool: sqlx::PgPool) {
+        let db = DbPool::from_pool(pool);
+        let id = db.instance_id().await.expect("instance_id failed");
+        id.parse::<uuid::Uuid>()
+            .expect("instance_id is not a valid UUID");
+    }
+
+    /// Verify that running migrations twice preserves the existing instance_id.
+    #[sqlx::test(migrator = "crate::db::tests::EMPTY")]
+    async fn instance_id_survives_migration_rerun(pool: sqlx::PgPool) {
+        let db = DbPool::from_pool(pool);
+
+        MIGRATIONS.run(&db.pool()).await.expect("first run failed");
+        let original = db.instance_id().await.expect("instance_id failed");
+
+        MIGRATIONS.run(&db.pool()).await.expect("second run failed");
+        let after = db.instance_id().await.expect("instance_id failed");
+
+        assert_eq!(original, after);
     }
 }

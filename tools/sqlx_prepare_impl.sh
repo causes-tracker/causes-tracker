@@ -146,6 +146,9 @@ PYEOF
 	sync_file "${PACKAGE_DIR}/Cargo.toml" "$ISOLATED/pkg/Cargo.toml"
 	sync_dir "${PACKAGE_DIR}/src" "$ISOLATED/pkg/src"
 	sync_dir "${PACKAGE_DIR}/migrations" "$ISOLATED/pkg/migrations"
+	if [[ -d "${PACKAGE_DIR}/migrations-test" ]]; then
+		sync_dir "${PACKAGE_DIR}/migrations-test" "$ISOLATED/pkg/migrations-test"
+	fi
 	sync_dir "${PACKAGE_DIR}/.sqlx" "$ISOLATED/pkg/.sqlx"
 
 	# Stage path-dep crates as siblings of pkg/ so cargo can resolve
@@ -193,7 +196,7 @@ sync_dir() {
 
 run_migrate() {
 	DATABASE_URL="$TEST_POSTGRES_URL" "$SQLX" migrate run \
-		--source "$1"
+		--source "$1" "${@:2}"
 }
 
 run_prepare_check() {
@@ -210,9 +213,15 @@ if [[ "$CHECK" == "true" ]]; then
 	phase setup_target setup_persistent_target
 	phase stage_isolated stage_isolated
 	phase migrate run_migrate "$ISOLATED/pkg/migrations"
+	if [[ -d "$ISOLATED/pkg/migrations-test" ]]; then
+		phase migrate_test run_migrate "$ISOLATED/pkg/migrations-test" --ignore-missing
+	fi
 	phase prepare_check run_prepare_check
 else
 	PACKAGE_DIR="${BUILD_WORKSPACE_DIRECTORY}/${BAZEL_PACKAGE}"
 	phase migrate run_migrate "${PACKAGE_DIR}/migrations"
+	if [[ -d "${PACKAGE_DIR}/migrations-test" ]]; then
+		phase migrate_test run_migrate "${PACKAGE_DIR}/migrations-test" --ignore-missing
+	fi
 	phase prepare_update run_prepare_update
 fi

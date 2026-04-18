@@ -1,0 +1,19 @@
+// Scaffolding for the replication protocol.
+// A minimal concrete journal entry type used to exercise the replication
+// protocol plumbing before any real resource types are implemented.
+// This type will be removed once Plans (and other real resources) exist.
+syntax = "proto3";
+
+package causes.v1;
+
+import "causes/v1/common.proto";
+
+// ReplicationExample is a minimal concrete resource journal entry.
+// It embeds the standard journal header and resource meta, plus a trivial
+// payload field.
+message ReplicationExample {
+  JournalEntryHeader header = 1;
+  ResourceEntryMeta meta = 2;
+  // payload is arbitrary content; exists only to give the type some body.
+  string payload = 3;
+}

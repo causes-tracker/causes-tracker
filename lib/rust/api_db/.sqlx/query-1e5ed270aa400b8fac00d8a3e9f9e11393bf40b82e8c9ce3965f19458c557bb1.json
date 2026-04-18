@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO replication_example_journal (origin_instance_id, origin_id, version, previous_origin_instance_id, previous_origin_id, previous_version, kind, at, author_instance_id, author_local_id, embargoed, slug, project_id, created_at, payload) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Int8",
+        "Text",
+        "Text",
+        "Int8",
+        "Text",
+        "Timestamptz",
+        "Text",
+        "Text",
+        "Bool",
+        "Text",
+        "Text",
+        "Timestamptz",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "1e5ed270aa400b8fac00d8a3e9f9e11393bf40b82e8c9ce3965f19458c557bb1"
+}

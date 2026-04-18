@@ -1,8 +1,29 @@
 use anyhow::Context;
 use db_pool::{DbPool, QueryAccess};
 
-/// Embedded migrations, compiled from `migrations/` at build time.
+/// Embedded production migrations, compiled from `migrations/` at build time.
 pub(crate) static MIGRATIONS: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
+
+/// Composite migrator combining production migrations with test-only extras
+/// from `migrations-test/`.  Use this as the `migrator` argument to
+/// `#[sqlx::test]` when a test needs a table defined in `migrations-test/`
+/// (e.g. `replication_example_journal`).  Production builds do not apply the
+/// extras — only this composite does.
+#[cfg(test)]
+pub(crate) static TEST_MIGRATIONS: std::sync::LazyLock<sqlx::migrate::Migrator> =
+    std::sync::LazyLock::new(|| {
+        let extras: sqlx::migrate::Migrator = sqlx::migrate!("./migrations-test");
+        let mut migrations: Vec<sqlx::migrate::Migration> =
+            MIGRATIONS.migrations.iter().cloned().collect();
+        migrations.extend(extras.migrations.iter().cloned());
+        migrations.sort_by_key(|m| m.version);
+        sqlx::migrate::Migrator {
+            migrations: std::borrow::Cow::Owned(migrations),
+            ignore_missing: false,
+            locking: true,
+            no_tx: false,
+        }
+    });
 
 /// Run all pending migrations.
 #[tracing::instrument(skip(pool), fields(db.system = "postgresql"))]

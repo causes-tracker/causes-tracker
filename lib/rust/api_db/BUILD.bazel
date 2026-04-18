@@ -10,6 +10,7 @@ rust_library(
         [
             ".sqlx/**",
             "migrations/**",
+            "migrations-test/**",
         ],
         allow_empty = True,
     ),
@@ -43,6 +44,7 @@ rust_test(
         [
             ".sqlx/**",
             "migrations/**",
+            "migrations-test/**",
         ],
         allow_empty = True,
     ),

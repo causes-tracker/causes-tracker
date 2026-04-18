@@ -10,6 +10,7 @@ rust_library(
         [
             ".sqlx/**",
             "migrations/**",
+            "migrations-test/**",
         ],
         allow_empty = True,
     ),
@@ -40,6 +41,7 @@ rust_test(
         [
             ".sqlx/**",
             "migrations/**",
+            "migrations-test/**",
         ],
         allow_empty = True,
     ),
@@ -106,6 +108,10 @@ sqlx_prepare(
         allow_empty = True,
     ),
     migrations = glob(["migrations/**"]),
+    test_migrations = glob(
+        ["migrations-test/**"],
+        allow_empty = True,
+    ),
     visibility = ["//visibility:public"],
 )
 

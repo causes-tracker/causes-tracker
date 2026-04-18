@@ -230,6 +230,19 @@ pub struct ResourceEntryMeta {
     #[prost(message, optional, tag = "3")]
     pub created_at: ::core::option::Option<::prost_types::Timestamp>,
 }
+/// ReplicationExample is a minimal concrete resource journal entry.
+/// It embeds the standard journal header and resource meta, plus a trivial
+/// payload field.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ReplicationExample {
+    #[prost(message, optional, tag = "1")]
+    pub header: ::core::option::Option<JournalEntryHeader>,
+    #[prost(message, optional, tag = "2")]
+    pub meta: ::core::option::Option<ResourceEntryMeta>,
+    /// payload is arbitrary content; exists only to give the type some body.
+    #[prost(string, tag = "3")]
+    pub payload: ::prost::alloc::string::String,
+}
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct GrantRoleRequest {
     /// Email address of the user to grant the role to.

@@ -79,12 +79,20 @@ PYEOF
 	cp -rL "${PACKAGE_DIR}/Cargo.toml" "$ISOLATED/pkg/Cargo.toml"
 	cp -rL "${PACKAGE_DIR}/src" "$ISOLATED/pkg/src"
 	cp -rL "${PACKAGE_DIR}/migrations" "$ISOLATED/pkg/migrations"
+	if [[ -d "${PACKAGE_DIR}/migrations-test" ]]; then
+		cp -rL "${PACKAGE_DIR}/migrations-test" "$ISOLATED/pkg/migrations-test"
+	fi
 	cp -rL "${PACKAGE_DIR}/.sqlx" "$ISOLATED/pkg/.sqlx"
 
 	chmod -R u+w "$ISOLATED"
 
 	DATABASE_URL="$TEST_POSTGRES_URL" "$SQLX" migrate run \
 		--source "$ISOLATED/pkg/migrations"
+	if [[ -d "$ISOLATED/pkg/migrations-test" ]]; then
+		DATABASE_URL="$TEST_POSTGRES_URL" "$SQLX" migrate run \
+			--source "$ISOLATED/pkg/migrations-test" \
+			--ignore-missing
+	fi
 	cd "$ISOLATED/pkg"
 	DATABASE_URL="$TEST_POSTGRES_URL" "$SQLX" prepare --check -- --tests
 else
@@ -92,6 +100,11 @@ else
 
 	DATABASE_URL="$TEST_POSTGRES_URL" "$SQLX" migrate run \
 		--source "${PACKAGE_DIR}/migrations"
+	if [[ -d "${PACKAGE_DIR}/migrations-test" ]]; then
+		DATABASE_URL="$TEST_POSTGRES_URL" "$SQLX" migrate run \
+			--source "${PACKAGE_DIR}/migrations-test" \
+			--ignore-missing
+	fi
 	cd "$PACKAGE_DIR"
 	DATABASE_URL="$TEST_POSTGRES_URL" "$SQLX" prepare -- --tests
 fi

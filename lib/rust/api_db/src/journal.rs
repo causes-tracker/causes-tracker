@@ -1,5 +1,6 @@
 use std::num::NonZeroU64;
 
+use anyhow::Context;
 use sqlx::types::chrono;
 use uuid::Uuid;
 
@@ -90,6 +91,53 @@ impl Slug {
 impl std::fmt::Display for Slug {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&self.0)
+    }
+}
+
+// ── LocalTxnId ───────────────────────────────────────────────────────────
+
+/// A position in a single instance's local commit order.
+///
+/// Used for both `local_version` (the txid that wrote or received a journal
+/// row) and `watermark` (the xmin observed at INSERT time — a safe resume
+/// point for replication).  Both fields carry the same kind of value: a
+/// Postgres xid8 from `pg_current_xact_id()` / `pg_snapshot_xmin()`.
+///
+/// Always ≥ 3: Postgres reserves the low txids for its own use —
+/// 0 = InvalidTransactionId, 1 = BootstrapTransactionId,
+/// 2 = FrozenTransactionId, 3 = FirstNormalTransactionId.
+/// Any journal row the application writes has txid ≥ 3.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct LocalTxnId(u64);
+
+impl LocalTxnId {
+    /// Smallest valid application txid (Postgres' `FirstNormalTransactionId`).
+    pub const MIN: u64 = 3;
+
+    pub fn new(v: u64) -> anyhow::Result<Self> {
+        anyhow::ensure!(
+            v >= Self::MIN,
+            "LocalTxnId must be ≥ {} (Postgres reserves 0..=2)",
+            Self::MIN,
+        );
+        Ok(Self(v))
+    }
+
+    /// Convert from a signed bigint (the Postgres transport shape).
+    pub fn from_i64(v: i64) -> anyhow::Result<Self> {
+        let u: u64 = v.try_into().context("LocalTxnId out of range")?;
+        Self::new(u)
+    }
+
+    pub fn get(&self) -> u64 {
+        self.0
+    }
+
+    /// Signed-bigint transport shape for sqlx.
+    pub fn as_i64(&self) -> i64 {
+        // Always fits: LocalTxnId ≥ 3 and databases exhaust txids long
+        // before approaching i64::MAX.
+        self.0 as i64
     }
 }
 
@@ -237,5 +285,48 @@ mod tests {
     fn kind_display() {
         assert_eq!(format!("{}", JournalKind::Entry), "entry");
         assert_eq!(format!("{}", JournalKind::Tombstone), "tombstone");
+    }
+
+    #[test]
+    fn local_txn_id_rejects_reserved_values() {
+        for v in 0..LocalTxnId::MIN {
+            assert!(
+                LocalTxnId::new(v).is_err(),
+                "LocalTxnId::new({v}) should reject reserved txid",
+            );
+        }
+    }
+
+    #[test]
+    fn local_txn_id_accepts_first_normal_txid() {
+        let id = LocalTxnId::new(LocalTxnId::MIN).unwrap();
+        assert_eq!(id.get(), LocalTxnId::MIN);
+    }
+
+    #[test]
+    fn local_txn_id_i64_round_trip() {
+        let id = LocalTxnId::new(42).unwrap();
+        let back = LocalTxnId::from_i64(id.as_i64()).unwrap();
+        assert_eq!(id, back);
+    }
+
+    #[test]
+    fn local_txn_id_from_i64_rejects_negative() {
+        assert!(LocalTxnId::from_i64(-1).is_err());
+    }
+
+    #[test]
+    fn local_txn_id_from_i64_rejects_reserved() {
+        for v in 0..(LocalTxnId::MIN as i64) {
+            assert!(LocalTxnId::from_i64(v).is_err());
+        }
+    }
+
+    #[test]
+    fn local_txn_id_ordering() {
+        let a = LocalTxnId::new(10).unwrap();
+        let b = LocalTxnId::new(20).unwrap();
+        assert!(a < b);
+        assert_eq!(a.min(b), a);
     }
 }

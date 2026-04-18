@@ -10,6 +10,8 @@ mod pending_login;
 mod project;
 #[cfg(test)]
 mod replication_example;
+#[cfg(test)]
+mod replication_sim;
 mod role;
 mod session;
 #[cfg(test)]

@@ -22,3 +22,4 @@ tokio.workspace = true
 [dev-dependencies]
 aws-credential-types.workspace = true
 aws-smithy-async.workspace = true
+rand.workspace = true

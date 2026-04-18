@@ -1,4 +1,5 @@
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("//tools/lint:format_check.bzl", "format_srcs")
 load("//tools/lint:linters.bzl", "markdown_lint_test")
 
 # Run the AWS CLI.
@@ -42,3 +43,5 @@ markdown_lint_test(
     name = "pymarkdown_github",
     srcs = ["github/README.md"],
 )
+
+format_srcs()

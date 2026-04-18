@@ -1,6 +1,7 @@
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//build:rust.bzl", "rust_library", "rust_test")
 load("//tools:sqlx_prepare.bzl", "sqlx_prepare")
+load("//tools/lint:format_check.bzl", "format_srcs")
 
 rust_library(
     name = "api_db",
@@ -99,3 +100,5 @@ sqlx_prepare(
     migrations = glob(["migrations/**"]),
     visibility = ["//visibility:public"],
 )
+
+format_srcs()

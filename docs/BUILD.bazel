@@ -4,6 +4,7 @@ load(
 )
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//tools/lint:format_check.bzl", "format_srcs")
 load("//tools/lint:linters.bzl", "yamllint_lint_test")
 
 # Hermetically managed zensical binary.
@@ -122,3 +123,5 @@ sh_test(
         "@bazel_tools//tools/bash/runfiles",
     ],
 )
+
+format_srcs()

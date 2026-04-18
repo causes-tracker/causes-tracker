@@ -1,1 +1,4 @@
 # This package exists so that //build:rust.bzl is loadable.
+load("//tools/lint:format_check.bzl", "format_srcs")
+
+format_srcs()

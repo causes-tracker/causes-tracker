@@ -1,1 +1,5 @@
+load("//tools/lint:format_check.bzl", "format_srcs")
+
 exports_files(glob(["*.patch"]))
+
+format_srcs()

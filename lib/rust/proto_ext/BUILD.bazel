@@ -1,4 +1,5 @@
 load("//build:rust.bzl", "rust_library", "rust_test")
+load("//tools/lint:format_check.bzl", "format_srcs")
 
 rust_library(
     name = "proto_ext",
@@ -13,3 +14,5 @@ rust_test(
     name = "proto_ext_test",
     crate = ":proto_ext",
 )
+
+format_srcs()

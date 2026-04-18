@@ -552,7 +552,7 @@ Comments may be attached to Signs as well as Symptoms and Plans.
 
 **Decision — project_id is local filing metadata:**
 `ResourceMeta.project_id` is always a local identifier on the storing instance.
-It is not part of the stable resource identity — `ResourceOrigin` provides that.
+It is not part of the stable resource identity — `origin_id` provides that.
 Project structure is never replicated; there is no globally stable project identity.
 
 Project mapping is the responsibility of the connection originator: the instance that establishes the federation connection.
@@ -565,7 +565,7 @@ No instance learns about the project structure of non-adjacent instances.
 
 **Consequences:** The typed-wrapper approach adds message nesting versus plain strings, but the type-safety and constraint-documentation benefits justify the cost.
 The `ResourceMeta` embedding pattern requires all resource messages to reserve field 1; this is a stable convention that Gazelle and code generators can enforce.
-The `ResourceOrigin`/`ReplicationPath` split makes the data model more explicit at the cost of two separate fields where one existed before; the clarity is worth it.
+The origin/replication-path split makes the data model more explicit at the cost of two separate fields where one existed before; the clarity is worth it.
 Link objects add an extra round-trip to create a relationship but are the only approach that is consistent with the federation trust model.
 
 ---

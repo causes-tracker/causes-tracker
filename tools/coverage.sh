@@ -10,6 +10,23 @@ set -euo pipefail
 REPORT="bazel-out/_coverage/_coverage_report.dat"
 MIN_PCT=25
 
+# Short-circuit: if the working copy's commit_id matches a prior green run,
+# skip the bazel invocation entirely. jj auto-snapshots the working copy
+# into @, so any file edit changes commit_id; MODULE.bazel.lock, .bazelversion,
+# and every other tracked config is included in the hash.
+#
+# The cache lives at the workspace root in .coverage-green (gitignored).
+# Per-worktree by filesystem location, so parallel worktrees never ping-pong.
+# The file is ignored so jj does not snapshot it — otherwise writing the cache
+# would itself change commit_id and invalidate the next run.
+GREEN_CACHE=".coverage-green"
+WORKING_COPY_ID="$(jj log -r @ -T commit_id --no-graph 2>/dev/null || true)"
+if [[ -n "$WORKING_COPY_ID" && -f "$GREEN_CACHE" ]] &&
+	[[ "$(cat "$GREEN_CACHE")" == "$WORKING_COPY_ID $*" ]]; then
+	echo "coverage ok: unchanged since last green (commit $WORKING_COPY_ID)"
+	exit 0
+fi
+
 # Files excluded from the per-file coverage threshold.
 # "Hard to test" is NOT a valid reason — only exclude files where the code
 # is entirely constrained by the type system with no alternative implementations.
@@ -105,3 +122,9 @@ if [[ "$failed" -gt 0 ]]; then
 fi
 
 echo "coverage ok: ${#disk_files[@]} Rust source file(s) checked, all >= ${MIN_PCT}%"
+
+# Record the green state so the next identical turn short-circuits. Keyed on
+# both commit_id and the args, so a different bazel target set re-verifies.
+if [[ -n "$WORKING_COPY_ID" ]]; then
+	printf '%s %s' "$WORKING_COPY_ID" "$*" >"$GREEN_CACHE"
+fi

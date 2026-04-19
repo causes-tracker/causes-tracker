@@ -90,6 +90,8 @@ struct StoredRow {
     /// Whether the writing transaction has committed (and thus the row is
     /// visible to other readers).
     committed: bool,
+    /// Replication path (writer to local instance).
+    path: Vec<InstanceId>,
 }
 
 type EntryKey = (InstanceId, OriginId, u64);
@@ -190,10 +192,29 @@ impl TxnNode {
                 local_version: txid,
                 watermark,
                 committed: false,
+                path: vec![self.instance_id.clone()],
             },
         );
         self.pending_by_txid.entry(txid).or_default().push(key);
         version
+    }
+
+    /// Replication path for a stored entry, if present.
+    pub fn path_for(&self, version: &FederatedVersion) -> Option<Vec<InstanceId>> {
+        self.rows
+            .get(&entry_key(version))
+            .filter(|r| r.committed)
+            .map(|r| r.path.clone())
+    }
+
+    /// All entries on this node in a project (for invariant checks).
+    pub fn entries_in_project(&self, project_id: &ProjectId) -> Vec<&ReplicationExample> {
+        self.rows
+            .values()
+            .filter(|r| r.committed)
+            .filter(|r| &r.entry.meta.project_id == project_id)
+            .map(|r| &r.entry)
+            .collect()
     }
 
     /// Commit a transaction: make all its inserts visible.
@@ -246,25 +267,27 @@ impl TxnNode {
         rows
     }
 
-    /// Pull entries from `other` for `project_id`. Implements:
-    /// - cursor at-least-once: use stored cursor as `>=` filter
-    /// - dedup by federated version
-    /// - embargo filtering
-    /// - cursor wind-back: store the watermark of the last entry served
+    /// One-shot replication: prepare a pull and apply it immediately.
     pub fn replicate_from(&mut self, other: &TxnNode, project_id: &ProjectId) -> usize {
+        let batch = self.prepare_pull_from(other, project_id);
+        self.apply_pull(batch)
+    }
+
+    /// Prepare a pull batch (no &mut self). Multiple in-flight pulls can be
+    /// prepared concurrently and applied later in any order.
+    pub fn prepare_pull_from(&self, other: &TxnNode, project_id: &ProjectId) -> PullBatch {
         let cursor_key = (other.instance_id.clone(), project_id.clone());
         let cursor = self.cursors.get(&cursor_key).copied();
 
         let serve_embargoed = other.serves_embargo_to.contains(&self.instance_id);
-        let to_send = other.visible_entries_for(project_id, cursor);
 
-        let mut accepted = 0;
+        let to_send = other.visible_entries_for(project_id, cursor);
+        let mut entries = Vec::new();
         let mut new_cursor = cursor;
 
         for row in to_send {
-            // Wind cursor back to the watermark of the last entry served.
-            // (Take the watermark even if we filter the entry out — the cursor
-            // mechanism is independent of filtering decisions.)
+            // Take watermark even for filtered entries — the cursor advance
+            // is independent of filtering decisions on the serve side.
             new_cursor = Some(row.watermark);
 
             if row.entry.header.version.origin_instance_id == self.instance_id {
@@ -273,20 +296,43 @@ impl TxnNode {
             if row.entry.header.embargoed && !serve_embargoed {
                 continue;
             }
-            let key = entry_key(&row.entry.header.version);
+            entries.push(ServedEntry {
+                entry: row.entry.clone(),
+                source_path: row.path.clone(),
+            });
+        }
+
+        PullBatch {
+            upstream: other.instance_id.clone(),
+            project_id: project_id.clone(),
+            entries,
+            new_cursor,
+        }
+    }
+
+    /// Apply a previously-prepared batch. Dedups, propagates path, advances
+    /// cursor monotonically (out-of-order applies don't regress).
+    pub fn apply_pull(&mut self, batch: PullBatch) -> usize {
+        let cursor_key = (batch.upstream.clone(), batch.project_id.clone());
+        let mut accepted = 0;
+
+        for served in batch.entries {
+            let key = entry_key(&served.entry.header.version);
             if self.rows.contains_key(&key) {
                 continue;
             }
-
-            // Insert into self, autocommit.
+            // Receive in its own auto-commit transaction.
             let receive_txid = self.clock.begin();
+            let mut new_path = served.source_path;
+            new_path.push(self.instance_id.clone());
             self.rows.insert(
                 key.clone(),
                 StoredRow {
-                    entry: row.entry.clone(),
+                    entry: served.entry,
                     local_version: receive_txid,
                     watermark: self.clock.xmin(),
                     committed: false,
+                    path: new_path,
                 },
             );
             self.clock.commit(receive_txid);
@@ -294,11 +340,43 @@ impl TxnNode {
             accepted += 1;
         }
 
+        // Monotone cursor advance — out-of-order applies don't regress it.
+        let existing = self.cursors.get(&cursor_key).copied();
+        let new_cursor = match (existing, batch.new_cursor) {
+            (None, b) => b,
+            (Some(e), None) => Some(e),
+            (Some(e), Some(b)) => Some(e.max(b)),
+        };
         if let Some(c) = new_cursor {
             self.cursors.insert(cursor_key, c);
         }
         accepted
     }
+}
+
+/// A pull batch prepared by `prepare_pull_from`, ready to be applied.
+#[derive(Debug, Clone)]
+pub struct PullBatch {
+    upstream: InstanceId,
+    project_id: ProjectId,
+    entries: Vec<ServedEntry>,
+    new_cursor: Option<LocalTxnId>,
+}
+
+impl PullBatch {
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+}
+
+#[derive(Debug, Clone)]
+struct ServedEntry {
+    entry: ReplicationExample,
+    source_path: Vec<InstanceId>,
 }
 
 // ── Argument structs ─────────────────────────────────────────────────────
@@ -521,5 +599,26 @@ mod tests {
         // No duplicates on B.
         assert_eq!(b.count_committed(), 2);
         assert!(b.has(&v1));
+    }
+
+    // ── Path tracking on TxnNode ────────────────────────────────────────
+
+    #[test]
+    fn path_propagates_through_chain() {
+        let project = test_project();
+        let a_id = named_instance("A");
+        let b_id = named_instance("B");
+        let c_id = named_instance("C");
+        let mut a = TxnNode::new(a_id.clone());
+        let mut b = TxnNode::new(b_id.clone());
+        let mut c = TxnNode::new(c_id.clone());
+
+        let v = a.auto_insert(create_args(&project, "s1", ""));
+        b.replicate_from(&a, &project);
+        c.replicate_from(&b, &project);
+
+        assert_eq!(a.path_for(&v).unwrap(), vec![a_id.clone()]);
+        assert_eq!(b.path_for(&v).unwrap(), vec![a_id.clone(), b_id.clone()]);
+        assert_eq!(c.path_for(&v).unwrap(), vec![a_id, b_id, c_id]);
     }
 }

@@ -1,81 +1,76 @@
 # TLA+ specification of the replication protocol
 
-`Replication.tla` is a formal model of the protocol described in [../Replication.md](../Replication.md), small enough to fit in a finite state space yet rich enough to exercise the interesting interactions: dedup under multi-path delivery, embargo filtering with asymmetric trust, the previous-version chain across instances, and replication path tracking.
+Formal models of the protocol described in [../Replication.md](../Replication.md), checked with [TLC](https://lamport.azurewebsites.net/tla/tla.html).
 
-The model intentionally does **not** include out-of-order commits / watermark mechanics.
-Versions are atomic and monotonic per node.
-The watermark behaviour is exercised in the Rust `txn_sim` module instead, which can model concurrent transactions cheaply.
+Two models with increasing fidelity:
 
-## Running the model checker
+- [`Replication.tla`](Replication.tla) — routing-only.
+  Versions are a simple per-node counter with atomic assignment.
+  Fast; checks dedup, path, embargo, chain.
 
-Prerequisite: a JRE 11 or later.
-On Debian/Ubuntu:
+- [`ReplicationTxn.tla`](ReplicationTxn.tla) — protocol-faithful.
+  Models transaction lifecycle (begin/insert/commit), allowing out-of-order commits.
+  Adds `NoCommittedEntryLost` to verify the watermark cursor doesn't permanently skip late-committing entries.
+  Admits the Postgres reference implementation.
 
-```sh
-sudo apt install openjdk-21-jre-headless
-```
+The routing-only model existed first.
+Moving to the txn model caught a real modelling error: my first attempt filtered replication on origin-version rather than local-version, which would have lost entries when receivers forwarded replicated content.
+The counterexample trace pointed straight at the confused identifier; the fix matched the reference implementation's separation of `origin_id+version` (federated identity) from `local_version` (per-node commit order).
 
-Then:
+## Running
 
-```sh
-designdocs/tla/run_tlc.sh
-```
-
-The script downloads `tla2tools.jar` to `~/.cache/tla/` on first run and invokes TLC on `Replication.tla` with `Replication.cfg`.
-
-To pass extra TLC flags:
+Both models run under Bazel with a hermetic JRE + tla2tools.jar fetched on first build:
 
 ```sh
-designdocs/tla/run_tlc.sh -workers auto
+# Fast — always in CI.
+bazel test //designdocs/tla:replication_tlc_test
+bazel test //designdocs/tla:replication_txn_tlc_test
+
+# Deeper — manual (~17s).
+bazel test //designdocs/tla:replication_txn_deep_tlc_test
 ```
 
-## What the spec covers
+For ad-hoc runs outside Bazel (e.g. when iterating on the spec), use the shell wrapper, which requires Java locally and caches `tla2tools.jar` in `~/.cache/tla`:
 
-Constants (configured in `Replication.cfg`):
+```sh
+designdocs/tla/run_tlc.sh                 # defaults to Replication model
+```
 
-- `Nodes = {"A", "B", "C"}`
-- `Projects = {"P1"}`
-- `ResourceIds = {"r1"}`
-- `Trust`: `A` and `B` serve embargoed content to each other; `C` is excluded
-- `MaxOps = 4`: cap on operations to keep the state space finite
+Or run `bazel test` as above for the Bazel-hermetic path.
 
-Actions:
+## What the specs cover
 
-- `Create(node, rid, proj, emb)`: write a new resource on `node`
-- `Edit(node, prev)`: write a follow-up referencing an existing entry on this node (cross-instance edits create a new origin entry on the editor)
-- `Pull(receiver, upstream, proj)`: receiver pulls eligible entries from upstream — applies embargo trust, dedup, and origin filter
+### Routing-only model (`Replication.tla`)
 
-Invariants checked at every reachable state:
+Actions: `Create`, `Edit`, `Pull`.
+Invariants: `NoDuplicates`, `PathStartsWithOrigin`, `PathEndsWithSelf`, `EmbargoFilter`, `ProjectIsolation`, `ChainIntactOrEmbargoGap`, `TypeOK`.
 
-- `NoDuplicates`: no two entries on a node share `(origin, rid, ver)`
-- `PathStartsWithOrigin`: every stored entry's path begins with its origin
-- `PathEndsWithSelf`: every stored entry's path ends with the storing node
-- `EmbargoFilter`: embargoed entries traverse only trusted hops
-- `ProjectIsolation`: every entry has a valid project
-- `ChainIntactOrEmbargoGap`: previous-version references resolve locally OR the referenced entry is embargoed (acceptable gap)
-- `TypeOK`: type-correctness of all variables
+### Txn model (`ReplicationTxn.tla`)
 
-## State space size
+Adds: each insert allocates a txid and is uncommitted until `Commit(n, v)` runs.
+Multiple transactions can be in-flight concurrently; commits can interleave with other commits and pulls.
+Each row carries its own `localVersion` (per-instance commit-order position) and `watermark` (lowest in-flight version at insert time).
+Pull filters on `localVersion` and advances the cursor to `max(watermark)` of the visible set.
 
-Observed at time of writing on a devcontainer with 32 cores:
+Extra invariant: **`NoCommittedEntryLost`** — for any committed entry on an upstream with `localVersion < cursor[receiver][upstream][project]`, either the receiver has it, or the receiver is the origin, or the entry is embargoed to an untrusted peer.
+This is precisely the property the watermark mechanism exists to preserve: cursor advance must never skip a late-committing entry.
 
-| MaxOps | Distinct states | Wall time    |
-|--------|-----------------|--------------|
-| 4      | 1 147           | < 1 s        |
-| 5      | 6 035           | < 1 s        |
-| 6      | 34 504          | ~2 s         |
+## Observed state-space sizes
 
-The default is 6.
-Higher values scale roughly 5-6× per added op; beyond 8 or 9 ops, TLC starts needing more time and memory.
+On a devcontainer with `-workers auto`:
 
-Increasing `Nodes` grows the space faster still.
-For exhaustive runs over a bigger space, pass `-workers auto` to parallelise.
+| Model                          | MaxOps | Distinct states | Wall time |
+|--------------------------------|--------|-----------------|-----------|
+| `Replication`                  | 4      | 1 147           | < 1 s     |
+| `Replication`                  | 6      | 34 504          | ~2 s      |
+| `ReplicationTxn`               | 7      | 15 011          | ~3 s      |
+| `ReplicationTxn`               | 8      | 109 184         | ~3 s      |
+| `ReplicationTxn`               | 9 (CI) | 540 853         | ~5 s      |
+| `ReplicationTxnDeep`           | 10     | 2 883 330       | ~17 s     |
 
-## Limitations vs. the protocol spec
+## Limitations
 
-- No watermark / out-of-order commits (use `txn_sim` for that)
-- No tombstone op (single `kind = entry` only)
-- Trust matrix is configuration-time; runtime trust changes not modelled
-- No liveness assertions (model checker can be extended with `[]<>` for eventual consistency under fairness; deferred)
-
-These limitations let the spec stay focused on safety properties of the routing/dedup/embargo logic.
+- Single project, single resource id — combinations of multiple projects/resources are modelled by the Rust `replication_sim` instead, which is faster to iterate
+- No tombstone op (entries are either present or not)
+- No liveness (TLC `[]<>` supported but not used — eventual-consistency assertions live in the Rust sim's quiescence checks)
+- Trust matrix is static

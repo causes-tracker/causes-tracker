@@ -86,6 +86,8 @@ struct StoredRow {
     /// Whether the writing transaction has committed (and thus the row is
     /// visible to other readers).
     committed: bool,
+    /// Replication path (writer to local instance).
+    path: Vec<InstanceId>,
 }
 
 type EntryKey = (InstanceId, String, u64);
@@ -185,10 +187,29 @@ impl TxnNode {
                 local_version: txid,
                 watermark,
                 committed: false,
+                path: vec![self.instance_id.clone()],
             },
         );
         self.pending_by_txid.entry(txid).or_default().push(key);
         version
+    }
+
+    /// Replication path for a stored entry, if present.
+    pub fn path_for(&self, version: &FederatedVersion) -> Option<Vec<InstanceId>> {
+        self.rows
+            .get(&entry_key(version))
+            .filter(|r| r.committed)
+            .map(|r| r.path.clone())
+    }
+
+    /// All entries on this node in a project (for invariant checks).
+    pub fn entries_in_project(&self, project_id: &ProjectId) -> Vec<&ReplicationExample> {
+        self.rows
+            .values()
+            .filter(|r| r.committed)
+            .filter(|r| &r.entry.meta.project_id == project_id)
+            .map(|r| &r.entry)
+            .collect()
     }
 
     /// Commit a transaction: make all its inserts visible.
@@ -236,25 +257,26 @@ impl TxnNode {
         rows
     }
 
-    /// Pull entries from `other` for `project_id`. Implements:
-    /// - cursor at-least-once: use stored cursor as `>=` filter
-    /// - dedup by federated version
-    /// - embargo filtering
-    /// - cursor wind-back: store the watermark of the last entry served
+    /// One-shot replication: prepare a pull and apply it immediately.
     pub fn replicate_from(&mut self, other: &TxnNode, project_id: &ProjectId) -> usize {
+        let batch = self.prepare_pull_from(other, project_id);
+        self.apply_pull(batch)
+    }
+
+    /// Prepare a pull batch (no &mut self). Multiple in-flight pulls can be
+    /// prepared concurrently and applied later in any order.
+    pub fn prepare_pull_from(&self, other: &TxnNode, project_id: &ProjectId) -> PullBatch {
         let cursor_key = (other.instance_id.clone(), project_id.clone());
         let cursor = self.cursors.get(&cursor_key).copied().unwrap_or(0);
-
         let serve_embargoed = other.serves_embargo_to.contains(&self.instance_id);
-        let to_send = other.visible_entries_for(project_id, cursor);
 
-        let mut accepted = 0;
+        let to_send = other.visible_entries_for(project_id, cursor);
+        let mut entries = Vec::new();
         let mut new_cursor = cursor;
 
         for row in to_send {
-            // Wind cursor back to the watermark of the last entry served.
-            // (Take the watermark even if we filter the entry out — the cursor
-            // mechanism is independent of filtering decisions.)
+            // Take watermark even for filtered entries — the cursor advance
+            // is independent of filtering decisions on the serve side.
             new_cursor = row.watermark;
 
             if row.entry.header.version.origin_instance_id == self.instance_id {
@@ -263,20 +285,43 @@ impl TxnNode {
             if row.entry.header.embargoed && !serve_embargoed {
                 continue;
             }
-            let key = entry_key(&row.entry.header.version);
+            entries.push(ServedEntry {
+                entry: row.entry.clone(),
+                source_path: row.path.clone(),
+            });
+        }
+
+        PullBatch {
+            upstream: other.instance_id.clone(),
+            project_id: project_id.clone(),
+            entries,
+            new_cursor,
+        }
+    }
+
+    /// Apply a previously-prepared batch. Dedups, propagates path, advances
+    /// cursor monotonically (out-of-order applies don't regress).
+    pub fn apply_pull(&mut self, batch: PullBatch) -> usize {
+        let cursor_key = (batch.upstream.clone(), batch.project_id.clone());
+        let mut accepted = 0;
+
+        for served in batch.entries {
+            let key = entry_key(&served.entry.header.version);
             if self.rows.contains_key(&key) {
                 continue;
             }
-
-            // Insert into self, autocommit.
+            // Receive in its own auto-commit transaction.
             let receive_txid = self.clock.begin();
+            let mut new_path = served.source_path;
+            new_path.push(self.instance_id.clone());
             self.rows.insert(
                 key.clone(),
                 StoredRow {
-                    entry: row.entry.clone(),
+                    entry: served.entry,
                     local_version: receive_txid,
                     watermark: self.clock.xmin(),
                     committed: false,
+                    path: new_path,
                 },
             );
             self.clock.commit(receive_txid);
@@ -284,9 +329,36 @@ impl TxnNode {
             accepted += 1;
         }
 
-        self.cursors.insert(cursor_key, new_cursor);
+        let existing = self.cursors.get(&cursor_key).copied().unwrap_or(0);
+        self.cursors
+            .insert(cursor_key, existing.max(batch.new_cursor));
         accepted
     }
+}
+
+/// A pull batch prepared by `prepare_pull_from`, ready to be applied.
+#[derive(Debug, Clone)]
+pub struct PullBatch {
+    upstream: InstanceId,
+    project_id: ProjectId,
+    entries: Vec<ServedEntry>,
+    new_cursor: u64,
+}
+
+impl PullBatch {
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+}
+
+#[derive(Debug, Clone)]
+struct ServedEntry {
+    entry: ReplicationExample,
+    source_path: Vec<InstanceId>,
 }
 
 // ── Argument structs ─────────────────────────────────────────────────────
@@ -519,5 +591,194 @@ mod tests {
         // No duplicates on B.
         assert_eq!(b.count_committed(), 2);
         assert!(b.has(&v1));
+    }
+
+    // ── Path tracking on TxnNode ────────────────────────────────────────
+
+    #[test]
+    fn path_propagates_through_chain() {
+        let project = test_project();
+        let a_id = named_instance("A");
+        let b_id = named_instance("B");
+        let c_id = named_instance("C");
+        let mut a = TxnNode::new(a_id.clone());
+        let mut b = TxnNode::new(b_id.clone());
+        let mut c = TxnNode::new(c_id.clone());
+
+        let v = a.auto_insert(create_args("r1", &project, "s1", ""));
+        b.replicate_from(&a, &project);
+        c.replicate_from(&b, &project);
+
+        assert_eq!(a.path_for(&v).unwrap(), vec![a_id.clone()]);
+        assert_eq!(b.path_for(&v).unwrap(), vec![a_id.clone(), b_id.clone()]);
+        assert_eq!(c.path_for(&v).unwrap(), vec![a_id, b_id, c_id]);
+    }
+
+    // ── Combined: everything together ───────────────────────────────────
+
+    /// All features simultaneously:
+    /// - 4 nodes, 2 projects
+    /// - Asymmetric embargo trust (A↔B trust each other; C, D do not)
+    /// - Out-of-order commits on A while B/C/D pull
+    /// - Concurrent pulls from multiple upstreams
+    /// - Path propagation through multi-hop topology
+    /// - Cross-project isolation maintained throughout
+    ///
+    /// After the workload, assert global invariants hold per project.
+    #[test]
+    fn kitchen_sink_scenario() {
+        let p1 = test_project();
+        let p2 = test_project();
+        let a_id = named_instance("A");
+        let b_id = named_instance("B");
+        let c_id = named_instance("C");
+        let d_id = named_instance("D");
+
+        let mut a = TxnNode::new(a_id.clone());
+        let mut b = TxnNode::new(b_id.clone());
+        let mut c = TxnNode::new(c_id.clone());
+        let mut d = TxnNode::new(d_id.clone());
+
+        // Asymmetric embargo trust.
+        a.serve_embargo_to(&b_id);
+        b.serve_embargo_to(&a_id);
+
+        // ── Phase 1: writes on A with out-of-order commits ──
+        // Open a long-running transaction T1 on A.
+        let t1 = a.begin();
+        let a_p1_secret = a.insert(
+            t1,
+            InsertArgs {
+                resource_id: "secret-p1",
+                project_id: &p1,
+                slug: "secret",
+                payload: "",
+                embargoed: true,
+                kind: JournalKind::Entry,
+                previous_version: None,
+            },
+        );
+
+        // Several quick auto-commit transactions on A in P1 and P2.
+        let a_p1_pub = a.auto_insert(create_args("pub-p1", &p1, "pub", "x"));
+        let a_p2_pub = a.auto_insert(create_args("pub-p2", &p2, "pub", "x"));
+
+        // ── Phase 2: B and C pull P1 from A while T1 still open ──
+        // Concurrent pulls (prepared at the same cursor).
+        // T1 is still open, so a_p1_secret is not yet visible — neither B
+        // nor C will see it yet, regardless of trust.
+        let b_batch1 = b.prepare_pull_from(&a, &p1);
+        let c_batch1 = c.prepare_pull_from(&a, &p1);
+        b.apply_pull(b_batch1);
+        c.apply_pull(c_batch1);
+
+        // Both see the public entry, neither sees the secret yet.
+        assert!(b.has(&a_p1_pub));
+        assert!(!b.has(&a_p1_secret));
+        assert!(c.has(&a_p1_pub));
+        assert!(!c.has(&a_p1_secret));
+        // Neither has a_p2_pub (different project).
+        assert!(!b.has(&a_p2_pub));
+        assert!(!c.has(&a_p2_pub));
+
+        // ── Phase 3: T1 commits, then B and C re-pull. ──
+        // Cursor on B/C is already past a_p1_pub but the watermark of
+        // a_p1_pub was held back by T1's xmin, so the cursor wound back
+        // and the next pull will re-serve a_p1_pub plus deliver a_p1_secret.
+        // B (trusted) gets the secret; C (untrusted) does not.
+        a.commit(t1);
+        b.replicate_from(&a, &p1);
+        c.replicate_from(&a, &p1);
+
+        assert!(b.has(&a_p1_secret), "B is trusted, should now have secret");
+        assert!(
+            !c.has(&a_p1_secret),
+            "C is not trusted, should still lack secret"
+        );
+
+        // ── Phase 4: D pulls P1 from B (relay). B has the secret because
+        // A trusted B; B does NOT trust D, so D should not get the secret.
+        // D should get a_p1_pub via B. ──
+        d.replicate_from(&b, &p1);
+        assert!(d.has(&a_p1_pub));
+        assert!(!d.has(&a_p1_secret));
+        // Path on D: [A, B, D].
+        assert_eq!(
+            d.path_for(&a_p1_pub).unwrap(),
+            vec![a_id.clone(), b_id.clone(), d_id.clone()]
+        );
+
+        // ── Phase 5: Pull P2 on B and C/D — only a_p2_pub exists. ──
+        b.replicate_from(&a, &p2);
+        c.replicate_from(&a, &p2);
+        d.replicate_from(&b, &p2);
+        assert!(b.has(&a_p2_pub));
+        assert!(c.has(&a_p2_pub));
+        assert!(d.has(&a_p2_pub));
+
+        // ── Phase 6: Concurrent pulls into D from both B (relay) and A
+        // (direct). D already has a_p1_pub — second arrival dedups. ──
+        let d_batch_from_b = d.prepare_pull_from(&b, &p1);
+        let d_batch_from_a = d.prepare_pull_from(&a, &p1);
+        let nb = d.apply_pull(d_batch_from_b);
+        let na = d.apply_pull(d_batch_from_a);
+        assert_eq!(nb + na, 0); // everything visible already deduped or not delivered
+
+        // ── Phase 7: B does an edit on a replicated resource (cross-instance
+        // edit), creating a new origin entry on B that references A's. ──
+        let b_edit = b.auto_insert(InsertArgs {
+            resource_id: "pub-p1",
+            project_id: &p1,
+            slug: "pub-edited",
+            payload: "edited",
+            embargoed: false,
+            kind: JournalKind::Entry,
+            previous_version: Some(a_p1_pub.clone()),
+        });
+        // Replicate B → C and B → D for P1.
+        c.replicate_from(&b, &p1);
+        d.replicate_from(&b, &p1);
+        assert!(c.has(&b_edit));
+        assert!(d.has(&b_edit));
+
+        // ── Final invariant checks per project ──
+        // P1: every node's previous_version chain is intact (or has a known
+        // embargo gap on the secret for C/D).
+        for node in [&a, &b, &c, &d] {
+            for row in node.rows.values().filter(|r| r.committed) {
+                if &row.entry.meta.project_id != &p1 {
+                    continue;
+                }
+                let Some(prev) = &row.entry.header.previous_version else {
+                    continue;
+                };
+                let prev_key = entry_key(prev);
+                if !node.rows.contains_key(&prev_key) {
+                    // Acceptable only if previous is the embargoed secret on
+                    // a node that wasn't trusted.
+                    assert_eq!(prev, &a_p1_secret);
+                }
+            }
+        }
+
+        // Each path starts with its origin and ends with the local node.
+        for (node, _name) in [(&a, "A"), (&b, "B"), (&c, "C"), (&d, "D")] {
+            for row in node.rows.values().filter(|r| r.committed) {
+                assert_eq!(
+                    row.path.first(),
+                    Some(&row.entry.header.version.origin_instance_id),
+                );
+                assert_eq!(row.path.last(), Some(&node.instance_id));
+            }
+        }
+
+        // Cross-project: no entry on a node has a different project_id than
+        // the one its row was filed under (trivially true since row carries
+        // the entry, but assert anyway).
+        for node in [&a, &b, &c, &d] {
+            for row in node.rows.values().filter(|r| r.committed) {
+                assert!([&p1, &p2].contains(&&row.entry.meta.project_id));
+            }
+        }
     }
 }

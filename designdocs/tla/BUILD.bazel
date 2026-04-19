@@ -1,0 +1,53 @@
+load("//infra/tla:defs.bzl", "tla_test")
+load("//tools/lint:format_check.bzl", "format_srcs")
+load("//tools/lint:linters.bzl", "markdown_lint_test")
+
+# Routing-only model: dedup, paths, embargo filter, chain integrity.
+# Fast (~1s); always runs in CI.
+tla_test(
+    name = "replication_tlc_test",
+    srcs = [
+        "Replication.tla",
+        "ReplicationMC.tla",
+    ],
+    config = "Replication.cfg",
+    entry = "ReplicationMC.tla",
+)
+
+# Protocol-faithful model with txn lifecycle: admits Postgres-style out-of-
+# order commits.  Adds the NoCommittedEntryLost invariant which proves the
+# watermark cursor doesn't permanently skip late-committing entries.
+# Slower than the routing-only model.
+tla_test(
+    name = "replication_txn_tlc_test",
+    srcs = [
+        "Replication.tla",
+        "ReplicationMC.tla",
+        "ReplicationTxn.tla",
+        "ReplicationTxnMC.tla",
+    ],
+    config = "ReplicationTxn.cfg",
+    entry = "ReplicationTxnMC.tla",
+)
+
+# Deeper run of the txn model with MaxOps=10 (~17s, ~2.9M states).
+# Tagged manual so it only runs on explicit invocation.
+tla_test(
+    name = "replication_txn_deep_tlc_test",
+    srcs = [
+        "Replication.tla",
+        "ReplicationMC.tla",
+        "ReplicationTxn.tla",
+        "ReplicationTxnDeepMC.tla",
+    ],
+    config = "ReplicationTxnDeep.cfg",
+    entry = "ReplicationTxnDeepMC.tla",
+    tags = ["manual"],
+)
+
+format_srcs()
+
+markdown_lint_test(
+    name = "pymarkdown",
+    srcs = ["README.md"],
+)

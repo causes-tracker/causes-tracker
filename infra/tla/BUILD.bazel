@@ -1,0 +1,6 @@
+load("//tools/lint:format_check.bzl", "format_srcs")
+
+# The hermetic TLC runner script — invoked by tla_test rules across the repo.
+exports_files(["run_tlc.sh"])
+
+format_srcs()

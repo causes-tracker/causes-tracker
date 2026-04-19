@@ -5,15 +5,13 @@
 //! without requiring multiple Postgres databases.
 //!
 //! Covers: dedup, embargo filtering (including un-embargo), topological
-//! ordering, rename via slug change, multi-hop delivery, and at-least-once
-//! redelivery.
+//! ordering, rename via slug change, multi-hop delivery, at-least-once
+//! redelivery, and replication path tracking.
 //!
 //! Simplifying assumptions vs. the real protocol:
 //! - Writes on each node are serialized: `local_version == watermark`.
-//!   Out-of-order commits (where watermark < local_version) are a real-DB
-//!   concern tested separately in `replication_example`.
-//! - Replication path is not modeled — only the entry identity matters for
-//!   the invariants we check here.
+//!   Out-of-order commits (where watermark < local_version) are modeled in
+//!   the separate `txn_sim` module.
 //! - Embargo trust is symmetric and binary per pair.
 
 #![allow(dead_code)] // scaffolding for tests
@@ -55,6 +53,10 @@ struct SimStoredEntry {
     local_version: LocalTxnId,
     /// Safe resume point for replication. Simplified: equal to local_version.
     watermark: LocalTxnId,
+    /// Replication path: ordered list of instance_ids, from the writing
+    /// instance to this storing instance. Locally-authored: [self].
+    /// Replicated: [...source path, self].
+    path: Vec<InstanceId>,
 }
 
 // ── SimNode ──────────────────────────────────────────────────────────────
@@ -223,9 +225,17 @@ impl SimNode {
                 entry,
                 local_version,
                 watermark: local_version,
+                path: vec![self.instance_id.clone()],
             },
         );
         version
+    }
+
+    /// Get the replication path for a stored entry.
+    pub fn path_for(&self, version: &FederatedVersion) -> Option<Vec<InstanceId>> {
+        self.entries
+            .get(&entry_key(version))
+            .map(|se| se.path.clone())
     }
 
     // ── Replication ─────────────────────────────────────────────────────
@@ -275,12 +285,16 @@ impl SimNode {
 
             let our_local_version = LocalTxnId::new(self.next_local_version).unwrap();
             self.next_local_version += 1;
+            // Build new path: source's path + this instance.
+            let mut new_path = se.path.clone();
+            new_path.push(self.instance_id.clone());
             self.entries.insert(
                 key,
                 SimStoredEntry {
                     entry: se.entry.clone(),
                     local_version: our_local_version,
                     watermark: our_local_version,
+                    path: new_path,
                 },
             );
             accepted += 1;
@@ -773,6 +787,141 @@ mod tests {
 
         assert_eq!(nodes[2].count(), 5);
         assert_dedup_per_node(&nodes);
+    }
+
+    // ── Replication path tests ──────────────────────────────────────────
+
+    #[test]
+    fn locally_authored_path_is_self() {
+        let project = test_project();
+        let a_id = named_instance("A");
+        let mut a = SimNode::new(a_id.clone());
+        let v = a.create(CreateArgs {
+            project_id: &project,
+            slug: "s",
+            payload: "",
+            embargoed: false,
+        });
+        let path = a.path_for(&v).unwrap();
+        assert_eq!(path, vec![a_id]);
+    }
+
+    #[test]
+    fn single_hop_path_is_origin_then_self() {
+        let project = test_project();
+        let a_id = named_instance("A");
+        let b_id = named_instance("B");
+        let mut nodes = vec![SimNode::new(a_id.clone()), SimNode::new(b_id.clone())];
+        let v = nodes[0].create(CreateArgs {
+            project_id: &project,
+            slug: "s",
+            payload: "",
+            embargoed: false,
+        });
+        replicate_until_quiescent(&mut nodes, &[(0, 1)], &project, 4);
+        let path = nodes[1].path_for(&v).unwrap();
+        assert_eq!(path, vec![a_id, b_id]);
+    }
+
+    #[test]
+    fn chain_path_records_each_relay() {
+        let project = test_project();
+        let a_id = named_instance("A");
+        let b_id = named_instance("B");
+        let c_id = named_instance("C");
+        let mut nodes = vec![
+            SimNode::new(a_id.clone()),
+            SimNode::new(b_id.clone()),
+            SimNode::new(c_id.clone()),
+        ];
+        let v = nodes[0].create(CreateArgs {
+            project_id: &project,
+            slug: "s",
+            payload: "",
+            embargoed: false,
+        });
+        replicate_until_quiescent(&mut nodes, &[(0, 1)], &project, 4);
+        replicate_until_quiescent(&mut nodes, &[(1, 2)], &project, 4);
+        let path = nodes[2].path_for(&v).unwrap();
+        assert_eq!(path, vec![a_id, b_id, c_id]);
+    }
+
+    #[test]
+    fn first_received_path_wins_under_dedup() {
+        // C replicates from B (which already has it from A), then from A directly.
+        // The direct path arrives second and is dedup'd — first path persists.
+        let project = test_project();
+        let a_id = named_instance("A");
+        let b_id = named_instance("B");
+        let c_id = named_instance("C");
+        let mut nodes = vec![
+            SimNode::new(a_id.clone()),
+            SimNode::new(b_id.clone()),
+            SimNode::new(c_id.clone()),
+        ];
+        let v = nodes[0].create(CreateArgs {
+            project_id: &project,
+            slug: "s",
+            payload: "",
+            embargoed: false,
+        });
+        // A→B, then B→C, then A→C.
+        replicate_until_quiescent(&mut nodes, &[(0, 1)], &project, 4);
+        replicate_until_quiescent(&mut nodes, &[(1, 2)], &project, 4);
+        replicate_until_quiescent(&mut nodes, &[(0, 2)], &project, 4);
+        let path = nodes[2].path_for(&v).unwrap();
+        // C kept the first-received path: [A, B, C].
+        assert_eq!(path, vec![a_id, b_id, c_id]);
+    }
+
+    /// All entries on a node must end with this node's instance_id.
+    fn assert_path_ends_with_self(nodes: &[SimNode]) {
+        for node in nodes {
+            for se in node.entries.values() {
+                assert_eq!(
+                    se.path.last(),
+                    Some(&node.instance_id),
+                    "path on {} doesn't end with self: {:?}",
+                    node.instance_id,
+                    se.path,
+                );
+            }
+        }
+    }
+
+    /// Every path's first element is the writing instance_id (origin_instance_id).
+    fn assert_path_starts_with_origin(nodes: &[SimNode]) {
+        for node in nodes {
+            for se in node.entries.values() {
+                assert_eq!(
+                    se.path.first(),
+                    Some(&se.entry.header.version.origin_instance_id),
+                    "path on {} doesn't start with origin: {:?}",
+                    node.instance_id,
+                    se.path,
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn mesh_paths_satisfy_invariants() {
+        let project = test_project();
+        let names = ["A", "B", "C", "D"];
+        let ids: Vec<InstanceId> = names.iter().map(|n| named_instance(n)).collect();
+        let mut nodes: Vec<SimNode> = ids.iter().cloned().map(SimNode::new).collect();
+        for (i, id) in ids.iter().enumerate() {
+            nodes[i].create(CreateArgs {
+                project_id: &project,
+                slug: &names[i].to_ascii_lowercase(),
+                payload: "",
+                embargoed: false,
+            });
+            let _ = id; // silence unused
+        }
+        replicate_until_quiescent(&mut nodes, &mesh_edges(4), &project, 20);
+        assert_path_ends_with_self(&nodes);
+        assert_path_starts_with_origin(&nodes);
     }
 
     #[test]

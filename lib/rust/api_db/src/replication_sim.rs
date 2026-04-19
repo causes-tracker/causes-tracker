@@ -243,14 +243,19 @@ impl SimNode {
     /// Pull new entries from `other` for a given project, applying dedup
     /// and embargo filtering. Returns the number of new entries accepted.
     pub fn replicate_from(&mut self, other: &SimNode, project_id: &ProjectId) -> usize {
+        let batch = self.prepare_pull_from(other, project_id);
+        self.apply_pull(batch)
+    }
+
+    /// Prepare a pull batch from `other` based on this node's current cursor.
+    /// Does not modify `self` — multiple in-flight pulls can be prepared
+    /// concurrently and applied in any order.
+    pub fn prepare_pull_from(&self, other: &SimNode, project_id: &ProjectId) -> PullBatch {
         let cursor_key = (other.instance_id.clone(), project_id.clone());
         let cursor = self.cursors.get(&cursor_key).copied();
 
         let serve_embargoed = other.serves_embargo_to.contains(&self.instance_id);
 
-        // Select entries in `other` for this project with local_version > cursor,
-        // ordered by local_version (topological by construction — local_version
-        // is monotonic in commit order).
         let mut to_send: Vec<&SimStoredEntry> = other
             .entries
             .values()
@@ -259,39 +264,57 @@ impl SimNode {
             .collect();
         to_send.sort_by_key(|se| se.local_version);
 
-        let mut accepted = 0;
+        let mut served = Vec::with_capacity(to_send.len());
         let mut max_watermark = cursor;
-
         for se in to_send {
             // Always advance max_watermark — filtered entries still
             // contribute to the cursor.
             if max_watermark.is_none_or(|m| se.watermark > m) {
                 max_watermark = Some(se.watermark);
             }
-
-            // Filter: requester originated this entry.
+            // Apply embargo and origin filters at serve time.
             if se.entry.header.version.origin_instance_id == self.instance_id {
                 continue;
             }
-            // Filter: embargoed entries to untrusted peers.
             if se.entry.header.embargoed && !serve_embargoed {
                 continue;
             }
-            // Dedup: we already have this entry.
-            let key = entry_key(&se.entry.header.version);
+            served.push(ServedEntry {
+                entry: se.entry.clone(),
+                source_path: se.path.clone(),
+            });
+        }
+
+        PullBatch {
+            upstream: other.instance_id.clone(),
+            project_id: project_id.clone(),
+            entries: served,
+            new_cursor: max_watermark,
+        }
+    }
+
+    /// Apply a previously-prepared pull batch.
+    /// Dedups entries that this node already has. Returns count of new entries.
+    /// Updates the cursor to `max(existing, batch.new_cursor)` — this means
+    /// out-of-order applies of two batches still leave the cursor at the
+    /// higher value (no progress lost).
+    pub fn apply_pull(&mut self, batch: PullBatch) -> usize {
+        let cursor_key = (batch.upstream.clone(), batch.project_id.clone());
+        let mut accepted = 0;
+
+        for served in batch.entries {
+            let key = entry_key(&served.entry.header.version);
             if self.entries.contains_key(&key) {
                 continue;
             }
-
             let our_local_version = LocalTxnId::new(self.next_local_version).unwrap();
             self.next_local_version += 1;
-            // Build new path: source's path + this instance.
-            let mut new_path = se.path.clone();
+            let mut new_path = served.source_path;
             new_path.push(self.instance_id.clone());
             self.entries.insert(
                 key,
                 SimStoredEntry {
-                    entry: se.entry.clone(),
+                    entry: served.entry,
                     local_version: our_local_version,
                     watermark: our_local_version,
                     path: new_path,
@@ -300,11 +323,46 @@ impl SimNode {
             accepted += 1;
         }
 
-        if let Some(m) = max_watermark {
-            self.cursors.insert(cursor_key, m);
+        // Take the max so out-of-order applies don't regress the cursor.
+        // `None` cursor means "never pulled" — any cursor from the batch wins.
+        let existing = self.cursors.get(&cursor_key).copied();
+        let new_cursor = match (existing, batch.new_cursor) {
+            (None, b) => b,
+            (Some(e), None) => Some(e),
+            (Some(e), Some(b)) => Some(e.max(b)),
+        };
+        if let Some(c) = new_cursor {
+            self.cursors.insert(cursor_key, c);
         }
         accepted
     }
+}
+
+/// A batch of entries served by a `prepare_pull_from`, ready to be applied.
+#[derive(Debug, Clone)]
+pub struct PullBatch {
+    upstream: InstanceId,
+    project_id: ProjectId,
+    entries: Vec<ServedEntry>,
+    /// Watermark of the last entry served (cursor to store after apply).
+    /// `None` = the batch is empty, no cursor change needed.
+    new_cursor: Option<LocalTxnId>,
+}
+
+impl PullBatch {
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+}
+
+#[derive(Debug, Clone)]
+struct ServedEntry {
+    entry: ReplicationExample,
+    source_path: Vec<InstanceId>,
 }
 
 // ── Write operation argument structs ─────────────────────────────────────
@@ -1022,6 +1080,176 @@ mod tests {
         replicate_until_quiescent(&mut nodes, &mesh_edges(4), &project, 20);
         assert_path_ends_with_self(&nodes);
         assert_path_starts_with_origin(&nodes);
+    }
+
+    // ── Concurrent replication streams ──────────────────────────────────
+
+    /// Two pulls from the same upstream prepared concurrently — both based
+    /// on the same cursor — applied sequentially. Dedup at the receiver
+    /// prevents duplicate insertion, and the cursor ends at the higher
+    /// new_cursor.
+    #[test]
+    fn two_concurrent_pulls_same_upstream() {
+        let project = test_project();
+        let a_id = named_instance("A");
+        let mut a = SimNode::new(a_id.clone());
+        let mut b = SimNode::new(named_instance("B"));
+
+        a.create(CreateArgs {
+            project_id: &project,
+            slug: "s1",
+            payload: "",
+            embargoed: false,
+        });
+        a.create(CreateArgs {
+            project_id: &project,
+            slug: "s2",
+            payload: "",
+            embargoed: false,
+        });
+
+        // Two pulls prepared at the same cursor (0).
+        let batch1 = b.prepare_pull_from(&a, &project);
+        let batch2 = b.prepare_pull_from(&a, &project);
+        assert_eq!(batch1.len(), 2);
+        assert_eq!(batch2.len(), 2);
+
+        // Apply both. The second should accept zero new entries (dedup).
+        let n1 = b.apply_pull(batch1);
+        let n2 = b.apply_pull(batch2);
+        assert_eq!(n1, 2);
+        assert_eq!(n2, 0);
+        assert_eq!(b.count(), 2);
+    }
+
+    /// Two pulls from the same upstream applied in REVERSE order (newer
+    /// batch first). The cursor must not regress; older batch's cursor
+    /// update is dominated by max().
+    #[test]
+    fn out_of_order_apply_does_not_regress_cursor() {
+        let project = test_project();
+        let a_id = named_instance("A");
+        let mut a = SimNode::new(a_id.clone());
+        let mut b = SimNode::new(named_instance("B"));
+
+        a.create(CreateArgs {
+            project_id: &project,
+            slug: "s1",
+            payload: "",
+            embargoed: false,
+        });
+
+        // Prepare batch1 at cursor=0.
+        let batch1 = b.prepare_pull_from(&a, &project);
+        // Apply batch1: cursor advances.
+        b.apply_pull(batch1);
+        let cursor_after_first = b
+            .cursors
+            .get(&(a_id.clone(), project.clone()))
+            .copied()
+            .unwrap();
+        assert!(cursor_after_first.get() > 0);
+
+        // A produces another entry.
+        a.create(CreateArgs {
+            project_id: &project,
+            slug: "s2",
+            payload: "",
+            embargoed: false,
+        });
+
+        // Prepare two batches at the new cursor.
+        let batch_a = b.prepare_pull_from(&a, &project);
+        let batch_b = b.prepare_pull_from(&a, &project);
+
+        // Apply in reverse order: batch_b first, then batch_a.
+        let n_b = b.apply_pull(batch_b);
+        let cursor_after_b = b
+            .cursors
+            .get(&(a_id.clone(), project.clone()))
+            .copied()
+            .unwrap();
+        let n_a = b.apply_pull(batch_a);
+        let cursor_after_a = b.cursors.get(&(a_id, project)).copied().unwrap();
+
+        assert_eq!(n_b, 1);
+        assert_eq!(n_a, 0); // dedup
+        // Cursor never regresses.
+        assert_eq!(cursor_after_a, cursor_after_b);
+    }
+
+    /// C replicates from both A and B concurrently, where the same entry
+    /// (originated at A) reaches C via two paths. Dedup keeps it once.
+    #[test]
+    fn concurrent_pulls_from_two_upstreams_same_entry() {
+        let project = test_project();
+        let a_id = named_instance("A");
+        let b_id = named_instance("B");
+        let mut nodes = vec![
+            SimNode::new(a_id.clone()),
+            SimNode::new(b_id.clone()),
+            SimNode::new(named_instance("C")),
+        ];
+
+        let v = nodes[0].create(CreateArgs {
+            project_id: &project,
+            slug: "s1",
+            payload: "",
+            embargoed: false,
+        });
+
+        // Get v onto B first.
+        replicate_until_quiescent(&mut nodes, &[(0, 1)], &project, 4);
+
+        // Concurrently prepare C's pulls from A and B.
+        let batch_from_a = nodes[2].prepare_pull_from(&nodes[0], &project);
+        let batch_from_b = nodes[2].prepare_pull_from(&nodes[1], &project);
+
+        // Apply both.
+        let n_a = nodes[2].apply_pull(batch_from_a);
+        let n_b = nodes[2].apply_pull(batch_from_b);
+
+        // C accepts v from one source; the other dedups.
+        assert_eq!(n_a + n_b, 1);
+        assert!(nodes[2].has(&v));
+        assert_eq!(nodes[2].count(), 1);
+    }
+
+    /// While a pull is in-flight, the upstream commits new entries.
+    /// The in-flight batch reflects the snapshot at prep time; a follow-up
+    /// pull picks up the new entries.
+    #[test]
+    fn inflight_pull_does_not_see_late_writes() {
+        let project = test_project();
+        let mut a = SimNode::new(named_instance("A"));
+        let mut b = SimNode::new(named_instance("B"));
+
+        a.create(CreateArgs {
+            project_id: &project,
+            slug: "s1",
+            payload: "",
+            embargoed: false,
+        });
+
+        // B prepares pull (sees r1 only).
+        let batch = b.prepare_pull_from(&a, &project);
+        assert_eq!(batch.len(), 1);
+
+        // A writes more entries while B's pull is in-flight.
+        a.create(CreateArgs {
+            project_id: &project,
+            slug: "s2",
+            payload: "",
+            embargoed: false,
+        });
+
+        // B applies the in-flight batch — only r1.
+        b.apply_pull(batch);
+        assert_eq!(b.count(), 1);
+
+        // Follow-up pull picks up r2.
+        b.replicate_from(&a, &project);
+        assert_eq!(b.count(), 2);
     }
 
     #[test]

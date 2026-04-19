@@ -10,6 +10,8 @@ mod replication_example;
 mod replication_sim;
 mod role;
 mod session;
+#[cfg(test)]
+mod txn_sim;
 
 /// Re-export chrono types used in public structs (e.g. `SessionRow.expires_at`).
 pub use sqlx::types::chrono;

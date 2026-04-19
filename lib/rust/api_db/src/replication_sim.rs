@@ -12,7 +12,7 @@
 //! - Writes on each node are serialized: `local_version == watermark`.
 //!   Out-of-order commits (where watermark < local_version) are modeled in
 //!   the separate `txn_sim` module.
-//! - Embargo trust is symmetric and binary per pair.
+//! - Embargo trust is per directed pair (asymmetric supported).
 
 #![allow(dead_code)] // scaffolding for tests
 
@@ -706,6 +706,110 @@ mod tests {
         // Invariant checker must accept this gap since v1 is embargoed globally.
         let embargo_map = global_entry_embargo_map(&nodes);
         assert_previous_version_or_embargo_gap(&nodes, &embargo_map);
+    }
+
+    // ── Asymmetric embargo trust ────────────────────────────────────────
+
+    /// A trusts B with embargo, but B does not trust A.
+    /// Embargoed entries flow A→B but not B→A.
+    #[test]
+    fn embargo_trust_is_asymmetric() {
+        let project = test_project();
+        let a_id = named_instance("A");
+        let b_id = named_instance("B");
+        let mut nodes = vec![SimNode::new(a_id.clone()), SimNode::new(b_id.clone())];
+
+        // Asymmetric: A serves embargo to B, B does NOT serve to A.
+        nodes[0].serve_embargo_to(&b_id);
+
+        let secret_a = nodes[0].create(CreateArgs {
+            resource_id: "secret-a",
+            project_id: &project,
+            slug: "sa",
+            payload: "from-A",
+            embargoed: true,
+        });
+        let secret_b = nodes[1].create(CreateArgs {
+            resource_id: "secret-b",
+            project_id: &project,
+            slug: "sb",
+            payload: "from-B",
+            embargoed: true,
+        });
+
+        // Bidirectional replication.
+        for _ in 0..3 {
+            replicate_round(&mut nodes, &[(0, 1), (1, 0)], &project);
+        }
+
+        // B has A's secret (A serves embargo to B).
+        assert!(nodes[1].has(&secret_a));
+        // A does NOT have B's secret (B does not serve embargo to A).
+        assert!(!nodes[0].has(&secret_b));
+    }
+
+    /// Three-node case: A trusts B; B trusts C; A does NOT trust C.
+    /// An A-originated embargoed entry flows A→B→C only if B chooses to
+    /// re-serve it to C (i.e. B trusts C). Verify B is the gateway.
+    #[test]
+    fn embargo_relay_through_trusted_intermediary() {
+        let project = test_project();
+        let a_id = named_instance("A");
+        let b_id = named_instance("B");
+        let c_id = named_instance("C");
+        let mut nodes = vec![
+            SimNode::new(a_id.clone()),
+            SimNode::new(b_id.clone()),
+            SimNode::new(c_id.clone()),
+        ];
+        // A → B trusted; B → C trusted; A → C NOT trusted.
+        nodes[0].serve_embargo_to(&b_id);
+        nodes[1].serve_embargo_to(&c_id);
+
+        let secret = nodes[0].create(CreateArgs {
+            resource_id: "secret",
+            project_id: &project,
+            slug: "s",
+            payload: "x",
+            embargoed: true,
+        });
+
+        // Replicate via the chain A→B→C.
+        replicate_until_quiescent(&mut nodes, &[(0, 1)], &project, 4);
+        replicate_until_quiescent(&mut nodes, &[(1, 2)], &project, 4);
+
+        // B and C have the secret (B got it from trusted A; C got it from trusted B).
+        assert!(nodes[1].has(&secret));
+        assert!(nodes[2].has(&secret));
+
+        // Now try direct A→C: A does NOT trust C, so no delivery.
+        // Reset C to test the direct path in isolation.
+        let mut c_only = SimNode::new(c_id.clone());
+        c_only.replicate_from(&nodes[0], &project);
+        assert!(
+            !c_only.has(&secret),
+            "direct A→C should not deliver embargoed"
+        );
+    }
+
+    /// Asymmetric trust does not affect non-embargoed delivery.
+    #[test]
+    fn asymmetric_trust_does_not_block_public() {
+        let project = test_project();
+        let mut nodes = vec![
+            SimNode::new(named_instance("A")),
+            SimNode::new(named_instance("B")),
+        ];
+        // No embargo trust at all.
+        let v = nodes[1].create(CreateArgs {
+            resource_id: "public",
+            project_id: &project,
+            slug: "p",
+            payload: "open",
+            embargoed: false,
+        });
+        replicate_until_quiescent(&mut nodes, &[(1, 0)], &project, 4);
+        assert!(nodes[0].has(&v));
     }
 
     #[test]

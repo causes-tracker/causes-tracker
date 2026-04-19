@@ -1266,6 +1266,151 @@ mod tests {
         assert_eq!(b.count(), 2);
     }
 
+    // ── Cross-project isolation ─────────────────────────────────────────
+
+    /// Pulling project P does not deliver entries from project Q.
+    #[test]
+    fn pull_filters_by_project() {
+        let p1 = test_project();
+        let p2 = test_project();
+        let mut a = SimNode::new(named_instance("A"));
+        let mut b = SimNode::new(named_instance("B"));
+
+        let in_p1 = a.create(CreateArgs {
+            resource_id: "r1",
+            project_id: &p1,
+            slug: "s1",
+            payload: "",
+            embargoed: false,
+        });
+        let in_p2 = a.create(CreateArgs {
+            resource_id: "r2",
+            project_id: &p2,
+            slug: "s2",
+            payload: "",
+            embargoed: false,
+        });
+
+        // Replicate only project P1.
+        b.replicate_from(&a, &p1);
+        assert!(b.has(&in_p1));
+        assert!(!b.has(&in_p2));
+
+        // Now also replicate P2 — both arrive, no cross-bleed.
+        b.replicate_from(&a, &p2);
+        assert!(b.has(&in_p1));
+        assert!(b.has(&in_p2));
+    }
+
+    /// The cursor is per (upstream, project) — replicating P1 does not
+    /// advance the P2 cursor or vice versa.
+    #[test]
+    fn cursors_are_per_project() {
+        let p1 = test_project();
+        let p2 = test_project();
+        let a_id = named_instance("A");
+        let mut a = SimNode::new(a_id.clone());
+        let mut b = SimNode::new(named_instance("B"));
+
+        a.create(CreateArgs {
+            resource_id: "r1",
+            project_id: &p1,
+            slug: "s1",
+            payload: "",
+            embargoed: false,
+        });
+        a.create(CreateArgs {
+            resource_id: "r2",
+            project_id: &p2,
+            slug: "s2",
+            payload: "",
+            embargoed: false,
+        });
+
+        b.replicate_from(&a, &p1);
+
+        // P1 cursor advanced; P2 cursor is still default (0/absent).
+        let p1_cursor = b.cursors.get(&(a_id.clone(), p1.clone())).copied();
+        let p2_cursor = b.cursors.get(&(a_id.clone(), p2.clone())).copied();
+        assert!(p1_cursor.unwrap_or(0) > 0);
+        assert!(p2_cursor.is_none());
+
+        // Pulling P2 still delivers r2 (cursor wasn't advanced by P1's pull).
+        let n = b.replicate_from(&a, &p2);
+        assert_eq!(n, 1);
+    }
+
+    /// An entry's project is preserved end-to-end. Renaming/editing within
+    /// a project doesn't migrate to a different project (we don't have a
+    /// "move" operation; project_id is per-entry).
+    #[test]
+    fn project_id_preserved_under_edit() {
+        let p1 = test_project();
+        let mut a = SimNode::new(named_instance("A"));
+
+        let v1 = a.create(CreateArgs {
+            resource_id: "r1",
+            project_id: &p1,
+            slug: "s1",
+            payload: "",
+            embargoed: false,
+        });
+        let v2 = a.edit(EditArgs {
+            previous: v1.clone(),
+            project_id: &p1,
+            slug: "s1",
+            payload: "edited",
+            embargoed: false,
+        });
+
+        let entries: Vec<&ReplicationExample> = a.entries_in_project(&p1);
+        assert_eq!(entries.len(), 2);
+        // Both entries are in project P1.
+        for e in entries {
+            assert_eq!(e.meta.project_id, p1);
+        }
+        let _ = v2;
+    }
+
+    /// Many projects, mesh of nodes, replicate them all — invariants hold
+    /// per project.
+    #[test]
+    fn multi_project_mesh() {
+        let projects: Vec<ProjectId> = (0..3).map(|_| test_project()).collect();
+        let mut nodes = vec![
+            SimNode::new(named_instance("A")),
+            SimNode::new(named_instance("B")),
+            SimNode::new(named_instance("C")),
+        ];
+        // Each node creates one entry per project.
+        for (i, n) in nodes.iter_mut().enumerate() {
+            for (pi, p) in projects.iter().enumerate() {
+                n.create(CreateArgs {
+                    resource_id: &format!("n{i}-p{pi}"),
+                    project_id: p,
+                    slug: "s",
+                    payload: "",
+                    embargoed: false,
+                });
+            }
+        }
+
+        // Replicate every project across the mesh.
+        for p in &projects {
+            replicate_until_quiescent(&mut nodes, &mesh_edges(3), p, 10);
+        }
+
+        // Every node has 3 nodes × 3 projects = 9 entries.
+        for n in &nodes {
+            assert_eq!(n.count(), 9);
+        }
+        assert_dedup_per_node(&nodes);
+        // Each project's invariants hold independently.
+        for p in &projects {
+            assert_all_non_embargoed_everywhere_in_mesh(&nodes, p);
+        }
+    }
+
     #[test]
     fn three_node_mesh_reaches_consistency() {
         let project = test_project();

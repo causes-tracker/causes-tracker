@@ -138,7 +138,11 @@ When a resource references another (e.g. a comment on a plan), the reference car
 The replication stream's topological ordering guarantees that referenced entries precede referencing entries.
 A downstream processing a replication stream in order will always have the referenced entry before the referencing entry.
 
+This guarantee follows from a precondition on writes: an instance can only write an entry that references another entry if it already has the referenced entry locally and committed.
+Combined with monotonic local commit order, this ensures that the parent's `local_version` on any node is strictly less than the child's, so any pull serving entries in `local_version` order naturally delivers parent before child.
+
 See [Ordering guarantees](#ordering-guarantees) for the proof.
+The TLA+ model in [tla/ReplicationTxn.tla](tla/ReplicationTxn.tla) verifies this property as `ParentRefIntactOrEmbargoGap`.
 
 ## Replication protocol
 

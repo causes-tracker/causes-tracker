@@ -57,19 +57,20 @@ Init ==
     /\ opCount = 0
 
 (***************************************************************************)
-(* Action: open a transaction and write a brand-new resource entry.       *)
-(* The entry is uncommitted; visible only after Commit.                   *)
+(* Action: open a transaction and write a brand-new resource entry        *)
+(* (plan-style: no parent reference).                                     *)
 (*                                                                         *)
 (* For locally-authored entries: localVersion == ver == txid.             *)
 (***************************************************************************)
-BeginNew(n, rid, proj, emb) ==
+BeginNewPlan(n, rid, proj, emb) ==
     /\ opCount < MaxOps
     /\ \A e \in entries[n] : ~(e.origin = n /\ e.rid = rid)
     /\ LET v == nextVersion[n]
            wm == XminWith(n, v)
            entry == [origin |-> n, rid |-> rid, ver |-> v,
                      localVersion |-> v, watermark |-> wm,
-                     prev |-> NullRef, emb |-> emb,
+                     prev |-> NullRef, parentRef |-> NullRef,
+                     emb |-> emb,
                      committed |-> FALSE,
                      proj |-> proj, path |-> <<n>>]
        IN
@@ -80,8 +81,63 @@ BeginNew(n, rid, proj, emb) ==
     /\ UNCHANGED cursors
 
 (***************************************************************************)
+(* Action: open a transaction and write a comment-style entry that        *)
+(* references a parent plan.  The parent must be committed and present    *)
+(* on this node (you can't reference what you can't see).                 *)
+(***************************************************************************)
+BeginNewComment(n, rid, proj, parent, emb) ==
+    /\ opCount < MaxOps
+    /\ \A e \in entries[n] : ~(e.origin = n /\ e.rid = rid)
+    /\ parent \in entries[n]
+    /\ parent.committed
+    /\ parent.parentRef = NullRef    \* parent is itself a plan (not a comment)
+    /\ parent.proj = proj            \* parent in same project
+    /\ LET v == nextVersion[n]
+           wm == XminWith(n, v)
+           entry == [origin |-> n, rid |-> rid, ver |-> v,
+                     localVersion |-> v, watermark |-> wm,
+                     prev |-> NullRef, parentRef |-> VRef(parent),
+                     emb |-> emb,
+                     committed |-> FALSE,
+                     proj |-> proj, path |-> <<n>>]
+       IN
+           /\ entries' = [entries EXCEPT ![n] = @ \cup {entry}]
+           /\ nextVersion' = [nextVersion EXCEPT ![n] = v + 1]
+           /\ inFlight' = [inFlight EXCEPT ![n] = @ \cup {v}]
+    /\ opCount' = opCount + 1
+    /\ UNCHANGED cursors
+
+(***************************************************************************)
+(* Action: write a comment-style entry into an EXISTING open transaction  *)
+(* whose first entry was a plan.  Models Postgres read-your-writes within *)
+(* a transaction: the comment can reference its parent before the parent  *)
+(* is committed, because both will commit atomically together.            *)
+(*                                                                         *)
+(* The new comment shares ver and localVersion with the parent (same      *)
+(* transaction = same txid).                                              *)
+(***************************************************************************)
+WriteCommentInOpenPlanTxn(n, parent, rid, emb) ==
+    /\ opCount < MaxOps
+    /\ parent \in entries[n]
+    /\ parent.parentRef = NullRef    \* parent is a plan
+    /\ ~parent.committed             \* parent's txn still open
+    /\ parent.ver \in inFlight[n]
+    /\ \A e \in entries[n] : ~(e.origin = n /\ e.rid = rid)
+    /\ LET txid == parent.ver
+           wm == XminWith(n, txid)
+           entry == [origin |-> n, rid |-> rid, ver |-> txid,
+                     localVersion |-> txid, watermark |-> wm,
+                     prev |-> NullRef, parentRef |-> VRef(parent),
+                     emb |-> emb,
+                     committed |-> FALSE,
+                     proj |-> parent.proj, path |-> <<n>>]
+       IN entries' = [entries EXCEPT ![n] = @ \cup {entry}]
+    /\ opCount' = opCount + 1
+    /\ UNCHANGED <<cursors, nextVersion, inFlight>>
+
+(***************************************************************************)
 (* Action: open a transaction that edits an existing committed entry.     *)
-(* Same-instance edit pattern.                                            *)
+(* Same-instance edit pattern.  Preserves the parentRef of the previous.  *)
 (***************************************************************************)
 BeginEdit(n, prev) ==
     /\ opCount < MaxOps
@@ -91,7 +147,8 @@ BeginEdit(n, prev) ==
            wm == XminWith(n, v)
            entry == [origin |-> n, rid |-> prev.rid, ver |-> v,
                      localVersion |-> v, watermark |-> wm,
-                     prev |-> VRef(prev), emb |-> prev.emb,
+                     prev |-> VRef(prev), parentRef |-> prev.parentRef,
+                     emb |-> prev.emb,
                      committed |-> FALSE,
                      proj |-> prev.proj, path |-> <<n>>]
        IN
@@ -140,7 +197,8 @@ Pull(receiver, upstream, proj) ==
            recvWm     == XminWith(receiver, recvTxid)
            accepted   == { [origin |-> e.origin, rid |-> e.rid, ver |-> e.ver,
                             localVersion |-> recvTxid, watermark |-> recvWm,
-                            prev |-> e.prev, emb |-> e.emb,
+                            prev |-> e.prev, parentRef |-> e.parentRef,
+                            emb |-> e.emb,
                             committed |-> TRUE,
                             proj |-> e.proj,
                             path |-> e.path \o <<receiver>>] :
@@ -159,7 +217,11 @@ Pull(receiver, upstream, proj) ==
 
 Next ==
     \/ \E n \in Nodes, rid \in ResourceIds, proj \in Projects, emb \in BOOLEAN :
-        BeginNew(n, rid, proj, emb)
+        BeginNewPlan(n, rid, proj, emb)
+    \/ \E n \in Nodes, rid \in ResourceIds, proj \in Projects, emb \in BOOLEAN :
+        \E parent \in entries[n] : BeginNewComment(n, rid, proj, parent, emb)
+    \/ \E n \in Nodes, rid \in ResourceIds, emb \in BOOLEAN :
+        \E parent \in entries[n] : WriteCommentInOpenPlanTxn(n, parent, rid, emb)
     \/ \E n \in Nodes : \E e \in entries[n] : BeginEdit(n, e)
     \/ \E n \in Nodes : \E v \in inFlight[n] : Commit(n, v)
     \/ \E r \in Nodes, u \in Nodes, p \in Projects : Pull(r, u, p)
@@ -233,6 +295,26 @@ ChainIntactOrEmbargoGap ==
                     /\ p.ver = e.prev.ver
                     /\ p.emb
 
+\* Cross-resource references resolve locally OR have a known embargo gap.
+\* If a comment-style entry refers to a parent plan, that parent must be on
+\* the same node, OR be embargoed (acceptable gap when we couldn't legally
+\* see it).  The protocol's topological-ordering claim is what's being
+\* verified here: a relay that delivers a comment must have the parent.
+ParentRefIntactOrEmbargoGap ==
+    \A n \in Nodes :
+        \A e \in entries[n] :
+            (e.committed /\ e.parentRef # NullRef) =>
+                \/ \E q \in entries[n] :
+                    /\ q.committed
+                    /\ q.origin = e.parentRef.origin
+                    /\ q.rid = e.parentRef.rid
+                    /\ q.ver = e.parentRef.ver
+                \/ \E other \in Nodes : \E p \in entries[other] :
+                    /\ p.origin = e.parentRef.origin
+                    /\ p.rid = e.parentRef.rid
+                    /\ p.ver = e.parentRef.ver
+                    /\ p.emb
+
 TypeOK ==
     /\ entries \in [Nodes -> SUBSET [
             origin: Nodes \cup {"_"},
@@ -243,6 +325,9 @@ TypeOK ==
             prev: [origin: Nodes \cup {"_"},
                    rid: ResourceIds \cup {"_"},
                    ver: 0..(MaxOps * Cardinality(Nodes))],
+            parentRef: [origin: Nodes \cup {"_"},
+                        rid: ResourceIds \cup {"_"},
+                        ver: 0..(MaxOps * Cardinality(Nodes))],
             emb: BOOLEAN,
             committed: BOOLEAN,
             proj: Projects,

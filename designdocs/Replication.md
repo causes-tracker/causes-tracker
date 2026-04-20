@@ -5,6 +5,7 @@ It is the specification for implementors building a Causes-compatible instance o
 
 For the design rationale behind these decisions, see [ADR-013](Decisions.md#adr-013-replication-protocol) in Decisions.md.
 For the broader federation strategy, see [ADR-006](Decisions.md#adr-006-federation-strategy--distribute-dont-federate-by-default).
+For a machine-checked TLA+ model of the protocol's safety properties, see [../tla/Replication.tla](../tla/Replication.tla).
 
 ## Overview
 
@@ -137,7 +138,12 @@ When a resource references another (e.g. a comment on a plan), the reference car
 The replication stream's topological ordering guarantees that referenced entries precede referencing entries.
 A downstream processing a replication stream in order will always have the referenced entry before the referencing entry.
 
+This guarantee follows from a precondition on writes: an instance can only write an entry that references another entry if it has read the referenced entry — either committed and visible in the writer's snapshot, or written in the writer's own open transaction.
+Under snapshot isolation (REPEATABLE READ or higher), the parent's `local_version` on any node is therefore `<=` the child's `local_version` (equal only when both were written in the same transaction, e.g. a plan and a comment committed together).
+Pull serves entries in `local_version` order, so a parent is delivered before or together with its child; same-`local_version` groups must cross batch boundaries atomically — see [Batch boundaries](#batch-boundaries).
+
 See [Ordering guarantees](#ordering-guarantees) for the proof.
+The TLA+ model in [../tla/Replication.tla](../tla/Replication.tla) verifies this property as `ParentRefIntactOrEmbargoGap`.
 
 ## Replication protocol
 
@@ -284,8 +290,8 @@ See [cognitedata/txid-syncing](https://github.com/cognitedata/txid-syncing) for 
 Each journal table includes two Postgres-specific columns:
 
 ```sql
-local_version  BIGINT NOT NULL DEFAULT pg_current_xact_id()::bigint
-watermark      BIGINT NOT NULL DEFAULT pg_snapshot_xmin(pg_current_snapshot())::bigint
+local_version  BIGINT NOT NULL DEFAULT pg_current_xact_id()::text::bigint
+watermark      BIGINT NOT NULL DEFAULT pg_snapshot_xmin(pg_current_snapshot())::text::bigint
 ```
 
 `local_version` is the transaction ID at commit time on this instance.
@@ -300,15 +306,14 @@ Everything with `local_version` below the watermark is guaranteed committed.
 
 ### Topological ordering via transaction IDs
 
-Under REPEATABLE READ or higher isolation, a transaction can only read data committed before its snapshot was taken.
-Committed data has a strictly lower transaction ID than the reading transaction.
-Therefore, if entry B references entry A, then `A.local_version < B.local_version` on the instance where B was written.
+Under REPEATABLE READ or higher isolation, a transaction can read two kinds of data: data committed before its snapshot was taken (which has a strictly lower transaction ID), and data written by the transaction itself (which shares the transaction's ID, its `local_version`).
+Therefore, if entry B references entry A, then `A.local_version <= B.local_version` on the instance where B was written — strictly less when A was committed before B's transaction started, equal when A and B were written in the same transaction.
 
-This means the `local_version` ordering is topologically sorted for locally-created entries.
+This means the `local_version` ordering is topologically sorted (with ties possible) for locally-created entries.
 Replicated entries are committed before any local entry can reference them, so the combined `local_version` ordering across all origins is also topologically sorted.
 
 When two replication streams run concurrently, each stream is independently topologically sorted.
-Interleaving them by concurrent commits preserves topological ordering: if entry Y references entry X, then X must have been committed (and assigned a `local_version`) before Y's transaction could read it.
+Interleaving them by concurrent commits preserves topological ordering: if entry Y references entry X, then X must have been visible (whether through commit or same-transaction writes) before Y could read it.
 
 ### At-least-once delivery via watermark
 
@@ -329,6 +334,7 @@ loop:
     batch = query entries WHERE local_version >= watermark
                             AND project_id = project
                           ORDER BY local_version
+                          FETCH FIRST N ROWS WITH TIES
 
     if batch is empty:
         wait for notification or timeout
@@ -346,8 +352,41 @@ loop:
     watermark = batch.last().watermark
 ```
 
+`WITH TIES` is the same-`local_version` atomicity from the batch-boundaries section above.
+
 The seen buffer is bounded.
 Entries can be evicted from the buffer once the watermark advances past their `local_version` — they will not appear in future queries.
+
+### Batch boundaries
+
+A `Pull` may stream entries across multiple batches.
+For correctness, **a child entry must never be sent in a batch that strictly precedes its parent's batch**.
+Otherwise a receiver applying batches in arrival order would briefly hold a child without its parent.
+
+Two ancestor relationships count as parent-child:
+
+- `previous_version` — same-resource chain on `JournalEntry`.
+- Cross-resource references such as a comment's parent, transmitted in the resource-typed payload.
+
+A receiver pulling from a relay can encounter same-`local_version` parent-child pairs, because a relay assigns the same receive-side `local_version` to all entries committed in one replicating transaction.
+A naive batch boundary inside such a group splits the chain.
+
+The protocol contract: items crossing batch boundaries are topologically ordered.
+Implementations have two valid strategies for same-`local_version` groups:
+
+- **Atomic same-`local_version` groups.**
+  Every batch includes all rows sharing the last row's `local_version`.
+  In SQL this is `LIMIT N WITH TIES` semantics — after the cut, fetch any remaining rows whose `local_version` matches the last row's.
+
+- **Topo-sort within a `local_version`.**
+  When a same-`local_version` group is split across batches, order rows within the group so parents precede children.
+  Requires the sender to know in-batch parent/child relationships.
+
+The first strategy is simpler and matches Postgres's `WITH TIES` clause directly.
+Its safety argument depends on `local_version = pg_current_xact_id()`: same `local_version` ⟺ same transaction ⟺ atomic commit, so a serving snapshot either sees the whole group or none of it, and `WITH TIES` naturally extends the batch to cover the whole group.
+Implementations whose `local_version` source does not carry this property (e.g. a separate row-level sequence) cannot rely on `WITH TIES` alone and must use the topo-sort strategy or equivalent.
+
+References that resolve to entries embargoed-out of the receiver's view do not need to be in any batch — the embargo gap is permitted by the protocol.
 
 ### Receiving pseudocode
 

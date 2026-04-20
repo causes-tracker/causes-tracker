@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Hermetic TLC runner.  Used by both `bazel run //infra/tla:tlc` and
-# `tla_test` rules in //designdocs/tla:BUILD.bazel.
+# Hermetic TLC runner.  Used by `tla_test` rules (e.g. //tla:BUILD.bazel).
 #
 # Arguments:
 #   $1: relative path to the .cfg file (resolved via runfiles)

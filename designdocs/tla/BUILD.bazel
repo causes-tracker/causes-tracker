@@ -1,0 +1,22 @@
+load("//infra/tla:defs.bzl", "tla_test")
+load("//tools/lint:format_check.bzl", "format_srcs")
+load("//tools/lint:linters.bzl", "markdown_lint_test")
+
+# Routing-only model: dedup, paths, embargo filter, chain integrity.
+# Fast (~1s); always runs in CI.
+tla_test(
+    name = "replication_tlc_test",
+    srcs = [
+        "Replication.tla",
+        "ReplicationMC.tla",
+    ],
+    config = "Replication.cfg",
+    entry = "ReplicationMC.tla",
+)
+
+format_srcs()
+
+markdown_lint_test(
+    name = "pymarkdown",
+    srcs = ["README.md"],
+)

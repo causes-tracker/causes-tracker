@@ -1,0 +1,34 @@
+load("//infra/tla:defs.bzl", "tla_test")
+load("//tools/lint:format_check.bzl", "format_srcs")
+load("//tools/lint:linters.bzl", "markdown_lint_test")
+
+# Formal model of the replication protocol.  Covers txn lifecycle, out-of-
+# order commits (watermark wind-back), cross-resource references, and
+# batched pulls with ancestor-closure.
+tla_test(
+    name = "replication_tlc_test",
+    srcs = [
+        "Replication.tla",
+        "ReplicationMC.tla",
+    ],
+    config = "Replication.cfg",
+    entry = "ReplicationMC.tla",
+)
+
+# Deeper run with higher MaxOps.  Same model, larger state space.
+tla_test(
+    name = "replication_deep_tlc_test",
+    srcs = [
+        "Replication.tla",
+        "ReplicationDeepMC.tla",
+    ],
+    config = "Replication.cfg",
+    entry = "ReplicationDeepMC.tla",
+)
+
+format_srcs()
+
+markdown_lint_test(
+    name = "pymarkdown",
+    srcs = ["README.md"],
+)

@@ -59,6 +59,32 @@ http_file(
     url = "https://github.com/theseus-rs/postgresql-binaries/releases/download/17.9.0/postgresql-17.9.0-x86_64-unknown-linux-gnu.tar.gz",
 )
 
+# Eclipse Temurin JRE 21 for Linux x86_64.  Used by //infra/tla to run TLC.
+# Update by checking https://github.com/adoptium/temurin21-binaries/releases
+# and recomputing sha256.
+http_archive(
+    name = "temurin_jre_linux_amd64",
+    build_file_content = """
+filegroup(
+    name = "files",
+    srcs = glob(["**"]),
+    visibility = ["//visibility:public"],
+)
+""",
+    sha256 = "553dda64b3b1c3c16f8afe402377ffebe64fb4a1721a46ed426a91fd18185e62",
+    strip_prefix = "jdk-21.0.5+11-jre",
+    url = "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.5%2B11/OpenJDK21U-jre_x64_linux_hotspot_21.0.5_11.tar.gz",
+)
+
+# TLA+ tools (TLC model checker, SANY parser, etc.) bundled as a single jar.
+# Update: check https://github.com/tlaplus/tlaplus/releases for new versions.
+http_file(
+    name = "tla2tools",
+    downloaded_file_path = "tla2tools.jar",
+    sha256 = "af03b2baae73b523fe162c0ff195c5adeed42cd1d092200b0bde2cd15914f624",
+    url = "https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar",
+)
+
 # AWS CLI 2.34.14 Linux amd64, used by //infra:aws.
 # Update: download new zip, run sha256sum, update version and sha256 here.
 # https://awscli.amazonaws.com/awscli-exe-linux-x86_64-VERSION.zip

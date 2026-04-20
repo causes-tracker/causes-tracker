@@ -135,6 +135,23 @@ impl DbPool {
         (**self.inner.load()).clone()
     }
 
+    /// Begin a transaction at REPEATABLE READ isolation.
+    /// All transactions in this codebase run at REPEATABLE READ — journal
+    /// writes require it (the trigger from migration 009 rejects lower
+    /// isolation) and non-journal transactions use it for consistent
+    /// snapshot reads across multi-statement operations.  Call this instead
+    /// of `pool().begin()`; clippy's `disallowed_methods` lint rejects
+    /// direct `.begin()` calls elsewhere.
+    #[allow(clippy::disallowed_methods)] // The one legitimate caller of sqlx::Pool::begin.
+    pub(crate) async fn begin_txn(&self) -> anyhow::Result<sqlx::Transaction<'_, sqlx::Postgres>> {
+        let mut tx = self.pool().begin().await.context("beginning transaction")?;
+        sqlx::query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
+            .execute(&mut *tx)
+            .await
+            .context("setting isolation level")?;
+        Ok(tx)
+    }
+
     /// Run all pending migrations.
     #[tracing::instrument(skip(self), fields(db.system = "postgresql"))]
     pub async fn migrate(&self) -> anyhow::Result<()> {
@@ -267,5 +284,17 @@ mod tests {
         let after = db.instance_id().await.expect("instance_id failed");
 
         assert_eq!(original, after);
+    }
+
+    /// Verify that `begin_txn` opens a transaction at REPEATABLE READ.
+    #[sqlx::test(migrator = "crate::db::tests::EMPTY")]
+    async fn begin_txn_sets_repeatable_read(pool: sqlx::PgPool) {
+        let db = DbPool::from_pool(pool);
+        let mut tx = db.begin_txn().await.expect("begin_txn failed");
+        let level: String = sqlx::query_scalar("SELECT current_setting('transaction_isolation')")
+            .fetch_one(&mut *tx)
+            .await
+            .expect("query failed");
+        assert_eq!(level, "repeatable read");
     }
 }

@@ -55,8 +55,20 @@ yamllint_lint_test = lint_test(aspect = yamllint)
 
 clippy = lint_clippy_aspect(
     config = Label("//:.clippy.toml"),
-    clippy_flags = ["-Dwarnings"],
+    clippy_flags = [
+        "-Dwarnings",
+        # `clippy::disallowed_methods` is a restriction-group lint, off by
+        # default.  Enable globally so the paths in .clippy.toml are enforced.
+        "-Dclippy::disallowed_methods",
+        # `clippy::new_without_default` fires on any zero-arg `new()`, but
+        # that heuristic fails for factories like `UserId::new()` that mint
+        # random identities — a `Default` impl would silently generate fresh
+        # state on each call, which is a trap for readers.
+        "-Aclippy::new_without_default",
+    ],
 )
+
+clippy_lint_test = lint_test(aspect = clippy)
 
 # ── pymarkdown (Markdown linter) ──────────────────────────────────────────────
 # Unlike the aspect-based linters above, markdown files have no native Bazel

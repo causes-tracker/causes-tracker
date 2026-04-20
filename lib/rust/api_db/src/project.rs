@@ -161,7 +161,7 @@ pub async fn create_project(
     creator_user_id: &UserId,
 ) -> Result<ProjectRow, ProjectError> {
     let id = Uuid::new_v4().to_string();
-    let mut tx = pool.pool().begin().await.context("beginning transaction")?;
+    let mut tx = pool.begin_txn().await?;
 
     let row = sqlx::query!(
         "INSERT INTO projects (id, name, description, visibility, embargoed_by_default) \
@@ -410,7 +410,7 @@ pub async fn list_projects(
                     batch.push(project);
 
                     if batch.len() >= VISIBILITY_BATCH_SIZE {
-                        let drained: Vec<_> = batch.drain(..).collect();
+                        let drained = std::mem::take(&mut batch);
                         match visible_projects(&pool, &session, admin, drained).await {
                             Ok(visible) if !visible.is_empty() => {
                                 if tx.send(Ok(visible)).await.is_err() {
@@ -488,7 +488,7 @@ pub async fn rename_project(
 
 /// Delete a project and its role assignments. Returns false if not found.
 pub async fn delete_project(pool: &DbPool, project_id: &ProjectId) -> anyhow::Result<bool> {
-    let mut tx = pool.pool().begin().await.context("beginning transaction")?;
+    let mut tx = pool.begin_txn().await?;
 
     sqlx::query!(
         "DELETE FROM role_assignments WHERE project_id = $1",

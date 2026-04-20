@@ -82,7 +82,7 @@ impl std::fmt::Display for ProjectId {
 
 /// Convert a nullable DB string to `Option<ProjectId>`.
 fn project_id_from_db(s: Option<String>) -> anyhow::Result<Option<ProjectId>> {
-    s.map(|s| ProjectId::new(s)).transpose()
+    s.map(ProjectId::new).transpose()
 }
 
 // ── Public API ───────────────────────────────────────────────────────────

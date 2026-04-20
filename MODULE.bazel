@@ -124,6 +124,33 @@ http_archive(
 # targets (coverage wrapper in lib/rust/api_db).
 bazel_dep(name = "llvm", version = "0.7.0")
 bazel_dep(name = "rules_rs", version = "0.0.58")
+single_version_override(
+    module_name = "rules_rs",
+    patch_strip = 1,
+    patches = [
+        # Make rules_rs use the module-graph rules_rust (via bazel_dep) so
+        # aspect_rules_lint's clippy aspect and our rust_library targets
+        # share one CrateInfo provider identity.  Combined with the
+        # archive_override below, rules_rs ends up pointing at the same
+        # hermeticbuild/rules_rust fork it was loading via extension.
+        "//build/patches:rules_rs_rules_rust_bazel_dep.patch",
+    ],
+)
+
+# aspect_rules_lint's clippy aspect imports rules_rust and looks up the
+# CrateInfo provider via identity.  rules_rs ships its own rules_rust fork
+# (hermeticbuild/rules_rust at a pinned commit), so targets built by rules_rs
+# expose a different provider than the one aspect_rules_lint loads.  Result:
+# the aspect goes no-op on our targets and clippy never runs.  Override
+# aspect_rules_lint's rules_rust dep with the same fork rules_rs uses, so
+# there is a single shared provider identity.
+bazel_dep(name = "rules_rust", version = "0.67.0")
+archive_override(
+    module_name = "rules_rust",
+    integrity = "sha256-xT7zyL35CDK5b7iKdKL+WchslRZsnXDXuBMHiqVD0ps=",
+    strip_prefix = "rules_rust-7ed8a24a37be47378b8a266ae3016148b9cb5c49",
+    urls = ["https://github.com/hermeticbuild/rules_rust/archive/7ed8a24a37be47378b8a266ae3016148b9cb5c49.tar.gz"],
+)
 
 toolchains = use_extension(
     "@rules_rs//rs/experimental/toolchains:module_extension.bzl",

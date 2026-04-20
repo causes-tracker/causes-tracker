@@ -26,7 +26,7 @@ Both models run under Bazel with a hermetic JRE + tla2tools.jar fetched on first
 bazel test //designdocs/tla:replication_tlc_test
 bazel test //designdocs/tla:replication_txn_tlc_test
 
-# Deeper — manual.
+# Deeper — manual (~30s).
 bazel test //designdocs/tla:replication_txn_deep_tlc_test
 ```
 
@@ -35,6 +35,8 @@ For ad-hoc runs outside Bazel (e.g. when iterating on the spec), use the shell w
 ```sh
 designdocs/tla/run_tlc.sh                 # defaults to Replication model
 ```
+
+Or run `bazel test` as above for the Bazel-hermetic path.
 
 ## What the specs cover
 
@@ -48,7 +50,9 @@ Invariants: `NoDuplicates`, `PathStartsWithOrigin`, `PathEndsWithSelf`, `Embargo
 Adds: each insert allocates a txid and is uncommitted until `Commit(n, v)` runs.
 Multiple transactions can be in-flight concurrently; commits can interleave with other commits and pulls.
 Each row carries its own `localVersion` (per-instance commit-order position) and `watermark` (lowest in-flight version at insert time).
-Pull filters on `localVersion` and advances the cursor to `max(watermark)` of the visible set.
+`BatchPull` selects a subset of visible entries up to `BatchSize` that is (a) a prefix in `localVersion` order and (b) ancestor-closed for both `prev` and `parentRef` references.
+The cursor advances to `max(watermark)` of the chosen batch; subsequent pulls pick up the rest.
+This admits both implementation strategies for same-`localVersion` groups (atomic `WITH TIES`, or topo-sort-within-version).
 
 Two ResourceIds (`plan`, `comment`).
 A `BeginNewComment` action writes a comment-style entry whose `parentRef` points at a committed plan entry on this node.
@@ -69,11 +73,11 @@ Extra invariants:
 On a devcontainer with `-workers auto` and `SYMMETRY Permutations({NodeA, NodeB})`
 (NodeC is asymmetric in the trust matrix so it's not interchangeable):
 
-| Model                         | MaxOps | Distinct states | Wall time |
-|-------------------------------|--------|-----------------|-----------|
-| `Replication`                 | 6      | 17 596          | ~1 s      |
-| `ReplicationTxn` (CI)         | 7      | 797 856         | ~10 s     |
-| `ReplicationTxnDeep` (manual) | 8      | 5 731 370       | ~40 s     |
+| Model                          | MaxOps | BatchSize | Distinct states | Wall time |
+|--------------------------------|--------|-----------|-----------------|-----------|
+| `Replication`                  | 6      | n/a       | 17 596          | ~1 s      |
+| `ReplicationTxn` (CI)          | 7      | 2         | 807 367         | ~6 s      |
+| `ReplicationTxnDeep` (manual)  | 8      | 1         | 4 626 498       | ~30 s     |
 
 ## Limitations
 

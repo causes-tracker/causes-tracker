@@ -21,10 +21,11 @@
 (***************************************************************************)
 EXTENDS Naturals, FiniteSets, Sequences, TLC
 
-CONSTANTS Nodes, Projects, ResourceIds, Trust, MaxOps
+CONSTANTS Nodes, Projects, ResourceIds, Trust, MaxOps, BatchSize
 
 ASSUME Trust \in [Nodes -> SUBSET Nodes]
 ASSUME MaxOps \in Nat
+ASSUME BatchSize \in Nat \ {0}
 
 VARIABLES
     entries,        \* Node -> SUBSET Entry
@@ -174,22 +175,63 @@ Commit(n, v) ==
     /\ UNCHANGED <<cursors, nextVersion>>
 
 (***************************************************************************)
-(* Action: receiver pulls committed entries from upstream.                *)
+(* Validity of a batch.  A batch is the subset of visible entries selected *)
+(* by one Pull RPC; subsequent Pulls fetch the rest.  Two constraints:     *)
+(*                                                                         *)
+(*   1. PREFIX: batch is a prefix in localVersion order.  Equivalent to    *)
+(*      the Postgres `ORDER BY local_version LIMIT N` query semantics.     *)
+(*      Required for cursor advance (max watermark of batch) to never      *)
+(*      skip a committed entry — see NoCommittedEntryLost.                 *)
+(*                                                                         *)
+(*   2. ANCESTOR-CLOSED: for every entry e in batch and every ancestor    *)
+(*      reference r in {e.prev, e.parentRef} that resolves to a visible    *)
+(*      entry q, q is in batch or already at the receiver.  Without this   *)
+(*      the receiver could briefly hold an entry whose ancestor (prev for  *)
+(*      same-resource chain, parentRef for cross-resource) is in a         *)
+(*      strictly later batch.                                              *)
+(*                                                                         *)
+(*      Note: multiple entries can share localVersion on a receiver — when *)
+(*      a batch is pulled and committed in one txn, all entries get the    *)
+(*      same recvTxid.  Two such entries could have a prev/parent link     *)
+(*      between them, so same-localVersion groups must respect the         *)
+(*      ancestor closure as well.                                          *)
+(*                                                                         *)
+(* Implementations satisfy (2) by either shipping same-localVersion        *)
+(* groups atomically (LIMIT N WITH TIES) or topo-sorting within a group.   *)
+(***************************************************************************)
+ValidBatch(receiver, upstream, proj, batch) ==
+    LET cur     == cursors[receiver][upstream][proj]
+        visible == { e \in entries[upstream] :
+                       /\ e.committed
+                       /\ e.proj = proj
+                       /\ e.localVersion >= cur }
+    IN /\ batch # {}
+       /\ batch \subseteq visible
+       /\ Cardinality(batch) <= BatchSize
+       /\ \A e \in batch : \A f \in visible :
+            f.localVersion < e.localVersion => f \in batch
+       /\ \A e \in batch :
+            \A ref \in {e.prev, e.parentRef} \ {NullRef} :
+              \A p \in visible :
+                (p.origin = ref.origin /\ p.rid = ref.rid /\ p.ver = ref.ver) =>
+                  \/ p \in batch
+                  \/ Has(receiver, p.origin, p.rid, p.ver)
+
+(***************************************************************************)
+(* Action: receiver pulls a batch of committed entries from upstream.     *)
 (* Filter is on `localVersion` (upstream's local commit order), not `ver` *)
 (* (origin's version).  The receiver assigns its own localVersion and    *)
 (* watermark when storing the entry — replicated entries get a fresh txid *)
 (* in the receiver's namespace, matching the reference implementation.   *)
+(* Cursor advances to max(watermark) of the batch; subsequent pulls pick *)
+(* up entries whose localVersion >= that watermark.                      *)
 (***************************************************************************)
-Pull(receiver, upstream, proj) ==
+BatchPull(receiver, upstream, proj, batch) ==
     /\ opCount < MaxOps
     /\ receiver # upstream
-    /\ LET cur        == cursors[receiver][upstream][proj]
-           serveEmb   == receiver \in Trust[upstream]
-           visible    == { e \in entries[upstream] :
-                             /\ e.committed
-                             /\ e.proj = proj
-                             /\ e.localVersion >= cur }
-           candidates == { e \in visible :
+    /\ ValidBatch(receiver, upstream, proj, batch)
+    /\ LET serveEmb   == receiver \in Trust[upstream]
+           candidates == { e \in batch :
                              /\ e.origin # receiver
                              /\ (~e.emb \/ serveEmb)
                              /\ ~Has(receiver, e.origin, e.rid, e.ver) }
@@ -203,8 +245,7 @@ Pull(receiver, upstream, proj) ==
                             proj |-> e.proj,
                             path |-> e.path \o <<receiver>>] :
                            e \in candidates }
-           newCursor  == IF visible = {} THEN cur
-                         ELSE Max({e.watermark : e \in visible})
+           newCursor  == Max({e.watermark : e \in batch})
        IN
            /\ entries' = [entries EXCEPT ![receiver] = @ \cup accepted]
            /\ cursors' = [cursors EXCEPT ![receiver] =
@@ -224,7 +265,8 @@ Next ==
         \E parent \in entries[n] : WriteCommentInOpenPlanTxn(n, parent, rid, emb)
     \/ \E n \in Nodes : \E e \in entries[n] : BeginEdit(n, e)
     \/ \E n \in Nodes : \E v \in inFlight[n] : Commit(n, v)
-    \/ \E r \in Nodes, u \in Nodes, p \in Projects : Pull(r, u, p)
+    \/ \E r \in Nodes, u \in Nodes, p \in Projects :
+        \E batch \in SUBSET entries[u] : BatchPull(r, u, p, batch)
 
 Spec == Init /\ [][Next]_vars
 

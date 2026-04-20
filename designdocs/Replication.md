@@ -5,6 +5,7 @@ It is the specification for implementors building a Causes-compatible instance o
 
 For the design rationale behind these decisions, see [ADR-013](Decisions.md#adr-013-replication-protocol) in Decisions.md.
 For the broader federation strategy, see [ADR-006](Decisions.md#adr-006-federation-strategy--distribute-dont-federate-by-default).
+For a machine-checked TLA+ model of the protocol's safety properties, see [tla/Replication.tla](tla/Replication.tla).
 
 ## Overview
 
@@ -137,7 +138,11 @@ When a resource references another (e.g. a comment on a plan), the reference car
 The replication stream's topological ordering guarantees that referenced entries precede referencing entries.
 A downstream processing a replication stream in order will always have the referenced entry before the referencing entry.
 
+This guarantee follows from a precondition on writes: an instance can only write an entry that references another entry if it already has the referenced entry locally and committed.
+Combined with monotonic local commit order, this ensures that the parent's `local_version` on any node is strictly less than the child's, so any pull serving entries in `local_version` order naturally delivers parent before child.
+
 See [Ordering guarantees](#ordering-guarantees) for the proof.
+The TLA+ model in [tla/ReplicationTxn.tla](tla/ReplicationTxn.tla) verifies this property as `ParentRefIntactOrEmbargoGap`.
 
 ## Replication protocol
 
@@ -329,6 +334,7 @@ loop:
     batch = query entries WHERE local_version >= watermark
                             AND project_id = project
                           ORDER BY local_version
+                          FETCH FIRST N ROWS WITH TIES
 
     if batch is empty:
         wait for notification or timeout
@@ -346,8 +352,38 @@ loop:
     watermark = batch.last().watermark
 ```
 
+`WITH TIES` is the same-`local_version` atomicity from the batch-boundaries section above.
+
 The seen buffer is bounded.
 Entries can be evicted from the buffer once the watermark advances past their `local_version` — they will not appear in future queries.
+
+### Batch boundaries
+
+A `Pull` may stream entries across multiple batches.
+For correctness, **a child entry must never be sent in a batch that strictly precedes its parent's batch**.
+Otherwise a receiver applying batches in arrival order would briefly hold a child without its parent.
+
+Two ancestor relationships count as parent-child:
+
+- `previous_version` — same-resource chain on `JournalEntry`.
+- Cross-resource references such as a comment's parent, transmitted in the resource-typed payload.
+
+A receiver pulling from a relay can encounter same-`local_version` parent-child pairs, because a relay assigns the same receive-side `local_version` to all entries committed in one replicating transaction.
+A naive batch boundary inside such a group splits the chain.
+
+The protocol contract: items crossing batch boundaries are topologically ordered.
+Implementations have two valid strategies for same-`local_version` groups:
+
+- **Atomic same-`local_version` groups.**
+  Every batch includes all rows sharing the last row's `local_version`.
+  In SQL this is `LIMIT N WITH TIES` semantics — after the cut, fetch any remaining rows whose `local_version` matches the last row's.
+
+- **Topo-sort within a `local_version`.**
+  When a same-`local_version` group is split across batches, order rows within the group so parents precede children.
+  Requires the sender to know in-batch parent/child relationships.
+
+The first strategy is simpler and matches Postgres's `WITH TIES` clause directly.
+References that resolve to entries embargoed-out of the receiver's view do not need to be in any batch — the embargo gap is permitted by the protocol.
 
 ### Receiving pseudocode
 

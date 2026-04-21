@@ -176,7 +176,7 @@ pub async fn create_admin(
     subject: &Subject,
 ) -> anyhow::Result<UserId> {
     let user_id = UserId::new();
-    let mut tx = pool.pool().begin().await.context("beginning transaction")?;
+    let mut tx = pool.begin_txn().await?;
 
     sqlx::query!(
         "INSERT INTO users (id, display_name, email, auth_provider) VALUES ($1, $2, $3, $4)",
@@ -223,7 +223,7 @@ pub async fn create_user(
     subject: &Subject,
 ) -> anyhow::Result<UserId> {
     let user_id = UserId::new();
-    let mut tx = pool.pool().begin().await.context("beginning transaction")?;
+    let mut tx = pool.begin_txn().await?;
 
     sqlx::query!(
         "INSERT INTO users (id, display_name, email, auth_provider) VALUES ($1, $2, $3, $4)",

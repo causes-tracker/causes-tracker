@@ -1,0 +1,17 @@
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -5,5 +5,11 @@
+-########### BECOME THE RULES_RUST FACADE ################
+-rules_rust = use_extension("//rs/experimental:rules_rust.bzl", "rules_rust")
+-use_repo(rules_rust, "rules_rust")
++########### RULES_RUST ##################################
++# Upstream loads rules_rust via a repo extension, which creates a repo whose
++# canonical name differs from the module-graph rules_rust.  aspect_rules_lint
++# imports rules_rust through bazel_dep, so its provider identity would not
++# match this repo's and the clippy aspect would go no-op on our targets.
++# Use bazel_dep instead; the root project applies an archive_override to pin
++# the same fork upstream was pinning here.
++bazel_dep(name = "rules_rust", version = "0.69.0")
++#########################################################
+
+ http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")

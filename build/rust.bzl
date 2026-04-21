@@ -9,6 +9,7 @@ load("@rules_rs//rs:rust_binary.bzl", _rust_binary = "rust_binary")
 load("@rules_rs//rs:rust_library.bzl", _rust_library = "rust_library")
 load("@rules_rs//rs:rust_test.bzl", _rust_test = "rust_test")
 load("//tools/lint:format_check.bzl", "rustfmt_check")
+load("//tools/lint:linters.bzl", "clippy_lint_test")
 
 _DEFAULT_RUSTC_FLAGS = ["-Dwarnings"]
 
@@ -20,6 +21,7 @@ def rust_binary(name, srcs = [], rustc_flags = [], **kwargs):
         **kwargs
     )
     rustfmt_check(name = name + "_rustfmt_check", srcs = srcs)
+    clippy_lint_test(name = name + "_clippy", srcs = [":" + name])
 
 def rust_library(name, srcs = [], rustc_flags = [], **kwargs):
     _rust_library(
@@ -29,6 +31,7 @@ def rust_library(name, srcs = [], rustc_flags = [], **kwargs):
         **kwargs
     )
     rustfmt_check(name = name + "_rustfmt_check", srcs = srcs)
+    clippy_lint_test(name = name + "_clippy", srcs = [":" + name])
 
 def rust_test(name, srcs = [], rustc_flags = [], **kwargs):
     _rust_test(
@@ -42,3 +45,4 @@ def rust_test(name, srcs = [], rustc_flags = [], **kwargs):
     # `srcs` here is []; the library's own _rustfmt_check already covers them,
     # so rustfmt_check() is a no-op.
     rustfmt_check(name = name + "_rustfmt_check", srcs = srcs)
+    clippy_lint_test(name = name + "_clippy", srcs = [":" + name])

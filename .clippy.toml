@@ -1,2 +1,8 @@
 too-many-arguments-threshold = 8
 type-complexity-threshold = 500
+
+# Transactions must go through DbPool::begin_txn so they always run at
+# REPEATABLE READ.  See designdocs/Replication.md for the rationale.
+disallowed-methods = [
+  { path = "sqlx::Pool::begin", reason = "call DbPool::begin_txn for REPEATABLE READ" },
+]

@@ -11,7 +11,8 @@ mod session;
 pub use sqlx::types::chrono;
 
 pub use admin::{
-    AuthProvider, DisplayName, Email, Subject, UserId, create_admin, create_user, user_count,
+    AuthProvider, DisplayName, Email, ServiceAccountId, Subject, UserId, create_admin, create_user,
+    user_count,
 };
 pub use db::DbPool;
 pub use pending_login::{

@@ -154,6 +154,36 @@ impl std::fmt::Display for UserId {
     }
 }
 
+/// Opaque service-account identifier (UUID v4).
+///
+/// Parallel to `UserId`: a `FederatedIdentity.local_id` is either a `UserId`
+/// or a `ServiceAccountId`; the type distinguishes which.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ServiceAccountId(String);
+
+impl ServiceAccountId {
+    pub fn new() -> Self {
+        Self(Uuid::new_v4().to_string())
+    }
+
+    /// Parse and validate a service-account ID string (must be a valid UUID).
+    pub fn from_raw(s: &str) -> anyhow::Result<Self> {
+        s.parse::<Uuid>()
+            .map_err(|e| anyhow::anyhow!("ServiceAccountId must be a valid UUID: {e}"))?;
+        Ok(Self(s.to_owned()))
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl std::fmt::Display for ServiceAccountId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
 // ── Public API ─────────────────────────────────────────────────────────────
 
 /// Return the number of rows in the `users` table.

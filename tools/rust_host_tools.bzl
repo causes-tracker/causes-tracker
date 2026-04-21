@@ -49,16 +49,6 @@ def _rust_host_tools_repo_impl(rctx):
     }
     target_triple_key = triple_map.get(triple_suffix, "x86_64_unknown_linux_gnu")
 
-    # Map os+arch to the hyphenated exec-triple used in llvm-tools paths.
-    # e.g. lib/rustlib/x86_64-unknown-linux-gnu/bin/llvm-cov
-    exec_triple_map = {
-        "linux_x86_64": "x86_64-unknown-linux-gnu",
-        "linux_aarch64": "aarch64-unknown-linux-gnu",
-        "macos_x86_64": "x86_64-apple-darwin",
-        "macos_aarch64": "aarch64-apple-darwin",
-    }
-    exec_triple = exec_triple_map.get(triple_suffix, "x86_64-unknown-linux-gnu")
-
     # Navigate to the Bazel external directory via a known file inside
     # @bazel_tools//tools/bash/runfiles (always present, no use_repo needed).
     # runfiles.bash lives at:
@@ -79,25 +69,15 @@ def _rust_host_tools_repo_impl(rctx):
     cargo_src = _bin("cargo_{}_{}".format(triple_suffix, version_key), "cargo")
     rustc_src = _bin("rustc_{}_{}".format(triple_suffix, version_key), "rustc")
     rustfmt_src = _bin("rustfmt_{}_{}".format(triple_suffix, version_key), "rustfmt")
-
-    # llvm-tools binaries live in the llvm_tools repo's rustlib tree.
-    # Use the filegroups defined by llvm_tools_repository (llvm_cov_bin /
-    # llvm_profdata_bin) as the authoritative source; symlink the raw
-    # executables here so callers can use the stable rlocation path
-    # rust_host_tools/bin/llvm-{cov,profdata}.
-    llvm_tools_repo_dir = "{}/{}".format(
-        external_dir,
-        ext_prefix + "llvm_tools_{}_{}".format(triple_suffix, version_key),
-    )
-    llvm_cov_src = "{}/lib/rustlib/{}/bin/llvm-cov".format(llvm_tools_repo_dir, exec_triple)
-    llvm_profdata_src = "{}/lib/rustlib/{}/bin/llvm-profdata".format(llvm_tools_repo_dir, exec_triple)
+    cargo_clippy_src = _bin("clippy_{}_{}".format(triple_suffix, version_key), "cargo-clippy")
+    clippy_driver_src = _bin("clippy_{}_{}".format(triple_suffix, version_key), "clippy-driver")
 
     rctx.execute(["mkdir", "-p", "bin"])
     rctx.symlink(rctx.path(cargo_src), "bin/cargo")
     rctx.symlink(rctx.path(rustc_src), "bin/rustc")
     rctx.symlink(rctx.path(rustfmt_src), "bin/rustfmt")
-    rctx.symlink(rctx.path(llvm_cov_src), "bin/llvm-cov")
-    rctx.symlink(rctx.path(llvm_profdata_src), "bin/llvm-profdata")
+    rctx.symlink(rctx.path(cargo_clippy_src), "bin/cargo-clippy")
+    rctx.symlink(rctx.path(clippy_driver_src), "bin/clippy-driver")
 
     # Write the stdlib sysroot path to a text file so that hermetic cargo
     # invocations (e.g. sqlx prepare) can set RUSTFLAGS=--sysroot correctly.
@@ -107,12 +87,17 @@ def _rust_host_tools_repo_impl(rctx):
     )
     rctx.file("sysroot_path.txt", stdlib_dir + "\n")
 
+    # llvm-cov and llvm-profdata are aliased from @llvm//tools so consumers
+    # don't have to know which repo holds them; the aliases resolve to the
+    # per-platform prebuilt toolchain that @llvm picks for the host.
     rctx.file("BUILD.bazel", """\
-filegroup(name = "cargo",        srcs = ["bin/cargo"],        visibility = ["//visibility:public"])
-filegroup(name = "rustc",        srcs = ["bin/rustc"],        visibility = ["//visibility:public"])
-filegroup(name = "rustfmt",      srcs = ["bin/rustfmt"],      visibility = ["//visibility:public"])
-filegroup(name = "llvm_cov",     srcs = ["bin/llvm-cov"],     visibility = ["//visibility:public"])
-filegroup(name = "llvm_profdata", srcs = ["bin/llvm-profdata"], visibility = ["//visibility:public"])
+filegroup(name = "cargo",         srcs = ["bin/cargo"],         visibility = ["//visibility:public"])
+filegroup(name = "rustc",         srcs = ["bin/rustc"],         visibility = ["//visibility:public"])
+filegroup(name = "rustfmt",       srcs = ["bin/rustfmt"],       visibility = ["//visibility:public"])
+filegroup(name = "cargo_clippy",  srcs = ["bin/cargo-clippy"],  visibility = ["//visibility:public"])
+filegroup(name = "clippy_driver", srcs = ["bin/clippy-driver"], visibility = ["//visibility:public"])
+alias(name = "llvm_cov",      actual = "@llvm//tools:llvm-cov",      visibility = ["//visibility:public"])
+alias(name = "llvm_profdata", actual = "@llvm//tools:llvm-profdata", visibility = ["//visibility:public"])
 exports_files(["sysroot_path.txt"])
 """)
 

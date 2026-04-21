@@ -65,10 +65,16 @@ _DB_TEST_DATA = [
 
 # Hermetic database test: spins up a throwaway PostgreSQL from the bundled
 # tarball, then runs the Rust test binary with DATABASE_URL pointed at it.
+# $1/$2 are rlocation paths to llvm-profdata/llvm-cov so coverage mode can
+# find them without hard-coding where @llvm ships them.
 sh_test(
     name = "api_db_db_test",
     srcs = ["db_test.sh"],
-    args = ["$(location :api_db_test)"],
+    args = [
+        "$(rlocationpath @rust_host_tools//:llvm_profdata)",
+        "$(rlocationpath @rust_host_tools//:llvm_cov)",
+        "$(location :api_db_test)",
+    ],
     data = _DB_TEST_DATA,
 )
 
@@ -79,6 +85,8 @@ sh_test(
     size = "enormous",
     srcs = ["db_test.sh"],
     args = [
+        "$(rlocationpath @rust_host_tools//:llvm_profdata)",
+        "$(rlocationpath @rust_host_tools//:llvm_cov)",
         "$(location :api_db_test)",
         "list_projects_scaling",
         "--nocapture",

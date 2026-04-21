@@ -1,5 +1,8 @@
 load("//tools/lint:format_check.bzl", "format_srcs")
 
-exports_files(glob(["*.patch"]))
+exports_files(glob(
+    ["*.patch"],
+    allow_empty = True,
+))
 
 format_srcs()

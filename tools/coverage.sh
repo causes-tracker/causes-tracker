@@ -10,20 +10,29 @@ set -euo pipefail
 REPORT="bazel-out/_coverage/_coverage_report.dat"
 MIN_PCT=25
 
-# Short-circuit: if the working copy's commit_id matches a prior green run,
-# skip the bazel invocation entirely. jj auto-snapshots the working copy
-# into @, so any file edit changes commit_id; MODULE.bazel.lock, .bazelversion,
-# and every other tracked config is included in the hash.
+# Short-circuit: if @'s patch diff matches a prior green run, skip bazel.
+# Keyed on the semantic content of the change — git blob hashes and hunk
+# line offsets are stripped — so the cache survives clean rebases and stack
+# navigation (each change in the stack keeps its own entry).
 #
-# The cache lives at the workspace root in .coverage-green (gitignored).
-# Per-worktree by filesystem location, so parallel worktrees never ping-pong.
-# The file is ignored so jj does not snapshot it — otherwise writing the cache
-# would itself change commit_id and invalidate the next run.
-GREEN_CACHE=".coverage-green"
-WORKING_COPY_ID="$(jj log -r @ -T commit_id --no-graph 2>/dev/null || true)"
-if [[ -n "$WORKING_COPY_ID" && -f "$GREEN_CACHE" ]] &&
-	[[ "$(cat "$GREEN_CACHE")" == "$WORKING_COPY_ID $*" ]]; then
-	echo "coverage ok: unchanged since last green (commit $WORKING_COPY_ID)"
+# False-positive window: a lint rule added on master leaves the patch hash
+# unchanged, so the cache says green while CI would fail. The test suite /
+# CI is authoritative; this cache is a local turn-end optimization only.
+#
+# Cache lives in .coverage-green/ (gitignored), one file per key. A
+# conflicted working copy is never cached.
+GREEN_CACHE_DIR=".coverage-green"
+CACHE_KEY=""
+if jj_conflicts="$(jj log -r '@ & conflicts()' --no-graph -T commit_id 2>/dev/null)" &&
+	[[ -z "$jj_conflicts" ]] &&
+	diff_hash="$(jj diff --git -r @ 2>/dev/null |
+		sed -E -e '/^index [0-9a-f]+\.\.[0-9a-f]+/d' \
+			-e 's/^@@ -[0-9,]+ \+[0-9,]+ @@/@@/' |
+		sha256sum | awk '{print $1}')"; then
+	CACHE_KEY="$(printf '%s\t%s' "$diff_hash" "$*" | sha256sum | awk '{print $1}')"
+fi
+if [[ -n "$CACHE_KEY" && -f "$GREEN_CACHE_DIR/$CACHE_KEY" ]]; then
+	echo "coverage ok: unchanged since last green (key ${CACHE_KEY:0:12})"
 	exit 0
 fi
 
@@ -123,8 +132,10 @@ fi
 
 echo "coverage ok: ${#disk_files[@]} Rust source file(s) checked, all >= ${MIN_PCT}%"
 
-# Record the green state so the next identical turn short-circuits. Keyed on
-# both commit_id and the args, so a different bazel target set re-verifies.
-if [[ -n "$WORKING_COPY_ID" ]]; then
-	printf '%s %s' "$WORKING_COPY_ID" "$*" >"$GREEN_CACHE"
+# Record the green state so the next identical turn short-circuits.
+if [[ -n "$CACHE_KEY" ]]; then
+	# Migrate from the earlier single-file cache if present.
+	[[ -f "$GREEN_CACHE_DIR" ]] && rm -f "$GREEN_CACHE_DIR"
+	mkdir -p "$GREEN_CACHE_DIR"
+	: >"$GREEN_CACHE_DIR/$CACHE_KEY"
 fi

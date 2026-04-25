@@ -261,158 +261,144 @@ pub struct ResourceEntryMeta {
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
-// ── Per-resource journal table helpers ───────────────────────────────────
-//
-// Every resource type (Plan, Sign, Symptom, Comment, ...) has its own
-// journal table.  All such tables share the same 14 meta columns and
-// differ only in their payload columns.  The helpers below encode and
-// decode the meta half so each resource module only has to write the
-// payload-specific SQL.
+/// Macro-internal API.  Items here are `pub` so the `journal_table!` proc
+/// macro can name them in its generated code; nothing else should reach
+/// inside this module.  Treat it as private surface — names and shapes
+/// can change to suit the macro's needs.
+#[doc(hidden)]
+pub mod __private {
+    use super::*;
 
-/// Bind-param values for the 14 shared meta columns.
-///
-/// Use `from_entry` to build from typed values, then bind each field into
-/// the per-table `INSERT`.  `sqlx::query!` will still check the SQL at
-/// compile time — the helper only removes the repetitive encoding work.
-pub struct JournalMetaParams<'a> {
-    pub origin_instance_id: &'a str,
-    pub origin_id: &'a str,
-    pub version: i64,
-    pub previous_origin_instance_id: Option<&'a str>,
-    pub previous_origin_id: Option<&'a str>,
-    pub previous_version: Option<i64>,
-    pub kind: &'a str,
-    pub at: chrono::DateTime<chrono::Utc>,
-    pub author_instance_id: &'a str,
-    pub author_local_id: &'a str,
-    pub embargoed: bool,
-    pub slug: &'a str,
-    pub project_id: &'a str,
-    pub created_at: chrono::DateTime<chrono::Utc>,
-}
+    /// Bind-param values for the 14 shared meta columns of every per-resource
+    /// journal table.  Built from a typed `JournalEntryHeader` + `ResourceEntryMeta`
+    /// and unrolled into `sqlx::query!` by the macro.
+    pub struct JournalMetaParams<'a> {
+        pub origin_instance_id: &'a str,
+        pub origin_id: &'a str,
+        pub version: i64,
+        pub previous_origin_instance_id: Option<&'a str>,
+        pub previous_origin_id: Option<&'a str>,
+        pub previous_version: Option<i64>,
+        pub kind: &'a str,
+        pub at: chrono::DateTime<chrono::Utc>,
+        pub author_instance_id: &'a str,
+        pub author_local_id: &'a str,
+        pub embargoed: bool,
+        pub slug: &'a str,
+        pub project_id: &'a str,
+        pub created_at: chrono::DateTime<chrono::Utc>,
+    }
 
-impl<'a> JournalMetaParams<'a> {
-    /// Borrow the fields of a typed `JournalEntryHeader` + `ResourceEntryMeta`
-    /// as bind params.  Fails if the version integers do not fit in `i64`.
-    pub fn from_entry(
-        header: &'a JournalEntryHeader,
-        meta: &'a ResourceEntryMeta,
-    ) -> anyhow::Result<Self> {
-        let version: i64 = header
-            .version
-            .version
-            .get()
-            .try_into()
-            .context("version does not fit in i64")?;
-        let (prev_instance, prev_id, prev_version) = match &header.previous_version {
-            None => (None, None, None),
-            Some(p) => {
-                let v: i64 = p
-                    .version
-                    .get()
-                    .try_into()
-                    .context("previous_version does not fit in i64")?;
-                (
-                    Some(p.origin_instance_id.as_str()),
-                    Some(p.origin_id.as_str()),
-                    Some(v),
-                )
-            }
-        };
-        Ok(Self {
-            origin_instance_id: header.version.origin_instance_id.as_str(),
-            origin_id: header.version.origin_id.as_str(),
-            version,
-            previous_origin_instance_id: prev_instance,
-            previous_origin_id: prev_id,
-            previous_version: prev_version,
-            kind: header.kind.as_str(),
-            at: header.at,
-            author_instance_id: header.author.instance_id.as_str(),
-            author_local_id: header.author.local_id.as_str(),
-            embargoed: header.embargoed,
-            slug: meta.slug.as_str(),
-            project_id: meta.project_id.as_str(),
-            created_at: meta.created_at,
-        })
+    impl<'a> JournalMetaParams<'a> {
+        /// Fails if the version integers do not fit in `i64`.
+        pub fn from_entry(
+            header: &'a JournalEntryHeader,
+            meta: &'a ResourceEntryMeta,
+        ) -> anyhow::Result<Self> {
+            let version: i64 = header
+                .version
+                .version
+                .get()
+                .try_into()
+                .context("version does not fit in i64")?;
+            let (prev_instance, prev_id, prev_version) = match &header.previous_version {
+                None => (None, None, None),
+                Some(p) => {
+                    let v: i64 = p
+                        .version
+                        .get()
+                        .try_into()
+                        .context("previous_version does not fit in i64")?;
+                    (
+                        Some(p.origin_instance_id.as_str()),
+                        Some(p.origin_id.as_str()),
+                        Some(v),
+                    )
+                }
+            };
+            Ok(Self {
+                origin_instance_id: header.version.origin_instance_id.as_str(),
+                origin_id: header.version.origin_id.as_str(),
+                version,
+                previous_origin_instance_id: prev_instance,
+                previous_origin_id: prev_id,
+                previous_version: prev_version,
+                kind: header.kind.as_str(),
+                at: header.at,
+                author_instance_id: header.author.instance_id.as_str(),
+                author_local_id: header.author.local_id.as_str(),
+                embargoed: header.embargoed,
+                slug: meta.slug.as_str(),
+                project_id: meta.project_id.as_str(),
+                created_at: meta.created_at,
+            })
+        }
+    }
+
+    /// Owned row shape for the 14 shared meta columns.  The macro fills
+    /// this from each `sqlx::query!` row, builds an author-appropriate
+    /// `FederatedIdentity`, and calls `into_parts`.
+    pub struct JournalMetaRow {
+        pub origin_instance_id: String,
+        pub origin_id: String,
+        pub version: i64,
+        pub previous_origin_instance_id: Option<String>,
+        pub previous_origin_id: Option<String>,
+        pub previous_version: Option<i64>,
+        pub kind: String,
+        pub at: chrono::DateTime<chrono::Utc>,
+        pub author_instance_id: String,
+        pub author_local_id: String,
+        pub embargoed: bool,
+        pub slug: String,
+        pub project_id: String,
+        pub created_at: chrono::DateTime<chrono::Utc>,
+    }
+
+    impl JournalMetaRow {
+        /// `author` is supplied by the caller so it can decode the
+        /// User/ServiceAccount discriminator from its own table schema.
+        pub fn into_parts(
+            self,
+            author: FederatedIdentity,
+        ) -> anyhow::Result<(JournalEntryHeader, ResourceEntryMeta)> {
+            let version = FederatedVersion {
+                origin_instance_id: InstanceId::from_raw(&self.origin_instance_id)?,
+                origin_id: OriginId::from_raw(&self.origin_id)?,
+                version: NonZeroU64::new(self.version.try_into().context("version out of range")?)
+                    .context("version is zero")?,
+            };
+            let previous_version = match (
+                self.previous_origin_instance_id,
+                self.previous_origin_id,
+                self.previous_version,
+            ) {
+                (None, None, None) => None,
+                (Some(i), Some(id), Some(v)) => Some(FederatedVersion {
+                    origin_instance_id: InstanceId::from_raw(&i)?,
+                    origin_id: OriginId::from_raw(&id)?,
+                    version: NonZeroU64::new(v.try_into().context("prev version out of range")?)
+                        .context("previous_version is zero")?,
+                }),
+                _ => anyhow::bail!("partial previous_version triple"),
+            };
+            let header = JournalEntryHeader {
+                kind: self.kind.parse()?,
+                at: self.at,
+                author,
+                version,
+                previous_version,
+                embargoed: self.embargoed,
+            };
+            let meta = ResourceEntryMeta {
+                slug: Slug::new(self.slug)?,
+                project_id: crate::role::ProjectId::new(self.project_id)?,
+                created_at: self.created_at,
+            };
+            Ok((header, meta))
+        }
     }
 }
-
-/// Owned row shape for the 14 shared meta columns.
-///
-/// Resource modules fill this from their `SELECT ...` row, build an
-/// author-appropriate `FederatedIdentity` (the local_id discriminator —
-/// User vs. ServiceAccount — depends on each table's schema), and call
-/// `into_parts` to get back typed header + meta.
-pub struct JournalMetaRow {
-    pub origin_instance_id: String,
-    pub origin_id: String,
-    pub version: i64,
-    pub previous_origin_instance_id: Option<String>,
-    pub previous_origin_id: Option<String>,
-    pub previous_version: Option<i64>,
-    pub kind: String,
-    pub at: chrono::DateTime<chrono::Utc>,
-    pub author_instance_id: String,
-    pub author_local_id: String,
-    pub embargoed: bool,
-    pub slug: String,
-    pub project_id: String,
-    pub created_at: chrono::DateTime<chrono::Utc>,
-}
-
-impl JournalMetaRow {
-    /// Convert to typed `JournalEntryHeader` + `ResourceEntryMeta`.
-    /// The `author` parameter lets the caller resolve the local_id
-    /// discriminator from its table's own schema (User vs. ServiceAccount).
-    pub fn into_parts(
-        self,
-        author: FederatedIdentity,
-    ) -> anyhow::Result<(JournalEntryHeader, ResourceEntryMeta)> {
-        let version = FederatedVersion {
-            origin_instance_id: InstanceId::from_raw(&self.origin_instance_id)?,
-            origin_id: OriginId::from_raw(&self.origin_id)?,
-            version: NonZeroU64::new(self.version.try_into().context("version out of range")?)
-                .context("version is zero")?,
-        };
-        let previous_version = match (
-            self.previous_origin_instance_id,
-            self.previous_origin_id,
-            self.previous_version,
-        ) {
-            (None, None, None) => None,
-            (Some(i), Some(id), Some(v)) => Some(FederatedVersion {
-                origin_instance_id: InstanceId::from_raw(&i)?,
-                origin_id: OriginId::from_raw(&id)?,
-                version: NonZeroU64::new(v.try_into().context("prev version out of range")?)
-                    .context("previous_version is zero")?,
-            }),
-            _ => anyhow::bail!("partial previous_version triple"),
-        };
-        let header = JournalEntryHeader {
-            kind: self.kind.parse()?,
-            at: self.at,
-            author,
-            version,
-            previous_version,
-            embargoed: self.embargoed,
-        };
-        let meta = ResourceEntryMeta {
-            slug: Slug::new(self.slug)?,
-            project_id: crate::role::ProjectId::new(self.project_id)?,
-            created_at: self.created_at,
-        };
-        Ok((header, meta))
-    }
-}
-
-/// Comma-separated list of the 14 shared meta columns, in canonical order.
-/// Paste into `SELECT` lists and `INSERT` column lists to keep per-resource
-/// SQL shorter and aligned with `JournalMetaRow`/`JournalMetaParams`.
-pub const JOURNAL_META_COLUMNS: &str = "origin_instance_id, origin_id, version, \
-     previous_origin_instance_id, previous_origin_id, previous_version, \
-     kind, at, author_instance_id, author_local_id, embargoed, \
-     slug, project_id, created_at";
 
 /// One stored entry from a per-resource journal table, with the
 /// Postgres-specific replication-serving columns alongside the typed
@@ -434,6 +420,7 @@ pub struct JournalStoredEntry<T> {
 
 #[cfg(test)]
 mod tests {
+    use super::__private::{JournalMetaParams, JournalMetaRow};
     use super::*;
 
     #[test]
@@ -626,12 +613,6 @@ mod tests {
             created_at: p.created_at,
         };
         assert!(row.into_parts(header.author).is_err());
-    }
-
-    #[test]
-    fn meta_columns_constant_lists_14_columns() {
-        let count = JOURNAL_META_COLUMNS.split(',').count();
-        assert_eq!(count, 14);
     }
 
     #[test]

@@ -31,9 +31,7 @@ pub async fn instance_id(pool: &DbPool) -> anyhow::Result<String> {
 /// `pool.pool().begin()`; clippy's `disallowed_methods` lint rejects
 /// direct `.begin()` calls elsewhere.
 #[allow(clippy::disallowed_methods)] // The one legitimate caller of sqlx::Pool::begin.
-pub(crate) async fn begin_txn(
-    pool: &DbPool,
-) -> anyhow::Result<sqlx::Transaction<'_, sqlx::Postgres>> {
+pub async fn begin_txn(pool: &DbPool) -> anyhow::Result<sqlx::Transaction<'_, sqlx::Postgres>> {
     let mut tx = pool.pool().begin().await.context("beginning transaction")?;
     sqlx::query!("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
         .execute(&mut *tx)

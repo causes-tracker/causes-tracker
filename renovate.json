@@ -3,14 +3,29 @@
   "extends": [
     "config:recommended"
   ],
-  "minimumReleaseAge": "3 days",
+  "minimumReleaseAge": "5 days",
   "automerge": true,
   "platformAutomerge": true,
   "automergeStrategy": "merge",
+  "rebaseWhen": "conflicted",
+  "gitIgnoredAuthors": [
+    "41898282+github-actions[bot]@users.noreply.github.com"
+  ],
   "osvVulnerabilityAlerts": true,
   "vulnerabilityAlerts": {
     "minimumReleaseAge": "0 days"
   },
+  "packageRules": [
+    {
+      "description": "Group tracing-opentelemetry with opentelemetry-* into one PR. tracing-opentelemetry's trait bounds resolve against whichever opentelemetry version it was built with, so an opentelemetry major bump without a matching tracing-opentelemetry release leaves both versions in the dep graph and breaks compilation. Grouping forces Renovate to wait until compatible versions of both are available.",
+      "matchManagers": ["cargo"],
+      "matchPackageNames": [
+        "tracing-opentelemetry",
+        "/^opentelemetry/"
+      ],
+      "groupName": "opentelemetry-rust"
+    }
+  ],
   "customManagers": [
     {
       "customType": "regex",

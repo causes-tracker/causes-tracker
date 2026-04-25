@@ -1,11 +1,27 @@
 name: renovate-lockfile
 # Renovate (hosted) cannot run Bazel, so MODULE.bazel.lock would be stale
-# after a bazel_dep update.  This workflow detects that case and pushes the
-# regenerated lockfile back to the Renovate branch before CI runs.
+# after any change that feeds a Bazel module extension.  This workflow
+# detects that case and pushes the regenerated lockfile back to the
+# Renovate branch before CI runs.
+#
+# The push uses AUTO_QUEUE_TOKEN (not the default GITHUB_TOKEN) because
+# pushes performed with GITHUB_TOKEN do not create new workflow runs,
+# which would leave the PR's `build` check stuck on the pre-fix commit.
 on:
   push:
     branches: ["renovate/**"]
-    paths: ["MODULE.bazel"]
+    paths:
+      - ".bazelversion"
+      - "MODULE.bazel"
+      - "MODULE.bazel.lock"
+      - "Cargo.lock"
+      - "Cargo.toml"
+      - "**/Cargo.toml"
+      - "infra/**/*.tf"
+      - "infra/**/.terraform.lock.hcl"
+      - "**/pnpm-lock.yaml"
+      - "requirements.in"
+      - "requirements_lock.txt"
 permissions:
   contents: write
 jobs:
@@ -15,19 +31,48 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
         with:
           ref: ${{ github.ref_name }}
+          token: ${{ secrets.AUTO_QUEUE_TOKEN }}
       - name: Install Bazelisk
         uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86  # 0.19.0
         with:
           bazelisk-cache: true
           disk-cache: ${{ github.workflow }}
           repository-cache: true
-      - name: Regenerate MODULE.bazel.lock
+      - name: Sync use_repo declarations + MODULE.bazel.lock
+        # rules_js and similar extensions encode version strings in their
+        # generated repo names (e.g. npm__at_devcontainers_cli__0.86.1).
+        # When Renovate bumps the underlying lockfile, the extension output
+        # changes name but MODULE.bazel's use_repo line still references the
+        # old name, which would break `bazel mod deps --lockfile_mode=update`
+        # before it ever reached the lockfile. `mod tidy` rewrites use_repo
+        # to match what the extensions actually produce and refreshes the
+        # lockfile in the same pass.
+        run: bazel mod tidy
+      - name: Refresh MODULE.bazel.lock (belt and braces)
+        # Redundant after `mod tidy` in the common case, but explicit so a
+        # future Bazel version that changes mod tidy's lockfile behaviour
+        # doesn't silently leave the lockfile stale.
         run: bazel mod deps --lockfile_mode=update
-      - name: Commit updated lockfile
+      - name: Regenerate requirements_lock.txt
+        # Renovate's Python lockfile update only patches the bumped package's
+        # hashes; it does not re-run pip-compile, so a release that adds a
+        # transitive dependency (e.g. zensical 0.0.41 picking up jinja2) lands
+        # with an incomplete lockfile and the build fails with
+        # ModuleNotFoundError.  bazel run //:requirements.update resolves the
+        # full graph from requirements.in and writes the updated lockfile.
+        run: bazel run //:requirements.update
+      - name: Regenerate infra/terraform/.terraform.lock.hcl
+        run: bazel run //infra:tofu -- infra/terraform providers lock -platform=linux_amd64
+      - name: Regenerate infra/github/.terraform.lock.hcl
+        run: bazel run //infra:tofu -- infra/github providers lock -platform=linux_amd64
+      - name: Commit updated lockfiles
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add MODULE.bazel.lock
+          git add MODULE.bazel MODULE.bazel.lock \
+            requirements_lock.txt \
+            infra/terraform/.terraform.lock.hcl \
+            infra/github/.terraform.lock.hcl
           git diff --cached --quiet && exit 0
-          git commit -m "chore: update MODULE.bazel.lock"
+          git commit -m "chore: update generated lockfiles"
           git push

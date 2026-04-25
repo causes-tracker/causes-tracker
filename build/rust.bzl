@@ -7,6 +7,7 @@ instead of re-running rustfmt from scratch every time.
 
 load("@rules_rs//rs:rust_binary.bzl", _rust_binary = "rust_binary")
 load("@rules_rs//rs:rust_library.bzl", _rust_library = "rust_library")
+load("@rules_rs//rs:rust_proc_macro.bzl", _rust_proc_macro = "rust_proc_macro")
 load("@rules_rs//rs:rust_test.bzl", _rust_test = "rust_test")
 load("//tools/lint:format_check.bzl", "rustfmt_check")
 load("//tools/lint:linters.bzl", "clippy_lint_test")
@@ -32,6 +33,19 @@ def rust_library(name, srcs = [], rustc_flags = [], **kwargs):
     )
     rustfmt_check(name = name + "_rustfmt_check", srcs = srcs)
     clippy_lint_test(name = name + "_clippy", srcs = [":" + name])
+
+def rust_proc_macro(name, srcs = [], rustc_flags = [], **kwargs):
+    _rust_proc_macro(
+        name = name,
+        srcs = srcs,
+        rustc_flags = _DEFAULT_RUSTC_FLAGS + rustc_flags,
+        **kwargs
+    )
+    rustfmt_check(name = name + "_rustfmt_check", srcs = srcs)
+    # The aspect_rules_lint clippy aspect doesn't attach `rules_lint_human` to
+    # proc_macro targets, so the explicit clippy_lint_test fails analysis.
+    # The clippy aspect itself still runs at build time via .bazelrc, so
+    # warnings/errors on the proc-macro crate are still caught.
 
 def rust_test(name, srcs = [], rustc_flags = [], **kwargs):
     _rust_test(

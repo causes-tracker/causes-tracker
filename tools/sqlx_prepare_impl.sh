@@ -60,13 +60,33 @@ if [[ "$CHECK" == "true" ]]; then
 	ISOLATED="$TEST_TMPDIR/isolated"
 	mkdir -p "$ISOLATED/pkg"
 
-	# Rewrite the workspace Cargo.toml so only our package is a member.
-	# This lets cargo metadata resolve without the other workspace members.
-	python3 - "${WORKSPACE_ROOT}/Cargo.toml" "$ISOLATED/Cargo.toml" <<'PYEOF'
-import sys, re
+	# Discover any path = "../foo" deps in the package's Cargo.toml so we can
+	# copy those sibling crates into the isolated workspace alongside `pkg`.
+	# Without this, cargo metadata fails on the path lookup.
+	mapfile -t SIBLING_DEPS < <(
+		python3 - "${PACKAGE_DIR}/Cargo.toml" <<'PYEOF'
+import re, sys
+text = open(sys.argv[1]).read()
+# Match path = "../<name>" — pulls just the trailing dir name.
+for m in re.finditer(r'path\s*=\s*"\.\./([A-Za-z0-9_-]+)"', text):
+    print(m.group(1))
+PYEOF
+	)
+
+	# Rewrite the workspace Cargo.toml so its members are pkg + each sibling
+	# discovered above.  This lets cargo metadata resolve without the other
+	# workspace members.
+	WORKSPACE_MEMBERS='"pkg"'
+	for s in "${SIBLING_DEPS[@]}"; do
+		WORKSPACE_MEMBERS+=", \"${s}\""
+	done
+	WORKSPACE_MEMBERS_LITERAL="$WORKSPACE_MEMBERS" python3 - \
+		"${WORKSPACE_ROOT}/Cargo.toml" "$ISOLATED/Cargo.toml" <<'PYEOF'
+import os, re, sys
 src, dst = sys.argv[1], sys.argv[2]
+members = os.environ['WORKSPACE_MEMBERS_LITERAL']
 text = open(src).read()
-text = re.sub(r'members\s*=\s*\[[^\]]*\]', 'members = ["pkg"]', text, flags=re.DOTALL)
+text = re.sub(r'members\s*=\s*\[[^\]]*\]', f'members = [{members}]', text, flags=re.DOTALL)
 open(dst, 'w').write(text)
 PYEOF
 
@@ -80,6 +100,12 @@ PYEOF
 	cp -rL "${PACKAGE_DIR}/src" "$ISOLATED/pkg/src"
 	cp -rL "${PACKAGE_DIR}/migrations" "$ISOLATED/pkg/migrations"
 	cp -rL "${PACKAGE_DIR}/.sqlx" "$ISOLATED/pkg/.sqlx"
+
+	# Copy each sibling crate that the package depends on via path = "../foo".
+	# These live one directory up from PACKAGE_DIR (sibling of the package).
+	for s in "${SIBLING_DEPS[@]}"; do
+		cp -rL "$(dirname "${PACKAGE_DIR}")/${s}" "$ISOLATED/${s}"
+	done
 
 	chmod -R u+w "$ISOLATED"
 

@@ -145,7 +145,7 @@ impl DbPool {
     #[allow(clippy::disallowed_methods)] // The one legitimate caller of sqlx::Pool::begin.
     pub(crate) async fn begin_txn(&self) -> anyhow::Result<sqlx::Transaction<'_, sqlx::Postgres>> {
         let mut tx = self.pool().begin().await.context("beginning transaction")?;
-        sqlx::query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
+        sqlx::query!("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
             .execute(&mut *tx)
             .await
             .context("setting isolation level")?;
@@ -291,10 +291,11 @@ mod tests {
     async fn begin_txn_sets_repeatable_read(pool: sqlx::PgPool) {
         let db = DbPool::from_pool(pool);
         let mut tx = db.begin_txn().await.expect("begin_txn failed");
-        let level: String = sqlx::query_scalar("SELECT current_setting('transaction_isolation')")
-            .fetch_one(&mut *tx)
-            .await
-            .expect("query failed");
+        let level: String =
+            sqlx::query_scalar!("SELECT current_setting('transaction_isolation') AS \"v!\"")
+                .fetch_one(&mut *tx)
+                .await
+                .expect("query failed");
         assert_eq!(level, "repeatable read");
     }
 }

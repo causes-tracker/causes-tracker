@@ -1136,55 +1136,56 @@ mod tests {
             let add = next_add;
             next_add = (next_add * 50).max(next_add + 1);
 
-            // Bulk-insert projects in batches of up to 1000 rows.
+            // Bulk-insert projects in batches of up to 1000 rows using
+            // UNNEST: one fixed-shape INSERT with arrays of column values.
+            // sqlx::query! validates the SQL at compile time; the batch
+            // size varies via the array length, not the SQL text.
             let insert_start = total;
             let target = total + add;
             while total < target {
                 let batch_end = (total + 1000).min(target);
-                let mut query = String::from(
+                let n = (batch_end - total) as usize;
+                let ids: Vec<String> = (0..n).map(|_| Uuid::new_v4().to_string()).collect();
+                let names: Vec<String> = (total..batch_end).map(|i| format!("p-{i:08}")).collect();
+                sqlx::query!(
                     "INSERT INTO projects \
-                     (id, name, description, visibility, embargoed_by_default, created_at) VALUES ",
-                );
-                let mut first = true;
-                for i in total..batch_end {
-                    if !first {
-                        query.push(',');
-                    }
-                    first = false;
-                    let id = Uuid::new_v4();
-                    let name = format!("p-{i:08}");
-                    // Safety: name is alphanumeric + hyphen, no SQL injection.
-                    query.push_str(&format!("('{id}', '{name}', '', 'public', false, now())"));
-                }
-                sqlx::query(&query)
-                    .execute(&pool.pool())
-                    .await
-                    .unwrap_or_else(|e| {
-                        panic!(
-                            "bulk insert failed at {total}..{batch_end} \
-                             (added {} since step start): {e}",
-                            total - insert_start,
-                        )
-                    });
+                         (id, name, description, visibility, embargoed_by_default, created_at) \
+                     SELECT id, name, '', 'public', false, now() \
+                     FROM UNNEST($1::text[], $2::text[]) AS t(id, name)",
+                    &ids,
+                    &names,
+                )
+                .execute(&pool.pool())
+                .await
+                .unwrap_or_else(|e| {
+                    panic!(
+                        "bulk insert failed at {total}..{batch_end} \
+                         (added {} since step start): {e}",
+                        total - insert_start,
+                    )
+                });
                 total = batch_end;
             }
 
             // Update planner statistics after bulk insert so Postgres
             // doesn't fall back to sequential scan + sort.
-            sqlx::query("ANALYZE projects")
+            sqlx::query!("ANALYZE projects")
                 .execute(&pool.pool())
                 .await
                 .expect("ANALYZE failed");
 
             // Show query plan for this step.
-            let plan: Vec<String> = sqlx::query_scalar(
+            let plan: Vec<String> = sqlx::query_scalar!(
                 "EXPLAIN (ANALYZE, BUFFERS) \
                  SELECT id, name, description, visibility, embargoed_by_default, created_at \
-                 FROM projects",
+                 FROM projects"
             )
             .fetch_all(&pool.pool())
             .await
-            .expect("EXPLAIN failed");
+            .expect("EXPLAIN failed")
+            .into_iter()
+            .flatten()
+            .collect();
             log!("\n-- EXPLAIN at {total} projects --");
             for line in &plan {
                 log!("{line}");

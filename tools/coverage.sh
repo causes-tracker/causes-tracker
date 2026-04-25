@@ -47,7 +47,13 @@ SKIP_FILES=(
 # Runs every test in one bazel invocation, including the format_check_auto
 # tagged sh_tests. Those produce no Rust coverage data — they're bundled
 # here so the hook pays only one bazel analysis phase instead of two.
-bazel coverage "$@"
+#
+# --lockfile_mode=error makes this script predict CI: if a dep was added
+# without committing the regenerated MODULE.bazel.lock, bazel fails here
+# rather than silently churning the lockfile (which would also break the
+# patch-diff cache above). To regenerate after adding a dep, run
+# `bazel mod deps --lockfile_mode=update` and commit the result.
+bazel coverage --lockfile_mode=error "$@"
 
 if [[ ! -f "$REPORT" ]]; then
 	echo "error: coverage report not found at $REPORT" >&2

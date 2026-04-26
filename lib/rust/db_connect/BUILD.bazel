@@ -1,0 +1,21 @@
+load("//build:rust.bzl", "rust_library", "rust_test")
+load("//tools/lint:format_check.bzl", "format_srcs")
+
+rust_library(
+    name = "db_connect",
+    srcs = glob(["src/**/*.rs"]),
+    visibility = ["//visibility:public"],
+    deps = [
+        "//lib/rust/db_aws",
+        "//lib/rust/db_pool",
+        "@crates//:anyhow",
+        "@crates//:tracing",
+    ],
+)
+
+rust_test(
+    name = "db_connect_test",
+    crate = ":db_connect",
+)
+
+format_srcs()

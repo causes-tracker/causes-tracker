@@ -16,11 +16,8 @@ rust_library(
     rustc_env = {"SQLX_OFFLINE": "true"},
     visibility = ["//visibility:public"],
     deps = [
+        "//lib/rust/db_pool",
         "@crates//:anyhow",
-        "@crates//:arc-swap",
-        "@crates//:aws-config",
-        "@crates//:aws-sdk-rds",
-        "@crates//:aws-types",
         "@crates//:email_address",
         "@crates//:futures",
         "@crates//:sqlx",
@@ -47,8 +44,6 @@ rust_test(
     rustc_env = {"SQLX_OFFLINE": "true"},
     tags = ["manual"],
     deps = [
-        "@crates//:aws-credential-types",
-        "@crates//:aws-smithy-async",
         "@crates//:tokio",
     ],
 )
@@ -106,6 +101,7 @@ sqlx_prepare(
         allow_empty = True,
     ),
     migrations = glob(["migrations/**"]),
+    path_deps = ["//lib/rust/db_pool"],
     visibility = ["//visibility:public"],
 )
 

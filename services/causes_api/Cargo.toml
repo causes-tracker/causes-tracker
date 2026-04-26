@@ -7,6 +7,7 @@ license.workspace = true
 [dependencies]
 api_db = { path = "../../lib/rust/api_db" }
 causes_proto = { path = "../../lib/rust/causes_proto" }
+db_connect = { path = "../../lib/rust/db_connect" }
 futures.workspace = true
 prost-types.workspace = true
 tokio.workspace = true

@@ -1,7 +1,7 @@
 use aws_sdk_rds::auth_token;
 
 /// Parameters needed to generate an IAM auth token for RDS.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct IamParams {
     pub hostname: String,
     pub port: u16,

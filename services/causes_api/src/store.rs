@@ -1,5 +1,5 @@
 /// Abstraction over database operations needed by this service.
-/// Implemented by [`api_db::DbPool`] in production; in tests, use
+/// Implemented by [`db_connect::DbPool`] in production; in tests, use
 /// [`mockall::automock`]-generated `MockStore`.
 #[allow(dead_code)]
 #[cfg_attr(test, mockall::automock)]
@@ -103,9 +103,9 @@ pub trait Store: Send + Sync + 'static {
 }
 
 #[tonic::async_trait]
-impl Store for api_db::DbPool {
+impl Store for db_connect::DbPool {
     async fn migrate(&self) -> anyhow::Result<()> {
-        api_db::DbPool::migrate(self).await
+        api_db::migrate(self).await
     }
 
     async fn user_count(&self) -> anyhow::Result<i64> {

@@ -15,7 +15,7 @@ _TOOL_DATA = [
     "@rust_host_tools//:sysroot_path.txt",
 ]
 
-def sqlx_prepare(name, migrations, srcs, visibility = None):
+def sqlx_prepare(name, migrations, srcs, path_deps = None, visibility = None):
     """Generates sqlx offline query-metadata targets for a Rust crate.
 
     Run from the calling package's directory so that sqlx writes .sqlx/ there.
@@ -32,23 +32,38 @@ def sqlx_prepare(name, migrations, srcs, visibility = None):
       migrations: migration file labels — glob(["migrations/**"])
       srcs:       source + .sqlx labels for the check test —
                   glob(["src/**/*.rs"]) + glob([".sqlx/**"])
+      path_deps:  bazel labels of in-workspace crates this crate depends on
+                  via path. Each must expose an `:all_srcs` filegroup. The
+                  impl script stages them next to the prepared crate so
+                  cargo can resolve the path-deps inside the isolated
+                  workspace.
       visibility: optional visibility for the sh_binary update target
     """
-    pkg = native.package_name()  # e.g. "lib/rust/api_db"
+    pkg = native.package_name()
+    path_deps = path_deps or []
+
+    extra_data = []
+    extra_args = []
+    for dep in path_deps:
+        # "//lib/rust/db_pool" → bazel pkg "lib/rust/db_pool", crate name "db_pool"
+        bazel_pkg = dep.lstrip("/").partition(":")[0]
+        crate_name = bazel_pkg.rpartition("/")[2]
+        extra_data.append(dep + ":all_srcs")
+        extra_args.append("--path-dep=" + crate_name + "=" + bazel_pkg)
 
     sh_binary(
         name = name,
         srcs = [_IMPL],
-        args = [pkg],
-        data = _TOOL_DATA + migrations,
+        args = [pkg] + extra_args,
+        data = _TOOL_DATA + migrations + extra_data,
         visibility = visibility,
     )
 
     sh_test(
         name = name + "_test",
         srcs = [_IMPL],
-        args = ["--check", pkg],
-        data = _TOOL_DATA + migrations + srcs + [
+        args = ["--check", pkg] + extra_args,
+        data = _TOOL_DATA + migrations + srcs + extra_data + [
             "//:Cargo.toml",
             "//:Cargo.lock",
             ":Cargo.toml",

@@ -1,7 +1,8 @@
 use anyhow::Context;
+use db_pool::{DbPool, QueryAccess};
 use uuid::Uuid;
 
-use crate::db::DbPool;
+use crate::db::begin_txn;
 
 // ── Parameter newtypes ─────────────────────────────────────────────────────
 
@@ -206,7 +207,7 @@ pub async fn create_admin(
     subject: &Subject,
 ) -> anyhow::Result<UserId> {
     let user_id = UserId::new();
-    let mut tx = pool.begin_txn().await?;
+    let mut tx = begin_txn(pool).await?;
 
     sqlx::query!(
         "INSERT INTO users (id, display_name, email, auth_provider) VALUES ($1, $2, $3, $4)",
@@ -253,7 +254,7 @@ pub async fn create_user(
     subject: &Subject,
 ) -> anyhow::Result<UserId> {
     let user_id = UserId::new();
-    let mut tx = pool.begin_txn().await?;
+    let mut tx = begin_txn(pool).await?;
 
     sqlx::query!(
         "INSERT INTO users (id, display_name, email, auth_provider) VALUES ($1, $2, $3, $4)",

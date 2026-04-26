@@ -5,8 +5,10 @@ use futures::StreamExt;
 use sqlx::types::chrono;
 use uuid::Uuid;
 
-use crate::DbPool;
+use db_pool::{DbPool, QueryAccess};
+
 use crate::admin::UserId;
+use crate::db::begin_txn;
 use crate::role::{ProjectId, Role};
 use crate::session::SessionRow;
 
@@ -161,7 +163,7 @@ pub async fn create_project(
     creator_user_id: &UserId,
 ) -> Result<ProjectRow, ProjectError> {
     let id = Uuid::new_v4().to_string();
-    let mut tx = pool.begin_txn().await?;
+    let mut tx = begin_txn(pool).await?;
 
     let row = sqlx::query!(
         "INSERT INTO projects (id, name, description, visibility, embargoed_by_default) \
@@ -488,7 +490,7 @@ pub async fn rename_project(
 
 /// Delete a project and its role assignments. Returns false if not found.
 pub async fn delete_project(pool: &DbPool, project_id: &ProjectId) -> anyhow::Result<bool> {
-    let mut tx = pool.begin_txn().await?;
+    let mut tx = begin_txn(pool).await?;
 
     sqlx::query!(
         "DELETE FROM role_assignments WHERE project_id = $1",

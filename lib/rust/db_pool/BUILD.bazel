@@ -1,0 +1,24 @@
+load("//build:rust.bzl", "rust_library")
+load("//tools/lint:format_check.bzl", "format_srcs")
+
+# Sources + manifest, exposed for sqlx_prepare staging in path-dep crates.
+filegroup(
+    name = "all_srcs",
+    srcs = ["Cargo.toml"] + glob(["src/**/*.rs"]),
+    visibility = ["//visibility:public"],
+)
+
+rust_library(
+    name = "db_pool",
+    srcs = glob(["src/**/*.rs"]),
+    visibility = ["//visibility:public"],
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:arc-swap",
+        "@crates//:sqlx",
+        "@crates//:tokio",
+        "@crates//:tracing",
+    ],
+)
+
+format_srcs()

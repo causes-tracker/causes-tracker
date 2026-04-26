@@ -1,3 +1,4 @@
+load("@rules_python//python:defs.bzl", "py_test")
 load(
     "@rules_python//python/entry_points:py_console_script_binary.bzl",
     "py_console_script_binary",
@@ -64,6 +65,37 @@ sh_binary(
         ":taplo_extracted",
         "@bazel_tools//tools/bash/runfiles",
     ],
+)
+
+# ── cargo/bazel dep parity check ──────────────────────────────────────────────
+# Guards against silent drift where BUILD.bazel adds a @crates//:foo dep but
+# the sibling Cargo.toml doesn't list it — which leaves Bazel green but `cargo`
+# spuriously broken.  Reuses each Rust crate's existing format_srcs filegroups
+# so no new exports are needed; the script filters runfiles by file name.
+_RUST_CRATE_PACKAGES = [
+    "//lib/rust/api_db",
+    "//lib/rust/causes_mcp",
+    "//lib/rust/causes_proto",
+    "//lib/rust/causes_session",
+    "//lib/rust/proto_ext",
+    "//services/causes_api",
+    "//services/causes_cli",
+]
+
+py_test(
+    name = "cargo_bazel_deps_check",
+    srcs = ["check_cargo_bazel_deps.py"],
+    args = [
+        "$(rootpaths %s:%s)" % (pkg, fg)
+        for pkg in _RUST_CRATE_PACKAGES
+        for fg in ("toml_format_srcs", "starlark_format_srcs")
+    ],
+    data = [
+        "%s:%s" % (pkg, fg)
+        for pkg in _RUST_CRATE_PACKAGES
+        for fg in ("toml_format_srcs", "starlark_format_srcs")
+    ],
+    main = "check_cargo_bazel_deps.py",
 )
 
 format_srcs()

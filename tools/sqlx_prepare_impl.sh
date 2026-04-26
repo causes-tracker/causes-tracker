@@ -34,9 +34,29 @@ fi
 # Provide a temporary directory for update mode.
 export TEST_TMPDIR="${TEST_TMPDIR:-$(mktemp -d)}"
 
+# Phase timing — emit `[phase] name: <seconds>s` to stderr around each major
+# step. Always on, visible in the test log so we can attribute time without
+# re-running.
+phase() {
+	local name="$1"
+	shift
+	local start end
+	start="$EPOCHREALTIME"
+	"$@"
+	local rc=$?
+	end="$EPOCHREALTIME"
+	# 10# forces decimal: a leading-zero fraction would otherwise be octal.
+	local s_us e_us d_us
+	s_us=$((${start%.*} * 1000000 + 10#${start#*.}))
+	e_us=$((${end%.*} * 1000000 + 10#${end#*.}))
+	d_us=$((e_us - s_us))
+	printf '[phase] %-20s %d.%06ds\n' "$name" "$((d_us / 1000000))" "$((d_us % 1000000))" >&2
+	return "$rc"
+}
+
 # shellcheck source=/dev/null
 source "$(rlocation _main/infra/postgres/testfixture.sh)"
-pg_start
+phase pg_start pg_start
 
 SQLX="$(rlocation _main/tools/sqlx_bin)"
 export CARGO
@@ -49,7 +69,7 @@ RUSTC="$(rlocation rust_host_tools/bin/rustc)"
 SYSROOT="$(cat "$(rlocation rust_host_tools/sysroot_path.txt)")"
 export RUSTFLAGS="--sysroot ${SYSROOT}"
 
-if [[ "$CHECK" == "true" ]]; then
+stage_isolated() {
 	# BUILD_WORKSPACE_DIRECTORY is not set in bazel test.
 	# The runfiles tree contains the committed package files but not the full
 	# workspace (other workspace members are absent, so cargo metadata fails).
@@ -82,16 +102,29 @@ PYEOF
 	cp -rL "${PACKAGE_DIR}/.sqlx" "$ISOLATED/pkg/.sqlx"
 
 	chmod -R u+w "$ISOLATED"
+}
 
+run_migrate() {
 	DATABASE_URL="$TEST_POSTGRES_URL" "$SQLX" migrate run \
-		--source "$ISOLATED/pkg/migrations"
+		--source "$1"
+}
+
+run_prepare_check() {
 	cd "$ISOLATED/pkg"
 	DATABASE_URL="$TEST_POSTGRES_URL" "$SQLX" prepare --check -- --tests
-else
-	PACKAGE_DIR="${BUILD_WORKSPACE_DIRECTORY}/${BAZEL_PACKAGE}"
+}
 
-	DATABASE_URL="$TEST_POSTGRES_URL" "$SQLX" migrate run \
-		--source "${PACKAGE_DIR}/migrations"
+run_prepare_update() {
 	cd "$PACKAGE_DIR"
 	DATABASE_URL="$TEST_POSTGRES_URL" "$SQLX" prepare -- --tests
+}
+
+if [[ "$CHECK" == "true" ]]; then
+	phase stage_isolated stage_isolated
+	phase migrate run_migrate "$ISOLATED/pkg/migrations"
+	phase prepare_check run_prepare_check
+else
+	PACKAGE_DIR="${BUILD_WORKSPACE_DIRECTORY}/${BAZEL_PACKAGE}"
+	phase migrate run_migrate "${PACKAGE_DIR}/migrations"
+	phase prepare_update run_prepare_update
 fi

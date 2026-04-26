@@ -69,39 +69,99 @@ RUSTC="$(rlocation rust_host_tools/bin/rustc)"
 SYSROOT="$(cat "$(rlocation rust_host_tools/sysroot_path.txt)")"
 export RUSTFLAGS="--sysroot ${SYSROOT}"
 
-stage_isolated() {
-	# BUILD_WORKSPACE_DIRECTORY is not set in bazel test.
-	# The runfiles tree contains the committed package files but not the full
-	# workspace (other workspace members are absent, so cargo metadata fails).
-	# Build an isolated single-member workspace in TEST_TMPDIR instead.
+# Persistent cargo cache. Layout:
+#   ${HOME}/.cache/causes/sqlx-prepare-target/<pkg-slug>/
+#     .sqlx_prepare.lock   flock for one prepare run (cross-worktree barrier)
+#     staging/             rewritten Cargo.toml + rsync'd pkg files
+#     target/              CARGO_TARGET_DIR
+#     cargo-home/          CARGO_HOME (registry cache + extracted dep sources)
+# Wipe with `rm -rf ~/.cache/causes/sqlx-prepare-target/`.
+#
+# CARGO_HOME and the staging path live here (not under HOME or TEST_TMPDIR)
+# because cargo's incremental fingerprint includes the workspace and
+# registry source paths; bazel's per-sandbox HOME makes both move every
+# run, which invalidates the entire dep graph.
+setup_persistent_target() {
+	# bazel rewrites HOME to a per-sandbox tmpdir; resolve the real user
+	# home from the passwd database instead.
+	local real_home
+	real_home=$(getent passwd "$(id -un)" | cut -d: -f6)
+	local cache_root="${real_home}/.cache/causes/sqlx-prepare-target"
+	local pkg_slug="${BAZEL_PACKAGE//\//_}"
+
 	WORKSPACE_ROOT="$(dirname "$(rlocation _main/Cargo.toml)")"
 	PACKAGE_DIR="${WORKSPACE_ROOT}/${BAZEL_PACKAGE}"
 
-	ISOLATED="$TEST_TMPDIR/isolated"
-	mkdir -p "$ISOLATED/pkg"
+	local cache_dir="${cache_root}/${pkg_slug}"
+	mkdir -p "$cache_dir"
 
-	# Rewrite the workspace Cargo.toml so only our package is a member.
-	# This lets cargo metadata resolve without the other workspace members.
-	python3 - "${WORKSPACE_ROOT}/Cargo.toml" "$ISOLATED/Cargo.toml" <<'PYEOF'
+	exec 9>"$cache_dir/.sqlx_prepare.lock"
+	flock 9
+
+	export CARGO_TARGET_DIR="$cache_dir/target"
+	export CARGO_HOME="$cache_dir/cargo-home"
+	ISOLATED="$cache_dir/staging"
+	mkdir -p "$ISOLATED/pkg" "$CARGO_TARGET_DIR" "$CARGO_HOME"
+}
+
+stage_isolated() {
+	# mv-if-different so the manifest's mtime only moves on real change
+	# (cargo invalidates the crate when its manifest mtime moves).
+	python3 - "${WORKSPACE_ROOT}/Cargo.toml" "$ISOLATED/Cargo.toml.new" <<'PYEOF'
 import sys, re
 src, dst = sys.argv[1], sys.argv[2]
 text = open(src).read()
 text = re.sub(r'members\s*=\s*\[[^\]]*\]', 'members = ["pkg"]', text, flags=re.DOTALL)
 open(dst, 'w').write(text)
 PYEOF
+	if ! cmp -s "$ISOLATED/Cargo.toml.new" "$ISOLATED/Cargo.toml" 2>/dev/null; then
+		mv "$ISOLATED/Cargo.toml.new" "$ISOLATED/Cargo.toml"
+	else
+		rm -f "$ISOLATED/Cargo.toml.new"
+	fi
 
-	# Bazel runfiles are symlinks into a read-only execroot.  We must
-	# dereference them (-L) so that sqlx can touch source files.  If the
-	# touch fails, sqlx falls back to `cargo clean`, which nukes the
-	# target/sqlx-prepare-check/ dir that sqlx itself just created —
-	# and then cargo check fails because the offline data is gone.
-	cp -rL "${WORKSPACE_ROOT}/Cargo.lock" "$ISOLATED/Cargo.lock"
-	cp -rL "${PACKAGE_DIR}/Cargo.toml" "$ISOLATED/pkg/Cargo.toml"
-	cp -rL "${PACKAGE_DIR}/src" "$ISOLATED/pkg/src"
-	cp -rL "${PACKAGE_DIR}/migrations" "$ISOLATED/pkg/migrations"
-	cp -rL "${PACKAGE_DIR}/.sqlx" "$ISOLATED/pkg/.sqlx"
+	# Stage individual files only when content differs, so unchanged files
+	# keep their staging mtime and cargo's mtime-based fingerprint stays
+	# valid. Plain `cp` would touch every file and defeat the cache.
+	# Cargo.lock gets re-staged each run too — cargo's prune step is
+	# deterministic, so re-applying the source lockfile resolves to the
+	# same pruned content and doesn't invalidate the cache.
+	sync_file "${WORKSPACE_ROOT}/Cargo.lock" "$ISOLATED/Cargo.lock"
+	sync_file "${PACKAGE_DIR}/Cargo.toml" "$ISOLATED/pkg/Cargo.toml"
+	sync_dir "${PACKAGE_DIR}/src" "$ISOLATED/pkg/src"
+	sync_dir "${PACKAGE_DIR}/migrations" "$ISOLATED/pkg/migrations"
+	sync_dir "${PACKAGE_DIR}/.sqlx" "$ISOLATED/pkg/.sqlx"
 
 	chmod -R u+w "$ISOLATED"
+}
+
+# sync_file SRC DST: copy SRC over DST iff content differs. Source symlinks
+# are dereferenced. Skipping the cp leaves DST's mtime untouched.
+sync_file() {
+	local src="$1" dst="$2"
+	if ! cmp -s "$src" "$dst" 2>/dev/null; then
+		mkdir -p "$(dirname "$dst")"
+		cp -L "$src" "$dst"
+	fi
+}
+
+# sync_dir SRC DST: mirror SRC tree into DST. Files unchanged in content
+# keep their existing mtime; changed files get the current time; files
+# missing from SRC are deleted from DST. Symlinks are followed.
+sync_dir() {
+	local src="$1" dst="$2"
+	mkdir -p "$dst"
+	local rel
+	while IFS= read -r -d '' rel; do
+		if [[ -d "$src/$rel" ]]; then
+			mkdir -p "$dst/$rel"
+		else
+			sync_file "$src/$rel" "$dst/$rel"
+		fi
+	done < <(cd "$src" && find -L . -mindepth 1 -print0)
+	while IFS= read -r -d '' rel; do
+		[[ -e "$src/$rel" ]] || rm -rf "${dst:?}/$rel"
+	done < <(cd "$dst" && find . -mindepth 1 -print0)
 }
 
 run_migrate() {
@@ -120,6 +180,7 @@ run_prepare_update() {
 }
 
 if [[ "$CHECK" == "true" ]]; then
+	phase setup_target setup_persistent_target
 	phase stage_isolated stage_isolated
 	phase migrate run_migrate "$ISOLATED/pkg/migrations"
 	phase prepare_check run_prepare_check

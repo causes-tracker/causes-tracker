@@ -73,6 +73,11 @@ def format_srcs():
         ),
         visibility = ["//visibility:public"],
     )
+    native.filegroup(
+        name = "python_format_srcs",
+        srcs = native.glob(["*.py"], allow_empty = True),
+        visibility = ["//visibility:public"],
+    )
 
 def _formatter_check(name, driver, formatter_data, srcs, tags = [], **kwargs):
     sh_test(
@@ -122,6 +127,19 @@ def yamlfmt_check(name, srcs, **kwargs):
         formatter_data = [
             "@aspect_rules_lint//format:yamlfmt",
             "//:.yamlfmt",
+        ],
+        srcs = srcs,
+        **kwargs
+    )
+
+def ruff_check(name, srcs, **kwargs):
+    """sh_test that runs `ruff format --check` and `ruff check` over the .py files in srcs."""
+    _formatter_check(
+        name = name,
+        driver = "//tools/lint:run_ruff_check.sh",
+        formatter_data = [
+            "@aspect_rules_lint//format:ruff",
+            "//:pyproject.toml",
         ],
         srcs = srcs,
         **kwargs

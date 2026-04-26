@@ -4,6 +4,7 @@ load("@rules_python//python:pip.bzl", "compile_pip_requirements")
 load(
     "//tools/lint:format_check.bzl",
     "buildifier_check",
+    "ruff_check",
     "shfmt_check",
     "taplo_check",
     "yamlfmt_check",
@@ -20,6 +21,7 @@ exports_files([
     ".yamllint",
     "Cargo.toml",
     "Cargo.lock",
+    "pyproject.toml",
     "rustfmt.toml",
 ])
 
@@ -47,6 +49,7 @@ filegroup(
 # Check formatting without edits:    bazel run //:format.check
 format_multirun(
     name = "format",
+    python = "//tools/lint:ruff_format",
     rust = "@rust_host_tools//:rustfmt",
     shell = "@aspect_rules_lint//format:shfmt",
     starlark = "@buildifier_prebuilt//:buildifier",
@@ -139,6 +142,15 @@ filegroup(
     visibility = ["//visibility:public"],
 )
 
+filegroup(
+    name = "python_format_srcs",
+    srcs = glob(
+        ["*.py"],
+        allow_empty = True,
+    ),
+    visibility = ["//visibility:public"],
+)
+
 # Every subpackage calls format_srcs() to emit its own per-language filegroups.
 # Adding a new package means appending it here — the only non-Rust commit
 # discipline this design costs.
@@ -191,6 +203,12 @@ filegroup(
            [p + "yaml_format_srcs" for p in _FORMAT_PACKAGES],
 )
 
+filegroup(
+    name = "_all_python_format_srcs",
+    srcs = [":python_format_srcs"] +
+           [p + "python_format_srcs" for p in _FORMAT_PACKAGES],
+)
+
 buildifier_check(
     name = "format_starlark_check",
     srcs = [":_all_starlark_format_srcs"],
@@ -209,4 +227,9 @@ shfmt_check(
 yamlfmt_check(
     name = "format_yaml_check",
     srcs = [":_all_yaml_format_srcs"],
+)
+
+ruff_check(
+    name = "format_python_check",
+    srcs = [":_all_python_format_srcs"],
 )

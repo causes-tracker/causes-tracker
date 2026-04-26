@@ -1,0 +1,18 @@
+# Ruff is the only Python tool we use; it formats and lints.
+# Run via Bazel: `bazel run //:format` (in-place) or `bazel test //...`.
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+# E/F (pycodestyle errors + pyflakes) are on by default.
+# I enables import sorting (the isort-equivalent rule); we want it because
+# it caught at least one unsorted import block during the rollout.
+extend-select = ["I"]
+
+[tool.ruff.lint.isort]
+# Sort imports purely alphabetically within each section, ignoring the
+# `import X` vs `from X import Y` distinction.  Without this, `from pathlib`
+# floats to the bottom of a stdlib block even when alphabetically earlier
+# than later `import` lines — which is what readers actually notice.
+force-sort-within-sections = true

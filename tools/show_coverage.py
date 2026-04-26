@@ -55,9 +55,7 @@ def parse_lcov(path):
                     if len(parts) >= 2:
                         try:
                             lineno, hits = int(parts[0]), int(parts[1])
-                            records[current][lineno] = (
-                                records[current].get(lineno, 0) + hits
-                            )
+                            records[current][lineno] = records[current].get(lineno, 0) + hits
                         except ValueError:
                             pass
                 elif line == "end_of_record":
@@ -97,9 +95,7 @@ def file_html(rel: str, line_hits: dict[int, int]) -> str:
                     f'<td class="src">{html.escape(src_line.rstrip())}</td></tr>'
                 )
     except OSError:
-        rows = [
-            f'<tr><td colspan="3">Source not found: {html.escape(src_path)}</td></tr>'
-        ]
+        rows = [f'<tr><td colspan="3">Source not found: {html.escape(src_path)}</td></tr>']
     covered = sum(1 for h in line_hits.values() if h > 0)
     total = len(line_hits)
     pct = coverage_pct(covered, total)
@@ -110,7 +106,7 @@ def file_html(rel: str, line_hits: dict[int, int]) -> str:
         f'<p><a href="index.html">← index</a></p>'
         f"<h2>{html.escape(rel)}</h2>"
         f'<p class="{cls}">{covered}/{total} lines ({pct:.1f}%)</p>'
-        f'<table><tr><th>#</th><th>hits</th><th>source</th></tr>'
+        f"<table><tr><th>#</th><th>hits</th><th>source</th></tr>"
         f"{''.join(rows)}</table></body></html>"
     )
 
@@ -135,7 +131,7 @@ def index_html(stats: dict[str, tuple[int, int]]) -> str:
         f"<style>{CSS}</style></head><body>"
         "<h1>Coverage report</h1>"
         f'<p class="{cls}">Overall: {total_c}/{total_l} lines ({overall:.1f}%)</p>'
-        '<table><tr><th>File</th><th>Lines</th><th>Covered</th><th>%</th></tr>'
+        "<table><tr><th>File</th><th>Lines</th><th>Covered</th><th>%</th></tr>"
         f"{''.join(rows)}</table></body></html>"
     )
 
@@ -143,9 +139,7 @@ def index_html(stats: dict[str, tuple[int, int]]) -> str:
 def build_site(out: pathlib.Path) -> None:
     records = parse_lcov(REPORT)
     if not records:
-        sys.exit(
-            f"No coverage data at:\n  {REPORT}\n\nRun: bazel coverage //... first."
-        )
+        sys.exit(f"No coverage data at:\n  {REPORT}\n\nRun: bazel coverage //... first.")
 
     stats: dict[str, tuple[int, int]] = {}
     for sf, line_hits in records.items():

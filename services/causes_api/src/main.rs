@@ -26,7 +26,7 @@ async fn main() -> anyhow::Result<()> {
     let cfg = config::Config::parse();
 
     info!("connecting to database");
-    let pool = api_db::DbPool::from_config(
+    let pool = api_db_aws::from_config(
         cfg.db_host.as_deref(),
         cfg.db_user.as_deref(),
         cfg.db_port,

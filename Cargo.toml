@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "lib/rust/api_db",
+  "lib/rust/api_db_aws",
   "lib/rust/causes_mcp",
   "lib/rust/causes_proto",
   "lib/rust/causes_session",

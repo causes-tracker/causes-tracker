@@ -1,0 +1,29 @@
+load("//build:rust.bzl", "rust_library", "rust_test")
+load("//tools/lint:format_check.bzl", "format_srcs")
+
+rust_library(
+    name = "api_db_aws",
+    srcs = glob(["src/**/*.rs"]),
+    visibility = ["//visibility:public"],
+    deps = [
+        "//lib/rust/api_db",
+        "@crates//:anyhow",
+        "@crates//:aws-config",
+        "@crates//:aws-sdk-rds",
+        "@crates//:aws-types",
+        "@crates//:sqlx",
+        "@crates//:tracing",
+    ],
+)
+
+rust_test(
+    name = "api_db_aws_test",
+    crate = ":api_db_aws",
+    deps = [
+        "@crates//:aws-credential-types",
+        "@crates//:aws-smithy-async",
+        "@crates//:tokio",
+    ],
+)
+
+format_srcs()

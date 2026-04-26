@@ -54,6 +54,7 @@ rust_test(
     deps = [
         "@crates//:aws-credential-types",
         "@crates//:aws-smithy-async",
+        "@crates//:rand",
         "@crates//:tokio",
     ],
 )

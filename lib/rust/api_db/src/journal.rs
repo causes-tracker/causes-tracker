@@ -418,6 +418,32 @@ pub struct JournalStoredEntry<T> {
     pub watermark: LocalTxnId,
 }
 
+// ── JournalText trait ────────────────────────────────────────────────────
+
+/// Conversion between a Rust payload type and its `TEXT` SQL representation.
+///
+/// Implemented by every type that appears as a payload column in a
+/// per-resource journal table (declared via `journal_table!`).  String
+/// gets a blanket impl; project-specific newtypes (PlanTitle, Markdown,
+/// PlanStatus, ...) opt in by providing the conversion they want.
+///
+/// The two halves intentionally differ: encoding borrows (so `sqlx::query!`
+/// can take `&str` bind params without allocation), decoding owns (so
+/// validation can take String returned from sqlx without re-copying).
+pub trait JournalText: Sized {
+    fn as_journal_text(&self) -> &str;
+    fn from_journal_text(s: String) -> anyhow::Result<Self>;
+}
+
+impl JournalText for String {
+    fn as_journal_text(&self) -> &str {
+        self
+    }
+    fn from_journal_text(s: String) -> anyhow::Result<Self> {
+        Ok(s)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::__private::{JournalMetaParams, JournalMetaRow};
@@ -629,5 +655,32 @@ mod tests {
         assert_eq!(stored.entry.value, 7);
         assert_eq!(stored.local_version.get(), 100);
         assert_eq!(stored.watermark.get(), 95);
+    }
+
+    #[test]
+    fn string_implements_journal_text() {
+        let s = String::from("hello");
+        assert_eq!(s.as_journal_text(), "hello");
+        let back = String::from_journal_text("world".to_owned()).unwrap();
+        assert_eq!(back, "world");
+    }
+
+    #[test]
+    fn journal_text_can_validate() {
+        // Newtype that demonstrates the validation extension point.
+        struct NonEmpty(String);
+        impl JournalText for NonEmpty {
+            fn as_journal_text(&self) -> &str {
+                &self.0
+            }
+            fn from_journal_text(s: String) -> anyhow::Result<Self> {
+                anyhow::ensure!(!s.is_empty(), "NonEmpty must not be empty");
+                Ok(Self(s))
+            }
+        }
+
+        assert!(NonEmpty::from_journal_text(String::new()).is_err());
+        let ok = NonEmpty::from_journal_text("x".to_owned()).unwrap();
+        assert_eq!(ok.as_journal_text(), "x");
     }
 }

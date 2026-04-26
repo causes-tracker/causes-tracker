@@ -1,3 +1,7 @@
+// Self-alias so the `api_db_macros::journal_table!` proc-macro can emit
+// `::api_db::...` paths that resolve when expanded inside this crate.
+extern crate self as api_db;
+
 mod admin;
 mod db;
 pub mod iam;

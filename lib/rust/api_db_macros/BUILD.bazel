@@ -1,0 +1,24 @@
+load("//build:rust.bzl", "rust_proc_macro")
+load("//tools/lint:format_check.bzl", "format_srcs")
+
+rust_proc_macro(
+    name = "api_db_macros",
+    srcs = glob(["src/**/*.rs"]),
+    visibility = ["//visibility:public"],
+    deps = [
+        "@crates//:proc-macro2",
+        "@crates//:quote",
+        "@crates//:syn",
+    ],
+)
+
+# Filegroup of the crate's source + Cargo.toml — needed by sibling crates'
+# sqlx_prepare_test, which builds an isolated workspace and must include this
+# crate (it's a `path = "../api_db_macros"` dep).
+filegroup(
+    name = "sqlx_prepare_sources",
+    srcs = glob(["src/**/*.rs"]) + ["Cargo.toml"],
+    visibility = ["//visibility:public"],
+)
+
+format_srcs()

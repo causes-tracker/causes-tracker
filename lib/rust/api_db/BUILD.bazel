@@ -13,6 +13,9 @@ rust_library(
         ],
         allow_empty = True,
     ),
+    proc_macro_deps = [
+        "//lib/rust/api_db_macros",
+    ],
     rustc_env = {"SQLX_OFFLINE": "true"},
     visibility = ["//visibility:public"],
     deps = [
@@ -106,6 +109,13 @@ sqlx_prepare(
         allow_empty = True,
     ),
     migrations = glob(["migrations/**"]),
+    sibling_deps = [
+        "//lib/rust/api_db_macros:sqlx_prepare_sources",
+    ],
+    test_migrations = glob(
+        ["migrations-test/**"],
+        allow_empty = True,
+    ),
     visibility = ["//visibility:public"],
 )
 

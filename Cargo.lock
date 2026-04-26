@@ -88,11 +88,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "arc-swap",
- "aws-config",
- "aws-credential-types",
- "aws-sdk-rds",
- "aws-smithy-async",
- "aws-types",
  "email_address",
  "futures",
  "sqlx",
@@ -100,6 +95,23 @@ dependencies = [
  "tracing",
  "url",
  "uuid",
+]
+
+[[package]]
+name = "api_db_aws"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "api_db",
+ "aws-config",
+ "aws-credential-types",
+ "aws-sdk-rds",
+ "aws-smithy-async",
+ "aws-types",
+ "futures",
+ "sqlx",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -896,6 +908,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "api_db",
+ "api_db_aws",
  "axum",
  "causes_proto",
  "clap",

@@ -9,6 +9,7 @@ rust_binary(
     compile_data = glob(["static/**"]),
     deps = [
         "//lib/rust/api_db",
+        "//lib/rust/api_db_aws",
         "//lib/rust/causes_proto",
         "@crates//:anyhow",
         "@crates//:axum",

@@ -1,6 +1,5 @@
 mod admin;
 mod db;
-pub mod iam;
 pub mod journal;
 mod pending_login;
 mod project;
@@ -14,7 +13,7 @@ pub use admin::{
     AuthProvider, DisplayName, Email, ServiceAccountId, Subject, UserId, create_admin, create_user,
     user_count,
 };
-pub use db::DbPool;
+pub use db::{DbPool, PoolRefresher};
 pub use pending_login::{
     LoginNonce, PendingLoginRow, create_pending_login, delete_pending_login, gc_pending_logins,
     lookup_pending_login,

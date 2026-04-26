@@ -298,4 +298,303 @@ mod tests {
                 .expect("query failed");
         assert_eq!(level, "repeatable read");
     }
+
+    // ── journal_create_table() ──────────────────────────────────────────
+
+    /// Helper: ask information_schema for the columns of a created table.
+    /// Runtime query — the row shape (3 TEXT cols) doesn't fit sqlx::query!'s
+    /// preferred struct/scalar shapes, and the gain over a typed tuple is nil.
+    #[allow(clippy::disallowed_methods)]
+    async fn columns_of(pool: &sqlx::PgPool, table: &str) -> Vec<(String, String, String)> {
+        sqlx::query_as::<_, (String, String, String)>(
+            "SELECT column_name, data_type, is_nullable \
+             FROM information_schema.columns \
+             WHERE table_schema = 'public' AND table_name = $1 \
+             ORDER BY ordinal_position",
+        )
+        .bind(table)
+        .fetch_all(pool)
+        .await
+        .expect("columns_of failed")
+    }
+
+    /// Insert a minimal projects row so journal-table FKs are satisfiable.
+    async fn seed_project_row(pool: &sqlx::PgPool) -> String {
+        let id = uuid::Uuid::new_v4().to_string();
+        let name = format!("p-{}", &id[..8]);
+        sqlx::query!(
+            "INSERT INTO projects (id, name, visibility) VALUES ($1, $2, 'public')",
+            id,
+            name,
+        )
+        .execute(pool)
+        .await
+        .expect("seed project failed");
+        id
+    }
+
+    /// `journal_create_table` produces a table whose meta columns match the
+    /// canonical journal shape, plus the requested payload columns.
+    ///
+    /// Uses runtime sqlx::query because the table being inspected
+    /// (`jct_demo`) is created at test time, not at sqlx prepare time.
+    #[allow(clippy::disallowed_methods)]
+    #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
+    async fn journal_create_table_emits_canonical_shape(pool: sqlx::PgPool) {
+        sqlx::query("SELECT journal_create_table('jct_demo', 'note TEXT NOT NULL')")
+            .execute(&pool)
+            .await
+            .expect("journal_create_table call failed");
+
+        let cols = columns_of(&pool, "jct_demo").await;
+        let names: Vec<&str> = cols.iter().map(|(n, _, _)| n.as_str()).collect();
+
+        for expected in [
+            "origin_instance_id",
+            "origin_id",
+            "version",
+            "previous_origin_instance_id",
+            "previous_origin_id",
+            "previous_version",
+            "kind",
+            "at",
+            "author_instance_id",
+            "author_local_id",
+            "embargoed",
+            "slug",
+            "project_id",
+            "created_at",
+            "local_version",
+            "watermark",
+            "note", // payload column
+        ] {
+            assert!(names.contains(&expected), "missing column: {expected}");
+        }
+    }
+
+    /// A row inserted into a function-created table outside REPEATABLE READ
+    /// is rejected by the trigger that the function attaches.
+    ///
+    /// Runtime sqlx::query: `jct_iso` is created at test time.
+    #[allow(clippy::disallowed_methods)]
+    #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
+    async fn journal_create_table_attaches_isolation_trigger(pool: sqlx::PgPool) {
+        sqlx::query("SELECT journal_create_table('jct_iso', 'payload TEXT NOT NULL')")
+            .execute(&pool)
+            .await
+            .expect("journal_create_table call failed");
+
+        let project_id = seed_project_row(&pool).await;
+        // Default sqlx connection is READ COMMITTED; trigger should reject.
+        let err = sqlx::query(
+            "INSERT INTO jct_iso (
+                origin_instance_id, origin_id, version,
+                kind, at, author_instance_id, author_local_id, embargoed,
+                slug, project_id, created_at, payload
+            ) VALUES ($1, $2, 100, 'entry', now(), $1, $1, false, 's', $3, now(), 'p')",
+        )
+        .bind(uuid::Uuid::new_v4().to_string())
+        .bind(uuid::Uuid::new_v4().to_string())
+        .bind(&project_id)
+        .execute(&pool)
+        .await
+        .expect_err("INSERT outside REPEATABLE READ should be rejected");
+        assert!(
+            err.to_string().to_lowercase().contains("repeatable read"),
+            "expected isolation error, got: {err}",
+        );
+    }
+
+    /// Inserting valid rows under REPEATABLE READ succeeds, populates the
+    /// replication-serving columns, and the previous_version constraint
+    /// fires for partial triples.
+    ///
+    /// Runtime sqlx::query: `jct_rw` is created at test time.
+    #[allow(clippy::disallowed_methods)]
+    #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
+    async fn journal_create_table_table_is_writable_under_rr(pool: sqlx::PgPool) {
+        sqlx::query("SELECT journal_create_table('jct_rw', 'payload TEXT NOT NULL')")
+            .execute(&pool)
+            .await
+            .expect("journal_create_table call failed");
+
+        let db = DbPool::from_pool(pool);
+        let project_id = seed_project_row(&db.pool()).await;
+        let oi = uuid::Uuid::new_v4().to_string();
+
+        // Happy path under REPEATABLE READ via begin_txn.
+        let mut tx = db.begin_txn().await.unwrap();
+        sqlx::query(
+            "INSERT INTO jct_rw (
+                origin_instance_id, origin_id, version,
+                kind, at, author_instance_id, author_local_id, embargoed,
+                slug, project_id, created_at, payload
+            ) VALUES ($1, $2, 100, 'entry', now(), $1, $1, false, 's', $3, now(), 'p')",
+        )
+        .bind(&oi)
+        .bind(uuid::Uuid::new_v4().to_string())
+        .bind(&project_id)
+        .execute(&mut *tx)
+        .await
+        .expect("happy-path insert failed");
+        tx.commit().await.unwrap();
+
+        // local_version and watermark were assigned by DEFAULT.
+        let (lv, wm): (i64, i64) = sqlx::query_as(
+            "SELECT local_version, watermark FROM jct_rw WHERE origin_instance_id = $1",
+        )
+        .bind(&oi)
+        .fetch_one(&db.pool())
+        .await
+        .unwrap();
+        assert!(lv >= 3, "local_version should be a real txid");
+        assert!(wm >= 3, "watermark should be a real txid");
+
+        // Partial previous_version triple violates the CHECK constraint.
+        let mut tx = db.begin_txn().await.unwrap();
+        let err = sqlx::query(
+            "INSERT INTO jct_rw (
+                origin_instance_id, origin_id, version,
+                previous_origin_instance_id, previous_origin_id, previous_version,
+                kind, at, author_instance_id, author_local_id, embargoed,
+                slug, project_id, created_at, payload
+            ) VALUES ($1, $2, 200, $1, NULL, NULL, 'entry', now(), $1, $1, false, 's', $3, now(), 'p')",
+        )
+        .bind(&oi)
+        .bind(uuid::Uuid::new_v4().to_string())
+        .bind(&project_id)
+        .execute(&mut *tx)
+        .await
+        .expect_err("partial previous_version triple should violate check");
+        assert!(
+            err.to_string().contains("prev_all_or_none"),
+            "expected check-constraint error, got: {err}",
+        );
+    }
+
+    /// A resource type can carry an *optional* reference to another
+    /// resource — a federated version triple (instance, origin, version).
+    /// The pattern: three nullable columns with an all-or-none CHECK,
+    /// plus a partial index for efficient reverse lookups (e.g. "all
+    /// comments referring to plan version X").
+    ///
+    /// `journal_create_table()` is unopinionated about payload, so the
+    /// migration just lists the ref columns + CHECK in the payload spec
+    /// and adds the partial index in a follow-up statement.  This test
+    /// proves all three insert shapes behave correctly.
+    ///
+    /// Runtime sqlx::query: `jct_with_ref` is created at test time.
+    #[allow(clippy::disallowed_methods)]
+    #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
+    async fn journal_create_table_supports_optional_resource_reference(pool: sqlx::PgPool) {
+        sqlx::query(
+            "SELECT journal_create_table(
+                'jct_with_ref',
+                'body                 TEXT NOT NULL,
+                 ref_origin_instance_id TEXT,
+                 ref_origin_id          TEXT,
+                 ref_version            BIGINT,
+                 CONSTRAINT jct_with_ref_ref_all_or_none CHECK (
+                     (ref_origin_instance_id IS NULL
+                         AND ref_origin_id IS NULL
+                         AND ref_version IS NULL)
+                     OR
+                     (ref_origin_instance_id IS NOT NULL
+                         AND ref_origin_id IS NOT NULL
+                         AND ref_version IS NOT NULL)
+                 )'
+            )",
+        )
+        .execute(&pool)
+        .await
+        .expect("journal_create_table call failed");
+
+        // Partial index for reverse lookup: only rows with a reference
+        // appear in it.  WHERE ... IS NOT NULL is what makes it disjoint.
+        sqlx::query(
+            "CREATE INDEX jct_with_ref_ref_idx
+                 ON jct_with_ref (ref_origin_instance_id, ref_origin_id, ref_version)
+                 WHERE ref_origin_instance_id IS NOT NULL",
+        )
+        .execute(&pool)
+        .await
+        .expect("partial index creation failed");
+
+        let db = DbPool::from_pool(pool);
+        let project_id = seed_project_row(&db.pool()).await;
+        let oi = uuid::Uuid::new_v4().to_string();
+
+        let insert_sql = "INSERT INTO jct_with_ref (
+            origin_instance_id, origin_id, version,
+            kind, at, author_instance_id, author_local_id, embargoed,
+            slug, project_id, created_at,
+            body, ref_origin_instance_id, ref_origin_id, ref_version
+        ) VALUES ($1, $2, $3, 'entry', now(), $1, $1, false, 's', $4, now(),
+                  'b', $5, $6, $7)";
+
+        // Shape 1: no reference (all three NULL).  Permitted.
+        let mut tx = db.begin_txn().await.unwrap();
+        sqlx::query(insert_sql)
+            .bind(&oi)
+            .bind(uuid::Uuid::new_v4().to_string())
+            .bind(100_i64)
+            .bind(&project_id)
+            .bind(None::<String>)
+            .bind(None::<String>)
+            .bind(None::<i64>)
+            .execute(&mut *tx)
+            .await
+            .expect("no-reference insert should succeed");
+        tx.commit().await.unwrap();
+
+        // Shape 2: full reference (all three non-NULL).  Permitted.
+        let target_instance = uuid::Uuid::new_v4().to_string();
+        let target_origin = uuid::Uuid::new_v4().to_string();
+        let mut tx = db.begin_txn().await.unwrap();
+        sqlx::query(insert_sql)
+            .bind(&oi)
+            .bind(uuid::Uuid::new_v4().to_string())
+            .bind(200_i64)
+            .bind(&project_id)
+            .bind(Some(&target_instance))
+            .bind(Some(&target_origin))
+            .bind(Some(7_i64))
+            .execute(&mut *tx)
+            .await
+            .expect("full-reference insert should succeed");
+        tx.commit().await.unwrap();
+
+        // Shape 3: partial reference.  Rejected by the CHECK constraint.
+        let mut tx = db.begin_txn().await.unwrap();
+        let err = sqlx::query(insert_sql)
+            .bind(&oi)
+            .bind(uuid::Uuid::new_v4().to_string())
+            .bind(300_i64)
+            .bind(&project_id)
+            .bind(Some(&target_instance))
+            .bind(None::<String>)
+            .bind(Some(7_i64))
+            .execute(&mut *tx)
+            .await
+            .expect_err("partial reference triple should violate check");
+        assert!(
+            err.to_string().contains("ref_all_or_none"),
+            "expected check-constraint error, got: {err}",
+        );
+
+        // The partial index reflects only rows with a reference.
+        let indexed_rows: i64 = sqlx::query_scalar(
+            "SELECT count(*) FROM jct_with_ref
+                 WHERE ref_origin_instance_id = $1
+                   AND ref_origin_id = $2
+                   AND ref_version = $3",
+        )
+        .bind(&target_instance)
+        .bind(&target_origin)
+        .bind(7_i64)
+        .fetch_one(&db.pool())
+        .await
+        .unwrap();
+        assert_eq!(indexed_rows, 1, "the one full-reference row is reachable");
+    }
 }

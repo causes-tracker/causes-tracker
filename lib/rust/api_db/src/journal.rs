@@ -414,6 +414,24 @@ pub const JOURNAL_META_COLUMNS: &str = "origin_instance_id, origin_id, version, 
      kind, at, author_instance_id, author_local_id, embargoed, \
      slug, project_id, created_at";
 
+/// One stored entry from a per-resource journal table, with the
+/// Postgres-specific replication-serving columns alongside the typed
+/// resource entry.  Generic over the resource type so every resource
+/// module shares the same shape — only the inner `T` differs.
+///
+/// `local_version` is the writing transaction's txid on the storing
+/// instance; `watermark` is the snapshot xmin observed at INSERT time —
+/// the safe resume point for replication.
+#[derive(Debug, Clone)]
+pub struct JournalStoredEntry<T> {
+    pub entry: T,
+    pub local_version: LocalTxnId,
+    /// Receivers store this as their cursor; serving instances filter by
+    /// `local_version >= cursor`.
+    #[allow(dead_code)] // Exposed for future receivers.
+    pub watermark: LocalTxnId,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -614,5 +632,21 @@ mod tests {
     fn meta_columns_constant_lists_14_columns() {
         let count = JOURNAL_META_COLUMNS.split(',').count();
         assert_eq!(count, 14);
+    }
+
+    #[test]
+    fn stored_entry_carries_payload_and_replication_columns() {
+        // Generic over the inner type; the wrapper is independent of payload.
+        struct Demo {
+            value: u32,
+        }
+        let stored = JournalStoredEntry {
+            entry: Demo { value: 7 },
+            local_version: LocalTxnId::new(100).unwrap(),
+            watermark: LocalTxnId::new(95).unwrap(),
+        };
+        assert_eq!(stored.entry.value, 7);
+        assert_eq!(stored.local_version.get(), 100);
+        assert_eq!(stored.watermark.get(), 95);
     }
 }

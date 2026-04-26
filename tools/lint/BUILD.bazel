@@ -29,6 +29,8 @@ exports_files([
     "run_pymarkdown.sh",
     "run_rustfmt_check.sh",
     "run_buildifier_check.sh",
+    "run_ruff_check.sh",
+    "run_ruff_format.sh",
     "run_taplo_check.sh",
     "run_shfmt_check.sh",
     "run_yamlfmt_check.sh",
@@ -40,6 +42,21 @@ sh_binary(
     data = [
         ":pymarkdown",
         "//:.pymarkdown.json",
+        "@bazel_tools//tools/bash/runfiles",
+        "@rules_shell//shell/runfiles",
+    ],
+)
+
+# ── ruff (Python format + lint) ───────────────────────────────────────────────
+# Wrapper used by format_multirun's `python = ...` slot.  Runs `ruff format`
+# AND `ruff check --fix` so a single `bazel run //:format` covers whitespace
+# formatting and import sorting in one pass.  See run_ruff_format.sh.
+sh_binary(
+    name = "ruff_format",
+    srcs = ["run_ruff_format.sh"],
+    data = [
+        "//:pyproject.toml",
+        "@aspect_rules_lint//format:ruff",
         "@bazel_tools//tools/bash/runfiles",
         "@rules_shell//shell/runfiles",
     ],

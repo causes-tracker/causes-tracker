@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "EXPLAIN (ANALYZE, BUFFERS) SELECT id, name, description, visibility, embargoed_by_default, created_at FROM projects",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "QUERY PLAN",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "e288087827103c5affbb2ea58064987b2943f81bbd3f6389e718953cfb723fe2"
+}

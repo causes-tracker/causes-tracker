@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO projects (id, name, description, visibility, embargoed_by_default, created_at) SELECT id, name, '', 'public', false, now() FROM UNNEST($1::text[], $2::text[]) AS t(id, name)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "3df2f29cd023795b6515c845c7feb27785aaca783c1a95efc5cccd5e52e3b5ca"
+}

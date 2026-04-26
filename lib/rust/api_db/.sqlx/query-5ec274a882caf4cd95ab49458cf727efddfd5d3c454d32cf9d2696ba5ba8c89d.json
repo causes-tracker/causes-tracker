@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "ANALYZE projects",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "5ec274a882caf4cd95ab49458cf727efddfd5d3c454d32cf9d2696ba5ba8c89d"
+}

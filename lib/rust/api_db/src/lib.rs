@@ -6,6 +6,8 @@ mod pending_login;
 mod project;
 mod role;
 mod session;
+#[cfg(test)]
+mod test_support;
 
 /// Re-export chrono types used in public structs (e.g. `SessionRow.expires_at`).
 pub use sqlx::types::chrono;

@@ -621,4 +621,163 @@ mod tests {
         assert_eq!(b.path_for(&v).unwrap(), vec![a_id.clone(), b_id.clone()]);
         assert_eq!(c.path_for(&v).unwrap(), vec![a_id, b_id, c_id]);
     }
+
+    // ── Integration: features interacting ───────────────────────────────
+    //
+    // One focused test per compound invariant.  Each holds a specific
+    // interaction between: out-of-order commits, embargo trust, multi-hop
+    // replication, cross-project isolation, and cross-instance edits.
+    // A failure points at a single interaction, not a whole 7-phase script.
+
+    /// A trusts B for embargo, A does not trust C.  A writes an embargoed
+    /// row inside a long-running transaction, then commits a public row
+    /// while the long txn is still open.  B and C pull concurrently.
+    ///
+    /// Invariant: a trusted peer receives the embargoed row after the long
+    /// transaction commits (the watermark winds back past the in-flight
+    /// txid), while an untrusted peer never receives it.
+    #[test]
+    fn out_of_order_commit_interacts_with_asymmetric_embargo() {
+        let project = test_project();
+        let (a_id, b_id, c_id) = (
+            named_instance("A"),
+            named_instance("B"),
+            named_instance("C"),
+        );
+        let (mut a, mut b, mut c) = (
+            TxnNode::new(a_id.clone()),
+            TxnNode::new(b_id.clone()),
+            TxnNode::new(c_id.clone()),
+        );
+        a.serve_embargo_to(&b_id); // A→B only
+
+        // Long-running txn holding the embargoed row uncommitted.
+        let t_secret = a.begin();
+        let secret = a.insert(
+            t_secret,
+            InsertArgs {
+                origin_id: OriginId::new(),
+                project_id: &project,
+                slug: "secret",
+                payload: "",
+                embargoed: true,
+                kind: JournalKind::Entry,
+                previous_version: None,
+            },
+        );
+        let public = a.auto_insert(create_args(&project, "public", ""));
+
+        // Pulls prepared while secret is still in-flight.
+        b.apply_pull(b.prepare_pull_from(&a, &project));
+        c.apply_pull(c.prepare_pull_from(&a, &project));
+        assert!(b.has(&public) && c.has(&public));
+        assert!(!b.has(&secret) && !c.has(&secret), "secret still in-flight");
+
+        // Long txn commits; re-pull.  Watermark winds back, re-serves.
+        a.commit(t_secret);
+        b.replicate_from(&a, &project);
+        c.replicate_from(&a, &project);
+        assert!(b.has(&secret), "trusted peer receives secret post-commit");
+        assert!(!c.has(&secret), "untrusted peer never receives secret");
+    }
+
+    /// Three-hop replication (A→B→D) with an asymmetric trust path where
+    /// the relay (B) holds a secret the final hop (D) must not receive.
+    ///
+    /// Invariant: the `path` field reflects the actual replication route,
+    /// and embargo filtering applies per hop (B serves to D only what B
+    /// is configured to serve, regardless of what B itself received).
+    #[test]
+    fn multi_hop_path_respects_per_hop_embargo() {
+        let project = test_project();
+        let (a_id, b_id, d_id) = (
+            named_instance("A"),
+            named_instance("B"),
+            named_instance("D"),
+        );
+        let (mut a, mut b, mut d) = (
+            TxnNode::new(a_id.clone()),
+            TxnNode::new(b_id.clone()),
+            TxnNode::new(d_id.clone()),
+        );
+        a.serve_embargo_to(&b_id); // A trusts B; B does NOT trust D.
+
+        let secret = a.auto_insert(InsertArgs {
+            origin_id: OriginId::new(),
+            project_id: &project,
+            slug: "secret",
+            payload: "",
+            embargoed: true,
+            kind: JournalKind::Entry,
+            previous_version: None,
+        });
+        let public = a.auto_insert(create_args(&project, "public", ""));
+
+        b.replicate_from(&a, &project);
+        d.replicate_from(&b, &project);
+
+        assert!(b.has(&secret), "relay has secret via trust from A");
+        assert!(
+            !d.has(&secret),
+            "final hop lacks secret: relay doesn't trust it"
+        );
+        assert_eq!(
+            d.path_for(&public).unwrap(),
+            vec![a_id, b_id, d_id],
+            "path records every hop, not just origin+local",
+        );
+    }
+
+    /// Two projects share one writer.  Cursors are per-(upstream,project),
+    /// so pulling project P1 must not affect the reader's P2 cursor.
+    /// A cross-instance edit in one project must also not spill into the
+    /// other.
+    ///
+    /// Invariant: project boundary is a hard partition in the replication
+    /// stream — cursor progress, entry delivery, and `previous_version`
+    /// chains are all scoped to one project.
+    #[test]
+    fn cross_project_partition_holds_under_cross_instance_edit() {
+        let (p1, p2) = (test_project(), test_project());
+        let (a_id, b_id) = (named_instance("A"), named_instance("B"));
+        let (mut a, mut b) = (TxnNode::new(a_id.clone()), TxnNode::new(b_id.clone()));
+
+        let a_p1 = a.auto_insert(create_args(&p1, "a1", ""));
+        let _a_p2 = a.auto_insert(create_args(&p2, "a1", ""));
+
+        // Pull only P1.  B should know P1's cursor, not P2's.
+        b.replicate_from(&a, &p1);
+        assert!(b.has(&a_p1));
+
+        // B edits the P1 resource it just received.
+        let b_edit = b.auto_insert(InsertArgs {
+            origin_id: a_p1.origin_id.clone(),
+            project_id: &p1,
+            slug: "a1-edited",
+            payload: "edited",
+            embargoed: false,
+            kind: JournalKind::Entry,
+            previous_version: Some(a_p1.clone()),
+        });
+        assert_eq!(b_edit.origin_instance_id, b_id, "edit originates on B");
+        assert_eq!(
+            b_edit.origin_id, a_p1.origin_id,
+            "edit preserves the resource's origin_id across the rename/edit",
+        );
+
+        // Pulling P2 now still delivers A's P2 row (cursor wasn't advanced
+        // by the P1 pull).
+        let n = b.replicate_from(&a, &p2);
+        assert_eq!(n, 1, "P2 cursor is independent of P1");
+
+        // The P1 edit replicates back to A without touching P2.
+        let a_p2_count_before = a.entries_in_project(&p2).len();
+        a.replicate_from(&b, &p1);
+        assert!(a.has(&b_edit));
+        assert_eq!(
+            a.entries_in_project(&p2).len(),
+            a_p2_count_before,
+            "P1 replication did not spill into P2",
+        );
+    }
 }

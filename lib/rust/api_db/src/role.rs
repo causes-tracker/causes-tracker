@@ -1,7 +1,7 @@
 use anyhow::Context;
+use db_pool::{DbPool, QueryAccess};
 use uuid::Uuid;
 
-use crate::DbPool;
 use crate::admin::UserId;
 
 // ── Role ─────────────────────────────────────────────────────────────────

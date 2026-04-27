@@ -13,6 +13,22 @@ if [[ "${1:-}" == "--check" ]]; then
 	shift
 fi
 BAZEL_PACKAGE="${1:?bazel package path required}"
+shift
+
+# Parse --path-dep=NAME=BAZEL_PKG occurrences; each names an in-workspace
+# crate whose source must be staged so cargo can resolve `path = "..."`
+# deps from this crate's Cargo.toml.
+PATH_DEPS=()
+while [[ $# -gt 0 ]]; do
+	case "$1" in
+	--path-dep=*) PATH_DEPS+=("${1#--path-dep=}") ;;
+	*)
+		echo >&2 "unknown arg: $1"
+		exit 2
+		;;
+	esac
+	shift
+done
 
 # Standard Bazel 3-way runfiles init.
 if [[ -f "${RUNFILES_DIR:-/dev/null}/bazel_tools/tools/bash/runfiles/runfiles.bash" ]]; then
@@ -131,6 +147,17 @@ PYEOF
 	sync_dir "${PACKAGE_DIR}/src" "$ISOLATED/pkg/src"
 	sync_dir "${PACKAGE_DIR}/migrations" "$ISOLATED/pkg/migrations"
 	sync_dir "${PACKAGE_DIR}/.sqlx" "$ISOLATED/pkg/.sqlx"
+
+	# Stage path-dep crates as siblings of pkg/ so cargo can resolve
+	# `path = "../<name>"` from pkg/Cargo.toml.
+	local pd name bazel_pkg src_root
+	for pd in "${PATH_DEPS[@]}"; do
+		name="${pd%%=*}"
+		bazel_pkg="${pd#*=}"
+		src_root="${WORKSPACE_ROOT}/${bazel_pkg}"
+		sync_file "${src_root}/Cargo.toml" "$ISOLATED/${name}/Cargo.toml"
+		sync_dir "${src_root}/src" "$ISOLATED/${name}/src"
+	done
 
 	chmod -R u+w "$ISOLATED"
 }

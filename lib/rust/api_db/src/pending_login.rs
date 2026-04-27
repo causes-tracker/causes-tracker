@@ -1,7 +1,6 @@
 use anyhow::Context;
+use db_pool::{DbPool, QueryAccess};
 use uuid::Uuid;
-
-use crate::DbPool;
 
 // ── Newtypes ──────────────────────────────────────────────────────────────
 

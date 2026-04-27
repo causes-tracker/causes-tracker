@@ -10,6 +10,7 @@ rust_binary(
     deps = [
         "//lib/rust/api_db",
         "//lib/rust/causes_proto",
+        "//lib/rust/db_connect",
         "@crates//:anyhow",
         "@crates//:axum",
         "@crates//:clap",

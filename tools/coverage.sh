@@ -39,6 +39,10 @@ fi
 # Files excluded from the per-file coverage threshold.
 # "Hard to test" is NOT a valid reason — only exclude files where the code
 # is entirely constrained by the type system with no alternative implementations.
+#
+# Adding entries to this list requires explicit human approval. Automation
+# (or AI assistants) must not append entries unprompted; ask first, then
+# extract testable logic before reaching for the skip list.
 SKIP_FILES=(
 	"lib/rust/causes_proto/src/generated/causes.v1.rs" # machine-generated
 	"services/causes_api/src/store.rs"                 # trait delegation to api_db

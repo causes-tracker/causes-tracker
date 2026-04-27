@@ -1,8 +1,8 @@
 use anyhow::Context;
+use db_pool::{DbPool, QueryAccess};
 use sqlx::types::chrono;
 use uuid::Uuid;
 
-use crate::DbPool;
 use crate::admin::{DisplayName, Email, UserId};
 
 // ── Newtypes ──────────────────────────────────────────────────────────────

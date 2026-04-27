@@ -24,6 +24,9 @@ def sqlx_prepare(name, migrations, srcs, visibility = None):
       :{name}       — sh_binary: bazel run to regenerate .sqlx/ in the source tree
       :{name}_test  — sh_test:   fails if the committed .sqlx/ files are stale
 
+    Caches roughly 1 GiB per crate under ~/.cache/causes/sqlx-prepare-target/.
+    See tools/sqlx_prepare_impl.sh.
+
     Args:
       name:       base name (conventionally "sqlx_prepare")
       migrations: migration file labels — glob(["migrations/**"])

@@ -1,8 +1,23 @@
 too-many-arguments-threshold = 8
 type-complexity-threshold = 500
 
-# Transactions must go through DbPool::begin_txn so they always run at
-# REPEATABLE READ.  See designdocs/Replication.md for the rationale.
+# Project-wide DB-access guardrails.
 disallowed-methods = [
+  # Transactions must go through DbPool::begin_txn so they always run at
+  # REPEATABLE READ.  See designdocs/Replication.md for the rationale.
   { path = "sqlx::Pool::begin", reason = "call DbPool::begin_txn for REPEATABLE READ" },
+
+  # Runtime (non-bang) sqlx queries skip compile-time SQL/type checking.
+  # Use sqlx::query!, sqlx::query_as!, sqlx::query_scalar! instead — they
+  # validate the SQL against the schema and infer bind/result types.
+  # The only legitimate uses are runtime-built SQL (e.g. dynamic table
+  # names in test fixtures); annotate those with
+  # `#[allow(clippy::disallowed_methods)]` and a justifying comment.
+  { path = "sqlx::query", reason = "use sqlx::query! for compile-time SQL validation" },
+  { path = "sqlx::query_with", reason = "use sqlx::query! for compile-time SQL validation" },
+  { path = "sqlx::query_as", reason = "use sqlx::query_as! for compile-time SQL validation" },
+  { path = "sqlx::query_as_with", reason = "use sqlx::query_as! for compile-time SQL validation" },
+  { path = "sqlx::query_scalar", reason = "use sqlx::query_scalar! for compile-time SQL validation" },
+  { path = "sqlx::query_scalar_with", reason = "use sqlx::query_scalar! for compile-time SQL validation" },
+  { path = "sqlx::raw_sql", reason = "use sqlx::query! for compile-time SQL validation" },
 ]

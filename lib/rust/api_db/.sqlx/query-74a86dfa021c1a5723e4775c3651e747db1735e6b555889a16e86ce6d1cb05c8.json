@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO projects (id, name, visibility) VALUES ($1, $2, 'public')",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "74a86dfa021c1a5723e4775c3651e747db1735e6b555889a16e86ce6d1cb05c8"
+}

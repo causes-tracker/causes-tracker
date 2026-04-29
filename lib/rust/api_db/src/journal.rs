@@ -231,6 +231,44 @@ pub struct FederatedVersion {
     pub version: NonZeroU64,
 }
 
+impl FederatedVersion {
+    /// Parse three nullable transport-shaped columns into an optional
+    /// `FederatedVersion`, the inverse of how a federated reference is
+    /// stored on the wire (proto3 sub-message + scalar fields) and on
+    /// disk (three nullable columns guarded by an all-or-none CHECK).
+    ///
+    /// Enforces two invariants the boundary layers admit but the Rust
+    /// type forbids:
+    ///
+    /// 1. **All-or-none.**  Either all three inputs are `None` (no
+    ///    reference) or all three are `Some` (full reference).  A
+    ///    partial triple is rejected — the DB CHECK and the proto
+    ///    contract both reject it, and the Rust type cannot represent
+    ///    it once parsed.
+    /// 2. **Per-field validation.**  Even when the triple is
+    ///    structurally present, the contents must be valid: `InstanceId`
+    ///    and `OriginId` must be UUIDs and `version` must be a non-zero
+    ///    positive `i64`.  Proto3 scalars default to empty/zero, so a
+    ///    structurally-present sub-message can carry meaningless contents
+    ///    that the Rust type rejects.
+    pub fn parse_optional(
+        origin_instance_id: Option<String>,
+        origin_id: Option<String>,
+        version: Option<i64>,
+    ) -> anyhow::Result<Option<Self>> {
+        match (origin_instance_id, origin_id, version) {
+            (None, None, None) => Ok(None),
+            (Some(i), Some(id), Some(v)) => Ok(Some(Self {
+                origin_instance_id: InstanceId::from_raw(&i)?,
+                origin_id: OriginId::from_raw(&id)?,
+                version: NonZeroU64::new(v.try_into().context("version out of range")?)
+                    .context("version is zero")?,
+            })),
+            _ => anyhow::bail!("partial federated version triple"),
+        }
+    }
+}
+
 // ── JournalEntryHeader ───────────────────────────────────────────────────
 
 /// Immutable distributed identity and metadata for a single journal entry.
@@ -368,20 +406,12 @@ pub mod __private {
                 version: NonZeroU64::new(self.version.try_into().context("version out of range")?)
                     .context("version is zero")?,
             };
-            let previous_version = match (
+            let previous_version = FederatedVersion::parse_optional(
                 self.previous_origin_instance_id,
                 self.previous_origin_id,
                 self.previous_version,
-            ) {
-                (None, None, None) => None,
-                (Some(i), Some(id), Some(v)) => Some(FederatedVersion {
-                    origin_instance_id: InstanceId::from_raw(&i)?,
-                    origin_id: OriginId::from_raw(&id)?,
-                    version: NonZeroU64::new(v.try_into().context("prev version out of range")?)
-                        .context("previous_version is zero")?,
-                }),
-                _ => anyhow::bail!("partial previous_version triple"),
-            };
+            )
+            .context("parsing previous_version")?;
             let header = JournalEntryHeader {
                 kind: self.kind.parse()?,
                 at: self.at,
@@ -681,5 +711,103 @@ mod tests {
         assert!(NonEmpty::from_journal_text(String::new()).is_err());
         let ok = NonEmpty::from_journal_text("x".to_owned()).unwrap();
         assert_eq!(ok.as_journal_text(), "x");
+    }
+
+    // ── FederatedVersion::parse_optional ────────────────────────────────
+    //
+    // Cross-layer parallel to the DB-layer test
+    // `journal_create_table_supports_optional_resource_reference`.  At
+    // every layer the all-or-none invariant is the same contract:
+    //
+    // - Proto: optional sub-message `FederatedVersion` (partial-presence
+    //   unrepresentable on the wire), with proto3 scalars defaulting to
+    //   empty/zero — the Rust mapper still has to validate field contents.
+    // - DB: three nullable columns + all-or-none CHECK; column contents
+    //   are still typed only as TEXT/BIGINT — the Rust mapper still has
+    //   to parse UUIDs and reject zero versions.
+    // - Rust: `Option<FederatedVersion>` after parsing — partial and
+    //   invalid contents are unrepresentable, but only because the
+    //   parser rejected them at the boundary.
+
+    fn valid_uuid() -> String {
+        Uuid::new_v4().to_string()
+    }
+
+    #[test]
+    fn parse_optional_accepts_all_none() {
+        let r = FederatedVersion::parse_optional(None, None, None).unwrap();
+        assert!(r.is_none());
+    }
+
+    #[test]
+    fn parse_optional_accepts_full_valid_triple() {
+        let i = valid_uuid();
+        let id = valid_uuid();
+        let r = FederatedVersion::parse_optional(Some(i.clone()), Some(id.clone()), Some(42))
+            .unwrap()
+            .expect("should be Some");
+        assert_eq!(r.origin_instance_id.as_str(), i);
+        assert_eq!(r.origin_id.as_str(), id);
+        assert_eq!(r.version.get(), 42);
+    }
+
+    #[test]
+    fn parse_optional_rejects_each_partial_shape() {
+        // Six partial shapes (every non-all-None, non-all-Some combination).
+        let i = || Some(valid_uuid());
+        let id = || Some(valid_uuid());
+        let v = || Some(7_i64);
+        let cases: [(Option<String>, Option<String>, Option<i64>); 6] = [
+            (i(), None, None),
+            (None, id(), None),
+            (None, None, v()),
+            (i(), id(), None),
+            (i(), None, v()),
+            (None, id(), v()),
+        ];
+        for (a, b, c) in cases {
+            assert!(
+                FederatedVersion::parse_optional(a, b, c).is_err(),
+                "partial triple should be rejected",
+            );
+        }
+    }
+
+    #[test]
+    fn parse_optional_rejects_invalid_uuid() {
+        // The CHECK admits non-NULL values of any text content; the parser
+        // is the layer that rejects malformed UUIDs.
+        assert!(
+            FederatedVersion::parse_optional(
+                Some("not-a-uuid".to_owned()),
+                Some(valid_uuid()),
+                Some(7),
+            )
+            .is_err()
+        );
+        assert!(
+            FederatedVersion::parse_optional(
+                Some(valid_uuid()),
+                Some("not-a-uuid".to_owned()),
+                Some(7),
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn parse_optional_rejects_zero_or_negative_version() {
+        // Proto3 default for int64 is 0; the parser rejects it because
+        // version 0 is reserved as the previous_version root sentinel.
+        assert!(
+            FederatedVersion::parse_optional(Some(valid_uuid()), Some(valid_uuid()), Some(0))
+                .is_err()
+        );
+        // The DB column is BIGINT (signed) so a negative value is
+        // representable in the transport layer; the parser rejects it.
+        assert!(
+            FederatedVersion::parse_optional(Some(valid_uuid()), Some(valid_uuid()), Some(-1))
+                .is_err()
+        );
     }
 }

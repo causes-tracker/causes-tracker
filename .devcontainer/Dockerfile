@@ -11,7 +11,7 @@ RUN apt-get update \
 
 # Install Bazelisk as `bazel` — reads .bazelversion to pick the right Bazel version.
 # Pin the Bazelisk version; update when a new release is available.
-ARG BAZELISK_VERSION=1.28.1
+ARG BAZELISK_VERSION=1.29.0
 RUN curl -fsSL \
       "https://github.com/bazelbuild/bazelisk/releases/download/v${BAZELISK_VERSION}/bazelisk-linux-amd64" \
       -o /usr/local/bin/bazel \

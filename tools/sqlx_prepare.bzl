@@ -15,7 +15,13 @@ _TOOL_DATA = [
     "@rust_host_tools//:sysroot_path.txt",
 ]
 
-def sqlx_prepare(name, migrations, srcs, path_deps = None, visibility = None):
+def sqlx_prepare(
+        name,
+        migrations,
+        srcs,
+        test_migrations = None,
+        path_deps = None,
+        visibility = None):
     """Generates sqlx offline query-metadata targets for a Rust crate.
 
     Run from the calling package's directory so that sqlx writes .sqlx/ there.
@@ -28,18 +34,23 @@ def sqlx_prepare(name, migrations, srcs, path_deps = None, visibility = None):
     See tools/sqlx_prepare_impl.sh.
 
     Args:
-      name:       base name (conventionally "sqlx_prepare")
-      migrations: migration file labels — glob(["migrations/**"])
-      srcs:       source + .sqlx labels for the check test —
-                  glob(["src/**/*.rs"]) + glob([".sqlx/**"])
-      path_deps:  bazel labels of in-workspace crates this crate depends on
-                  via path. Each must expose an `:all_srcs` filegroup. The
-                  impl script stages them next to the prepared crate so
-                  cargo can resolve the path-deps inside the isolated
-                  workspace.
-      visibility: optional visibility for the sh_binary update target
+      name:            base name (conventionally "sqlx_prepare")
+      migrations:      migration file labels — glob(["migrations/**"])
+      srcs:            source + .sqlx labels for the check test —
+                       glob(["src/**/*.rs"]) + glob([".sqlx/**"])
+      test_migrations: optional test-only migration labels —
+                       glob(["migrations-test/**"]). Applied after
+                       `migrations` with `--ignore-missing` so tests can
+                       reference tables that production never sees.
+      path_deps:       bazel labels of in-workspace crates this crate
+                       depends on via path. Each must expose an
+                       `:all_srcs` filegroup. The impl script stages them
+                       next to the prepared crate so cargo can resolve
+                       the path-deps inside the isolated workspace.
+      visibility:      optional visibility for the sh_binary update target
     """
     pkg = native.package_name()
+    test_migrations = test_migrations or []
     path_deps = path_deps or []
 
     extra_data = []
@@ -55,7 +66,7 @@ def sqlx_prepare(name, migrations, srcs, path_deps = None, visibility = None):
         name = name,
         srcs = [_IMPL],
         args = [pkg] + extra_args,
-        data = _TOOL_DATA + migrations + extra_data,
+        data = _TOOL_DATA + migrations + test_migrations + extra_data,
         visibility = visibility,
     )
 
@@ -63,7 +74,7 @@ def sqlx_prepare(name, migrations, srcs, path_deps = None, visibility = None):
         name = name + "_test",
         srcs = [_IMPL],
         args = ["--check", pkg] + extra_args,
-        data = _TOOL_DATA + migrations + srcs + extra_data + [
+        data = _TOOL_DATA + migrations + test_migrations + srcs + extra_data + [
             "//:Cargo.toml",
             "//:Cargo.lock",
             ":Cargo.toml",

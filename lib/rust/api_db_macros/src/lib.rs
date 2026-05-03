@@ -210,6 +210,7 @@ fn expand(spec: JournalTableSpec) -> TokenStream2 {
             after_cursor: ::std::option::Option<::api_db::journal::LocalTxnId>,
         ) -> ::anyhow::Result<::std::vec::Vec<::api_db::journal::JournalStoredEntry<#rust>>> {
             use ::anyhow::Context as _;
+            use ::db_pool::QueryAccess as _;
             // Real txids are ≥ 3; sentinel of 0 matches every row.
             let cursor_i64 = after_cursor.map(|c| c.as_i64()).unwrap_or(0);
             let rows = ::sqlx::query!(

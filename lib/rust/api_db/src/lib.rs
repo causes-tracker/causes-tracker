@@ -7,6 +7,8 @@ mod db;
 pub mod journal;
 mod pending_login;
 mod project;
+#[cfg(test)]
+mod replication_example;
 mod role;
 mod session;
 #[cfg(test)]

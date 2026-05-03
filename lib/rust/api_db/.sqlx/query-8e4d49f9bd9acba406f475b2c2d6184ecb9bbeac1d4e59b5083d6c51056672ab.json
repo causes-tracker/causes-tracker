@@ -1,0 +1,119 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT origin_instance_id, origin_id, version, previous_origin_instance_id, previous_origin_id, previous_version, kind, at, author_instance_id, author_local_id, embargoed, slug, project_id, created_at, payload, local_version, watermark FROM replication_example_journal WHERE project_id = $1 AND local_version >= $2 ORDER BY local_version",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "origin_instance_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "origin_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "version",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "previous_origin_instance_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "previous_origin_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "previous_version",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 6,
+        "name": "kind",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 8,
+        "name": "author_instance_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 9,
+        "name": "author_local_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 10,
+        "name": "embargoed",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 11,
+        "name": "slug",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 12,
+        "name": "project_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 13,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 14,
+        "name": "payload",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 15,
+        "name": "local_version",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 16,
+        "name": "watermark",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "8e4d49f9bd9acba406f475b2c2d6184ecb9bbeac1d4e59b5083d6c51056672ab"
+}

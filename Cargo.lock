@@ -87,14 +87,8 @@ name = "api_db"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "db_pool",
  "api_db_macros",
- "arc-swap",
- "aws-config",
- "aws-credential-types",
- "aws-sdk-rds",
- "aws-smithy-async",
- "aws-types",
+ "db_pool",
  "email_address",
  "futures",
  "sqlx",

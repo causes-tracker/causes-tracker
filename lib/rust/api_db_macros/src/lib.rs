@@ -170,7 +170,7 @@ fn expand(spec: JournalTableSpec) -> TokenStream2 {
             entry: &#rust,
         ) -> ::anyhow::Result<()> {
             use ::anyhow::Context as _;
-            let m = ::api_db::journal::JournalMetaParams::from_entry(
+            let m = ::api_db::journal::__private::JournalMetaParams::from_entry(
                 &entry.header,
                 &entry.meta,
             )?;
@@ -233,7 +233,7 @@ fn expand(spec: JournalTableSpec) -> TokenStream2 {
                             ::api_db::UserId::from_raw(&r.author_local_id)?,
                         ),
                     };
-                    let meta_row = ::api_db::journal::JournalMetaRow {
+                    let meta_row = ::api_db::journal::__private::JournalMetaRow {
                         origin_instance_id: r.origin_instance_id,
                         origin_id: r.origin_id,
                         version: r.version,

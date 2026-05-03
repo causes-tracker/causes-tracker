@@ -15,3 +15,8 @@ url.workspace = true
 email_address.workspace = true
 tracing.workspace = true
 tokio.workspace = true
+
+[dev-dependencies]
+aws-credential-types.workspace = true
+aws-smithy-async.workspace = true
+rand.workspace = true

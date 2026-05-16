@@ -19,16 +19,33 @@ MIN_PCT=25
 # unchanged, so the cache says green while CI would fail. The test suite /
 # CI is authoritative; this cache is a local turn-end optimization only.
 #
+# Empty @: every empty working copy hashes to the same key regardless of
+# parent, so caching against an empty diff would alias unrelated states.
+# Handling: walk up single-parent ancestors until a non-empty change is
+# found, and key on that. If we hit a merge (multiple parents) or run out
+# of ancestors with the diff still empty, error — there is no unambiguous
+# patch to verify.
+#
 # Cache lives in .coverage-green/ (gitignored), one file per key. A
 # conflicted working copy is never cached.
 GREEN_CACHE_DIR=".coverage-green"
 CACHE_KEY=""
 if jj_conflicts="$(jj log -r '@ & conflicts()' --no-graph -T commit_id 2>/dev/null)" &&
-	[[ -z "$jj_conflicts" ]] &&
-	diff_hash="$(jj diff --git -r @ 2>/dev/null |
+	[[ -z "$jj_conflicts" ]]; then
+	target="@"
+	while [[ -z "$(jj diff -r "$target" --summary 2>/dev/null)" ]]; do
+		parent_ids="$(jj log -r "$target-" --no-graph -T 'commit_id ++ "\n"' 2>/dev/null)"
+		parent_count=$(printf '%s' "$parent_ids" | grep -c . || true)
+		if [[ "$parent_count" -ne 1 ]]; then
+			echo "error: $target has empty diff and $parent_count parent(s); cannot determine what to verify" >&2
+			exit 1
+		fi
+		target="${target}-"
+	done
+	diff_hash="$(jj diff --git -r "$target" 2>/dev/null |
 		sed -E -e '/^index [0-9a-f]+\.\.[0-9a-f]+/d' \
 			-e 's/^@@ -[0-9,]+ \+[0-9,]+ @@/@@/' |
-		sha256sum | awk '{print $1}')"; then
+		sha256sum | awk '{print $1}')"
 	CACHE_KEY="$(printf '%s\t%s' "$diff_hash" "$*" | sha256sum | awk '{print $1}')"
 fi
 if [[ -n "$CACHE_KEY" && -f "$GREEN_CACHE_DIR/$CACHE_KEY" ]]; then

@@ -17,6 +17,7 @@ on:
       - "**/Cargo.toml"
       - "infra/**/*.tf"
       - "infra/**/.terraform.lock.hcl"
+      - "**/pnpm-lock.yaml"
 permissions:
   contents: write
 jobs:
@@ -33,7 +34,20 @@ jobs:
           bazelisk-cache: true
           disk-cache: ${{ github.workflow }}
           repository-cache: true
-      - name: Regenerate MODULE.bazel.lock
+      - name: Sync use_repo declarations + MODULE.bazel.lock
+        # rules_js and similar extensions encode version strings in their
+        # generated repo names (e.g. npm__at_devcontainers_cli__0.86.1).
+        # When Renovate bumps the underlying lockfile, the extension output
+        # changes name but MODULE.bazel's use_repo line still references the
+        # old name, which would break `bazel mod deps --lockfile_mode=update`
+        # before it ever reached the lockfile. `mod tidy` rewrites use_repo
+        # to match what the extensions actually produce and refreshes the
+        # lockfile in the same pass.
+        run: bazel mod tidy
+      - name: Refresh MODULE.bazel.lock (belt and braces)
+        # Redundant after `mod tidy` in the common case, but explicit so a
+        # future Bazel version that changes mod tidy's lockfile behaviour
+        # doesn't silently leave the lockfile stale.
         run: bazel mod deps --lockfile_mode=update
       - name: Regenerate infra/terraform/.terraform.lock.hcl
         run: bazel run //infra:tofu -- infra/terraform providers lock -platform=linux_amd64
@@ -43,7 +57,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add MODULE.bazel.lock \
+          git add MODULE.bazel MODULE.bazel.lock \
             infra/terraform/.terraform.lock.hcl \
             infra/github/.terraform.lock.hcl
           git diff --cached --quiet && exit 0

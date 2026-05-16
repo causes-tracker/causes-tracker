@@ -32,6 +32,16 @@ pub struct BazelStats {
     pub critical_path_seconds: f64,
 }
 
+impl BazelStats {
+    pub fn cache_hit_rate(&self) -> Option<f64> {
+        if self.actions_total == 0 {
+            return None;
+        }
+        let hits = self.local_cache_hits + self.remote_cache_hits;
+        Some(hits as f64 / self.actions_total as f64)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RunMetrics {
     pub run_id: RunId,

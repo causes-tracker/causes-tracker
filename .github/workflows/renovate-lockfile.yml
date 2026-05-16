@@ -11,7 +11,9 @@ on:
   push:
     branches: ["renovate/**"]
     paths:
+      - ".bazelversion"
       - "MODULE.bazel"
+      - "MODULE.bazel.lock"
       - "Cargo.lock"
       - "Cargo.toml"
       - "**/Cargo.toml"

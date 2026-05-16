@@ -18,6 +18,8 @@ on:
       - "infra/**/*.tf"
       - "infra/**/.terraform.lock.hcl"
       - "**/pnpm-lock.yaml"
+      - "requirements.in"
+      - "requirements_lock.txt"
 permissions:
   contents: write
 jobs:
@@ -49,6 +51,14 @@ jobs:
         # future Bazel version that changes mod tidy's lockfile behaviour
         # doesn't silently leave the lockfile stale.
         run: bazel mod deps --lockfile_mode=update
+      - name: Regenerate requirements_lock.txt
+        # Renovate's Python lockfile update only patches the bumped package's
+        # hashes; it does not re-run pip-compile, so a release that adds a
+        # transitive dependency (e.g. zensical 0.0.41 picking up jinja2) lands
+        # with an incomplete lockfile and the build fails with
+        # ModuleNotFoundError.  bazel run //:requirements.update resolves the
+        # full graph from requirements.in and writes the updated lockfile.
+        run: bazel run //:requirements.update
       - name: Regenerate infra/terraform/.terraform.lock.hcl
         run: bazel run //infra:tofu -- infra/terraform providers lock -platform=linux_amd64
       - name: Regenerate infra/github/.terraform.lock.hcl
@@ -58,6 +68,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add MODULE.bazel MODULE.bazel.lock \
+            requirements_lock.txt \
             infra/terraform/.terraform.lock.hcl \
             infra/github/.terraform.lock.hcl
           git diff --cached --quiet && exit 0

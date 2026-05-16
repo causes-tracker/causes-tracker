@@ -5,6 +5,7 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+api_db_macros = { path = "../api_db_macros" }
 db_pool = { path = "../db_pool" }
 sqlx.workspace = true
 futures.workspace = true

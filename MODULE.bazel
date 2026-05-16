@@ -230,8 +230,4 @@ npm.npm_translate_lock(
     ],
     pnpm_lock = "//.devcontainer:pnpm-lock.yaml",
 )
-use_repo(
-    npm,
-    "npm",
-    "npm__at_devcontainers_cli__0.84.1",
-)
+use_repo(npm, "npm")

@@ -7,6 +7,9 @@
   "automerge": true,
   "platformAutomerge": true,
   "automergeStrategy": "merge",
+  "gitIgnoredAuthors": [
+    "41898282+github-actions[bot]@users.noreply.github.com"
+  ],
   "osvVulnerabilityAlerts": true,
   "vulnerabilityAlerts": {
     "minimumReleaseAge": "0 days"

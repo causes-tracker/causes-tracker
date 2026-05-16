@@ -78,6 +78,63 @@ pub fn classify(current: &RunMetrics, baseline: &Baseline, thresholds: PrThresho
     }
 }
 
+/// Marker embedded in the rendered PR comment so the pr-comment
+/// subcommand can find and update its own previous comments instead of
+/// stacking.
+pub const COMMENT_MARKER: &str = "<!-- ci-health-bot -->";
+
+pub fn render_pr_comment(current: &RunMetrics, baseline: &Baseline, verdict: &Verdict) -> String {
+    let reasons = match verdict {
+        Verdict::Ok => return String::new(),
+        Verdict::Regressed { reasons } => reasons,
+    };
+    let hit_rate = current
+        .bazel
+        .cache_hit_rate()
+        .map(|r| format!("{:.1}%", r * 100.0))
+        .unwrap_or_else(|| "n/a".into());
+    let mut out = String::new();
+    out.push_str(COMMENT_MARKER);
+    out.push('\n');
+    out.push_str("**CI health regression detected**\n\n");
+    for r in reasons {
+        out.push_str(&format!("- {r}\n"));
+    }
+    out.push_str("\n<details><summary>This run vs baseline</summary>\n\n");
+    out.push_str(&format!(
+        "| metric | this run | baseline median (n={}) |\n",
+        baseline.sample_count
+    ));
+    out.push_str("|---|---|---|\n");
+    out.push_str(&format!(
+        "| job wall time | {:.0}s | {:.0}s |\n",
+        current.timings.job_wall_seconds, baseline.median_job_wall_seconds
+    ));
+    out.push_str(&format!(
+        "| cache restore | {:.0}s | — |\n",
+        current.timings.cache_restore_seconds
+    ));
+    out.push_str(&format!(
+        "| cache save | {:.0}s | — |\n",
+        current.timings.cache_save_seconds
+    ));
+    out.push_str(&format!(
+        "| bazel | {:.0}s | — |\n",
+        current.timings.bazel_invocation_seconds
+    ));
+    out.push_str(&format!(
+        "| bazel cache hit rate | {} | {:.1}% |\n",
+        hit_rate,
+        baseline.median_cache_hit_rate * 100.0
+    ));
+    out.push_str(&format!(
+        "| remote bytes downloaded | {} | — |\n",
+        current.bazel.remote_bytes_downloaded
+    ));
+    out.push_str("\n</details>\n");
+    out
+}
+
 pub fn load_baseline_dir(dir: &Path) -> Result<Vec<RunMetrics>> {
     let mut runs = Vec::new();
     let entries = std::fs::read_dir(dir).with_context(|| format!("read_dir {}", dir.display()))?;
@@ -188,5 +245,24 @@ mod tests {
             panic!("expected regression");
         };
         assert!(reasons.iter().any(|r| r.contains("cache hit rate")));
+    }
+
+    #[test]
+    fn rendered_comment_contains_marker_and_table() {
+        let baseline = Baseline::from_runs(&[run(180.0, 900, 1000)]);
+        let current = run(300.0, 600, 1000);
+        let v = classify(&current, &baseline, pr_thresholds());
+        let md = render_pr_comment(&current, &baseline, &v);
+        assert!(md.starts_with(COMMENT_MARKER));
+        assert!(md.contains("CI health regression detected"));
+        assert!(md.contains("this run"));
+    }
+
+    #[test]
+    fn rendered_comment_empty_when_ok() {
+        let baseline = Baseline::from_runs(&[run(180.0, 900, 1000)]);
+        let current = run(190.0, 920, 1000);
+        let v = classify(&current, &baseline, pr_thresholds());
+        assert_eq!(render_pr_comment(&current, &baseline, &v), "");
     }
 }

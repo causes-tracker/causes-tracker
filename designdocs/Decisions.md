@@ -283,6 +283,7 @@ This means every token in the system — human or service — is issued and mana
 No token copying is required; services self-register by initiating a device flow and an admin approves via CLI or web UI.
 
 Provisioning flow:
+
 1. The service starts and calls the instance's device authorization endpoint, presenting a service name and description.
 2. The instance returns a `user_code` and `verification_uri` pointing to the instance's own approval interface.
 3. The service logs these to stdout (e.g. `Visit http://instance/device and enter code XXXX-YYYY to authorise this service`).
@@ -344,6 +345,7 @@ If the remote instance is unreachable, previously stored display names remain av
 
 _Provenance:_
 Every journal entry carries provenance:
+
 - `origin_instance_id`: the `instance_id` of the instance that wrote this entry.
 - `origin_id`: a stable UUID identifying the resource this entry is about.
 
@@ -358,6 +360,7 @@ Trust flows from the authenticated service account of the upstream, not from the
 _Resource journal:_
 Every resource (sign, symptom, plan, and related entities) has an append-only journal of entries.
 Each journal entry records:
+
 - `version`: monotone sequence number, assigned at commit time on the writing instance.
 - `at`: timestamp.
 - `by`: federated identity `(instance_id, local_user_id)` of the author.
@@ -383,11 +386,13 @@ _Open: key rotation after upstream compromise, revocation of federation trust._
 Signs, symptoms, and plans may be marked embargoed at creation time by any authenticated user, or promoted to embargoed by a security-team member after the fact.
 
 Embargoed content:
+
 - Is not federated to any downstream instance, regardless of federation configuration.
 - Is not visible to users without the security-team or project-maintainer role.
 - Does not appear in search results, feeds, notifications, or public API responses.
 
 Embargo lifecycle:
+
 1. Reporter marks content embargoed (or a security-team member does so after the fact).
 2. Security team triages and investigates; embargoed plans are created linked to the embargoed symptom.
 3. Fix is developed. The plan may reference a private branch or external patch tracker.
@@ -403,6 +408,7 @@ Causes stores display names, email addresses (from IdP tokens), user-generated c
 The GitHub connector imports data from GitHub's API that may include email addresses and real names.
 
 The software must:
+
 - Not expose email addresses in general API responses; email addresses are stored for authentication and visible only in explicit admin views.
 - Support account deletion: personal data is removed and user-generated content is deleted or reassigned to an anonymous placeholder.
   Content already federated to downstream instances cannot be guaranteed erased there; the software must surface this caveat to the user at deletion time.
@@ -513,6 +519,7 @@ Each wrapper contains a single field carrying the underlying value (e.g. `string
 The wrapper type name documents the constraint and prevents cross-domain assignment at compile time.
 
 Examples:
+
 - `SignId`, `PlanId`, `UserId` and every other identifier field: a field typed `SignId` cannot accidentally receive a `PlanId`.
   All identifier values must conform to the URL-safe alphabet: ASCII letters (A-Z, a-z), digits (0-9), hyphens (-), and underscores (_).
   This ensures any ID can appear literally in a URL path segment without percent-encoding.

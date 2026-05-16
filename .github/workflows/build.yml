@@ -40,16 +40,24 @@ jobs:
       - name: Collect Bazel test logs (on failure)
         if: failure()
         # Bazel writes per-test stdout/stderr to bazel-testlogs/<target>/test.log.
-        # The workflow log only surfaces the FAIL summary, so without this the
-        # only place to read the failure is the BuildBuddy UI. Copy the tree
-        # into a plain directory so the upload step doesn't have to chase the
-        # bazel-out symlink chain.
+        # `--test_output=errors` (in .bazelrc test:ci) inlines failures in the
+        # workflow log; this artifact captures the full tree for cases where
+        # the inlined output is truncated or where we want passing-test logs.
+        # No -e: keep every diagnostic line running even if a sibling errors,
+        # so a future regression here is debuggable from the run log.
         run: |
-          set -euo pipefail
-          bazel_testlogs="$(bazel info bazel-testlogs 2>/dev/null || true)"
-          if [[ -n "$bazel_testlogs" && -d "$bazel_testlogs" ]]; then
+          set -uo pipefail
+          echo "::group::bazel info + workspace state"
+          ls -la bazel-* 2>&1 || true
+          bazel info bazel-testlogs 2>&1 || true
+          echo "::endgroup::"
+          bazel_testlogs="$(bazel info bazel-testlogs 2>/dev/null)" || bazel_testlogs=""
+          if [[ -d "$bazel_testlogs" ]]; then
             mkdir -p test-logs
             cp -RL "$bazel_testlogs/." test-logs/
+            echo "Captured $(find test-logs -type f | wc -l) test log file(s)"
+          else
+            echo "bazel-testlogs not resolvable to a directory; skipping copy"
           fi
       - name: Upload Bazel test logs artifact (on failure)
         if: failure()

@@ -24,6 +24,10 @@ build:ci --bes_results_url=https://app.buildbuddy.io/invocation/
 # Renovate PRs; for human PRs that add deps, run
 # `bazel mod deps --lockfile_mode=update` locally and commit the result.
 build:ci --lockfile_mode=error
+# Surface failing tests' stderr/stdout inline in the workflow log so failures
+# can be diagnosed from `gh run view --log-failed` without needing to chase
+# bazel-testlogs/<target>/test.log on the runner or in BuildBuddy.
+test:ci --test_output=errors
 
 # Rust: use the experimental platform so the toolchain glibc constraint is satisfied.
 # Without this, rules_rs toolchains (which embed gnu.2.28) cannot match the default

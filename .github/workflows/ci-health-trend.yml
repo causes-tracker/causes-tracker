@@ -1,0 +1,30 @@
+name: ci-health-trend
+# Runs the ci_health trend analyzer once a day. It pulls the trailing
+# and prior 7-day windows of master ci-metrics artifacts, computes the
+# regression verdict, and opens / updates / closes a single tracking
+# issue titled "CI health trend". Driven by //tools/ci_health.
+on:
+  schedule:
+    - cron: '0 12 * * *'  # 12:00 UTC
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+  actions: read
+jobs:
+  trend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - name: Remove deprecated gold linker
+        run: sudo rm -f /usr/bin/x86_64-linux-gnu-ld.gold /usr/bin/ld.gold
+      - name: Install Bazelisk
+        uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86  # 0.19.0
+        with:
+          bazelisk-cache: true
+          disk-cache: ${{ github.workflow }}
+          repository-cache: true
+      - name: Run trend analyzer
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bazel run //tools/ci_health -- trend --window-days 7

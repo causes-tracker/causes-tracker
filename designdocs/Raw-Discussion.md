@@ -137,6 +137,7 @@ Track everyone's priorities
 Perhaps then we should explicitly track everyone's priorities and present an aggregate?
 
 Interesting actors in a bug report
+
 * a user
 * some users
 * a volunteer

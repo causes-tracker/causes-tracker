@@ -7,6 +7,14 @@
 # check  mode (bazel test): starts hermetic postgres, fails if .sqlx/ is stale
 set -euo pipefail
 
+# Suppress LLVM profraw output from instrumented binaries (rustc/cargo we
+# invoke for `cargo metadata` and the sqlx-cli check).  Under `bazel coverage`
+# these would land in COVERAGE_DIR; Bazel's collect_cc_coverage.sh then tries
+# to invoke LLVM_PROFDATA, which isn't set for sh_test targets and trips
+# Bazel 9.1.0's `set -u` ("LLVM_PROFDATA: unbound variable").  sqlx prepare
+# has no coverage to collect — it's a metadata-check workflow.
+export LLVM_PROFILE_FILE=/dev/null
+
 CHECK=false
 if [[ "${1:-}" == "--check" ]]; then
 	CHECK=true

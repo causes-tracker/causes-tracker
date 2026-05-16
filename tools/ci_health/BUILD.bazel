@@ -1,0 +1,29 @@
+load("//build:rust.bzl", "rust_binary", "rust_test")
+load("//tools/lint:format_check.bzl", "format_srcs")
+
+rust_binary(
+    name = "ci_health",
+    srcs = glob(["src/**/*.rs"]),
+    visibility = ["//visibility:public"],
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:chrono",
+        "@crates//:clap",
+        "@crates//:octocrab",
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:tokio",
+    ],
+)
+
+rust_test(
+    name = "ci_health_test",
+    crate = ":ci_health",
+    deps = [
+        "@crates//:rustls",
+        "@crates//:tokio",
+        "@crates//:wiremock",
+    ],
+)
+
+format_srcs()

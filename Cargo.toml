@@ -10,6 +10,7 @@ members = [
   "lib/rust/proto_ext",
   "services/causes_api",
   "services/causes_cli",
+  "tools/ci_health",
   "tools/proto-gen",
   "tools/sqlx-cli",
 ]
@@ -74,6 +75,12 @@ tempfile = "3"
 rcgen = "0.14"
 wiremock = "0.6"
 arc-swap = "1"
+chrono = { version = "0.4", default-features = false, features = [
+  "std",
+  "serde",
+  "clock",
+] }
+octocrab = "0.47"
 aws-config = { version = "1", features = ["behavior-version-latest"] }
 aws-credential-types = "1"
 aws-sdk-rds = "1"

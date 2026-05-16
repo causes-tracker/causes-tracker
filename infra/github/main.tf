@@ -29,10 +29,12 @@ resource "github_repository" "causes" {
 
   delete_branch_on_merge = true
 
-  allow_merge_commit = true
-  allow_squash_merge = false
-  allow_rebase_merge = false
-  allow_auto_merge   = true
+  allow_merge_commit   = true
+  allow_squash_merge   = false
+  allow_rebase_merge   = false
+  allow_auto_merge     = true
+  merge_commit_title   = "PR_TITLE"
+  merge_commit_message = "BLANK"
 
   vulnerability_alerts = true
 

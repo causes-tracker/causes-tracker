@@ -13,6 +13,7 @@
 
 use crate::metrics::RunMetrics;
 use anyhow::{Context, Result};
+use chrono::{DateTime, Utc};
 use octocrab::Octocrab;
 use octocrab::models::{ArtifactId, RunId};
 use octocrab::params::actions::ArchiveFormat;
@@ -55,17 +56,31 @@ impl ArtifactClient {
     /// Filtering on branch happens client-side because GitHub's artifact
     /// endpoint has no server-side filter on branch + name.
     pub async fn fetch_baseline_runs(&self, branch: &str, take: usize) -> Result<Vec<RunMetrics>> {
-        let route = format!(
-            "/repos/{}/{}/actions/artifacts?per_page=100",
-            self.owner, self.repo
-        );
-        let listing: ArtifactList = self
-            .octo
-            .get(&route, None::<&()>)
-            .await
-            .context("list repo artifacts")?;
+        self.fetch_runs(branch, take, None).await
+    }
+
+    /// Pull every metrics artifact for `branch` created on or after
+    /// `since`. Used by the trend subcommand to assemble a time-windowed
+    /// view; `take` caps the work in case the prefix is noisier than
+    /// expected.
+    pub async fn fetch_runs_since(
+        &self,
+        branch: &str,
+        since: DateTime<Utc>,
+        take: usize,
+    ) -> Result<Vec<RunMetrics>> {
+        self.fetch_runs(branch, take, Some(since)).await
+    }
+
+    async fn fetch_runs(
+        &self,
+        branch: &str,
+        take: usize,
+        since: Option<DateTime<Utc>>,
+    ) -> Result<Vec<RunMetrics>> {
+        let artifacts = self.list_recent_artifacts().await?;
         let mut runs = Vec::new();
-        for a in listing.artifacts {
+        for a in artifacts {
             if runs.len() >= take {
                 break;
             }
@@ -76,14 +91,32 @@ impl ArtifactClient {
             if wr.head_branch.as_deref() != Some(branch) {
                 continue;
             }
+            if let Some(cutoff) = since {
+                if a.created_at.map(|t| t < cutoff).unwrap_or(true) {
+                    continue;
+                }
+            }
             match self.download_and_extract(a.id).await {
                 Ok(run) => runs.push(run),
                 // A single corrupted/missing artifact must not poison
-                // the whole baseline computation.
+                // the whole computation.
                 Err(e) => eprintln!("ci_health: skipping artifact {}: {e:#}", a.id),
             }
         }
         Ok(runs)
+    }
+
+    async fn list_recent_artifacts(&self) -> Result<Vec<Artifact>> {
+        let route = format!(
+            "/repos/{}/{}/actions/artifacts?per_page=100",
+            self.owner, self.repo
+        );
+        let listing: ArtifactList = self
+            .octo
+            .get(&route, None::<&()>)
+            .await
+            .context("list repo artifacts")?;
+        Ok(listing.artifacts)
     }
 
     /// Fetch the metrics artifact for a specific workflow run, if one
@@ -129,6 +162,8 @@ struct ArtifactList {
 struct Artifact {
     id: ArtifactId,
     name: String,
+    #[serde(default)]
+    created_at: Option<DateTime<Utc>>,
     workflow_run: Option<ArtifactWorkflowRun>,
 }
 

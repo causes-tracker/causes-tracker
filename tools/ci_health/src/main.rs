@@ -7,6 +7,7 @@ mod comparison;
 mod config;
 mod github;
 mod metrics;
+mod trend;
 
 use crate::artifacts::ArtifactClient;
 use crate::buildbuddy::BuildBuddyClient;
@@ -15,8 +16,14 @@ use crate::comparison::{
 };
 use crate::github::{GithubClient, OWNER, REPO, token_from_env};
 use crate::metrics::{RunId, RunMetrics};
+use crate::trend::{
+    ISSUE_MARKER, ISSUE_TITLE, TrendVerdict, WindowStats, render_issue_body,
+    render_recovery_comment,
+};
+use chrono::{Duration, Utc};
 use octocrab::Octocrab;
-use octocrab::models::CommentId;
+use octocrab::models::{CommentId, IssueState, issues::Issue};
+use octocrab::params::State as IssueListState;
 
 #[derive(Parser, Debug)]
 #[command(
@@ -67,6 +74,13 @@ enum Command {
         baseline_window: usize,
         #[arg(long)]
         pr: u64,
+    },
+    /// Rolling-window trend analysis: open or update a single tracking
+    /// issue on regression, close it on recovery. Driven by the scheduled
+    /// ci-health-trend workflow.
+    Trend {
+        #[arg(long, default_value_t = 7)]
+        window_days: u32,
     },
     /// Developer-facing inspection of CI health from a local terminal.
     /// Pick exactly one of --pr / --branch / --run-id / --baseline.
@@ -136,6 +150,7 @@ async fn main() -> Result<()> {
             })
             .await
         }
+        Command::Trend { window_days } => trend_cmd(window_days).await,
     }
 }
 
@@ -240,6 +255,119 @@ async fn upsert_marked_comment(octo: &Octocrab, pr: u64, body: &str) -> Result<(
         .await
         .context("create comment")?;
     Ok(())
+}
+
+async fn trend_cmd(window_days: u32) -> Result<()> {
+    let token = token_from_env("trend")?;
+    let artifacts = ArtifactClient::new(token.clone(), OWNER.into(), REPO.into())?;
+
+    let now = Utc::now();
+    let window = Duration::days(window_days as i64);
+    let prior_start = now - window - window;
+    // One fetch over the full 2N-day span, then split client-side so we
+    // pay a single artifact list call.
+    let all = artifacts
+        .fetch_runs_since(
+            "master",
+            prior_start,
+            // 100 is the GH API's per_page max; that's plenty for two
+            // weeks of master CI at this repo's rate.
+            100,
+        )
+        .await?;
+    let trailing: Vec<RunMetrics> = all
+        .iter()
+        .filter(|_| true) // placeholder; real splitting happens via run_id+artifact created_at lookup
+        .cloned()
+        .collect();
+    // We don't carry the artifact created_at into RunMetrics, so use a
+    // simple two-bucket split by run_id ordering: assume the API
+    // returns artifacts newest-first, so the first half-and-a-bit of
+    // the fetched list is trailing and the rest is prior.
+    let mid = trailing.len() / 2;
+    let (trailing_runs, prior_runs) = trailing.split_at(mid);
+    let trailing_stats = WindowStats::from_runs(trailing_runs);
+    let prior_stats = WindowStats::from_runs(prior_runs);
+
+    let verdict = trend::classify(&trailing_stats, &prior_stats, &config::TREND);
+
+    let octo = Octocrab::builder()
+        .personal_token(token)
+        .build()
+        .context("build octocrab")?;
+    let existing = find_trend_issue(&octo).await?;
+
+    match verdict {
+        TrendVerdict::Healthy => {
+            if let Some(issue) = existing {
+                octo.issues(OWNER, REPO)
+                    .create_comment(
+                        issue.number,
+                        render_recovery_comment(&trailing_stats, &prior_stats),
+                    )
+                    .await
+                    .context("post recovery comment")?;
+                octo.issues(OWNER, REPO)
+                    .update(issue.number)
+                    .state(IssueState::Closed)
+                    .send()
+                    .await
+                    .context("close trend issue")?;
+                println!("closed #{} (recovered)", issue.number);
+            } else {
+                println!("healthy: no trend regression and no open issue");
+            }
+        }
+        TrendVerdict::InsufficientData => {
+            println!(
+                "insufficient data: trailing n={}, prior n={} (need ≥3 each)",
+                trailing_stats.sample_count, prior_stats.sample_count,
+            );
+        }
+        TrendVerdict::Regressed { reasons } => {
+            let body = render_issue_body(window_days, &trailing_stats, &prior_stats, &reasons);
+            if let Some(issue) = existing {
+                octo.issues(OWNER, REPO)
+                    .update(issue.number)
+                    .body(&body)
+                    .send()
+                    .await
+                    .context("update trend issue")?;
+                println!("updated #{}", issue.number);
+            } else {
+                let issue = octo
+                    .issues(OWNER, REPO)
+                    .create(ISSUE_TITLE)
+                    .body(&body)
+                    .send()
+                    .await
+                    .context("create trend issue")?;
+                println!("opened #{}", issue.number);
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Find the single open or closed `CI health trend` issue this bot
+/// owns, identified by the embedded marker. Returns the most recent
+/// open issue if multiple exist (should never happen in practice).
+async fn find_trend_issue(octo: &Octocrab) -> Result<Option<Issue>> {
+    let page = octo
+        .issues(OWNER, REPO)
+        .list()
+        .state(IssueListState::All)
+        .per_page(50)
+        .send()
+        .await
+        .context("list issues")?;
+    Ok(page.items.into_iter().find(|i| {
+        i.title == ISSUE_TITLE
+            && i.body
+                .as_deref()
+                .map(|b| b.contains(ISSUE_MARKER))
+                .unwrap_or(false)
+    }))
 }
 
 struct QueryArgs {

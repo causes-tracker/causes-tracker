@@ -6,6 +6,10 @@ pub struct RunId(pub u64);
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(transparent)]
+pub struct InvocationId(pub String);
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct CommitSha(pub String);
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -17,6 +21,17 @@ pub struct StepTimings {
     pub other_seconds: f64,
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct BazelStats {
+    pub actions_total: u64,
+    pub local_cache_hits: u64,
+    pub remote_cache_hits: u64,
+    pub cache_misses: u64,
+    pub remote_bytes_downloaded: u64,
+    pub remote_bytes_uploaded: u64,
+    pub critical_path_seconds: f64,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RunMetrics {
     pub run_id: RunId,
@@ -26,6 +41,8 @@ pub struct RunMetrics {
     pub event: String,
     #[serde(flatten)]
     pub timings: StepTimings,
+    pub bazel: BazelStats,
+    pub bb_invocation_ids: Vec<InvocationId>,
 }
 
 #[cfg(test)]
@@ -47,6 +64,16 @@ mod tests {
                 bazel_invocation_seconds: 150.0,
                 other_seconds: 13.5,
             },
+            bazel: BazelStats {
+                actions_total: 1000,
+                local_cache_hits: 600,
+                remote_cache_hits: 350,
+                cache_misses: 50,
+                remote_bytes_downloaded: 12345,
+                remote_bytes_uploaded: 678,
+                critical_path_seconds: 90.0,
+            },
+            bb_invocation_ids: vec![InvocationId("uuid-1".into())],
         };
         let s = serde_json::to_string(&m).unwrap();
         let back: RunMetrics = serde_json::from_str(&s).unwrap();

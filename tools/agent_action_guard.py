@@ -148,9 +148,14 @@ NATIVE_TOOLS["protoc-gen-doc"] = (
 
 # Lockfiles whose destruction is forbidden — regenerate them in place.
 LOCKFILES = {
-    "MODULE.bazel.lock": "bazel mod deps --lockfile_mode=update",
+    "MODULE.bazel.lock": (
+        "`jj restore --from master MODULE.bazel.lock && bazel mod tidy` "
+        "(starts from master's facts and only re-tidies what changed; a from-scratch regen "
+        "drops `go_sdk` facts this container does not evaluate, which CI then rejects). "
+        "Verify with `grep -c go_sdk MODULE.bazel.lock` — must be 1, not 0."
+    ),
     "Cargo.lock": "bazel run //tools:cargo -- generate-lockfile",
-    "requirements_lock.txt": "the requirements lockfile workflow",
+    "requirements_lock.txt": "bazel run //:requirements.update (after editing requirements.in)",
 }
 
 # Shells whose `-c <string>` argument is itself a command to recurse into.
@@ -198,8 +203,8 @@ _TOO_DEEP_REASON = "Refusing: command nests subcommands too deeply to verify; de
 
 _MOD_RS_REASON = (
     "Refusing to create a `mod.rs`. This project uses the `<dir>.rs` module layout: "
-    "put the module in a sibling file (e.g. `foo.rs` with `foo/` for its submodules), "
-    "never `foo/mod.rs`."
+    "put the module in a sibling file (`foo.rs` with `foo/` for its submodules, and "
+    "`mod submodule;` declared inside `foo.rs`), never `foo/mod.rs`."
 )
 
 # Written files scanned as shell: by extension, or by a shell shebang.

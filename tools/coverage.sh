@@ -30,6 +30,10 @@ MIN_PCT=25
 # conflicted working copy is never cached.
 GREEN_CACHE_DIR=".coverage-green"
 CACHE_KEY=""
+# Shortest unambiguous jj change id of @, captured up front so the success
+# message names the exact revision that was verified.
+# The fallback handles CI, where jj is not installed but this script still runs.
+CHANGE_ID="$(jj log -r @ --no-graph -T 'change_id.shortest()' 2>/dev/null || true)"
 if jj_conflicts="$(jj log -r '@ & conflicts()' --no-graph -T commit_id 2>/dev/null)" &&
 	[[ -z "$jj_conflicts" ]]; then
 	target="@"
@@ -57,7 +61,7 @@ if jj_conflicts="$(jj log -r '@ & conflicts()' --no-graph -T commit_id 2>/dev/nu
 		sha256sum | awk '{print $1}')"
 fi
 if [[ -n "$CACHE_KEY" && -f "$GREEN_CACHE_DIR/$CACHE_KEY" ]]; then
-	echo "coverage ok: unchanged since last green (key ${CACHE_KEY:0:12})"
+	echo "coverage ok${CHANGE_ID:+ ($CHANGE_ID)}: unchanged since last green (key ${CACHE_KEY:0:12})"
 	exit 0
 fi
 
@@ -165,7 +169,7 @@ if [[ "$failed" -gt 0 ]]; then
 	exit 1
 fi
 
-echo "coverage ok: ${#disk_files[@]} Rust source file(s) checked, all >= ${MIN_PCT}%"
+echo "coverage ok${CHANGE_ID:+ ($CHANGE_ID)}: ${#disk_files[@]} Rust source file(s) checked, all >= ${MIN_PCT}%"
 
 # Record the green state so the next identical turn short-circuits.
 if [[ -n "$CACHE_KEY" ]]; then

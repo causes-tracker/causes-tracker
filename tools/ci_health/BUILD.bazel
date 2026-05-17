@@ -6,10 +6,13 @@ rust_binary(
     srcs = glob(["src/**/*.rs"]),
     visibility = ["//visibility:public"],
     deps = [
+        "//lib/rust/causes_crypto",
         "@crates//:anyhow",
         "@crates//:chrono",
         "@crates//:clap",
         "@crates//:octocrab",
+        "@crates//:reqwest",
+        "@crates//:safelog",
         "@crates//:serde",
         "@crates//:serde_json",
         "@crates//:tokio",

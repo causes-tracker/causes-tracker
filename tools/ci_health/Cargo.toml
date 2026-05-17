@@ -6,10 +6,13 @@ license.workspace = true
 publish = false
 
 [dependencies]
+causes_crypto = { path = "../../lib/rust/causes_crypto" }
 anyhow.workspace = true
 chrono.workspace = true
 clap.workspace = true
 octocrab.workspace = true
+reqwest.workspace = true
+safelog.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true

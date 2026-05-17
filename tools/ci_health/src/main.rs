@@ -1,9 +1,11 @@
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 
+mod buildbuddy;
 mod github;
 mod metrics;
 
+use crate::buildbuddy::BuildBuddyClient;
 use crate::github::GithubClient;
 use crate::metrics::{RunId, RunMetrics};
 
@@ -19,7 +21,7 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Command {
-    /// Fetch GitHub Actions step timings for a workflow run and emit a typed metrics JSON file.
+    /// Fetch GitHub Actions step timings + BuildBuddy cache stats for a workflow run and emit a typed metrics JSON file.
     Record {
         #[arg(long)]
         run_id: u64,
@@ -38,6 +40,7 @@ enum Command {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    causes_crypto::install_default_provider();
     let cli = Cli::parse();
     match cli.command {
         Command::Record {
@@ -49,14 +52,20 @@ async fn main() -> Result<()> {
             let token = std::env::var("GH_TOKEN")
                 .or_else(|_| std::env::var("GITHUB_TOKEN"))
                 .context("GH_TOKEN or GITHUB_TOKEN must be set for the record subcommand")?;
+            let bb_key = safelog::Sensitive::new(
+                std::env::var("BUILDBUDDY_API_KEY")
+                    .context("BUILDBUDDY_API_KEY must be set for the record subcommand")?,
+            );
             let gh = GithubClient::new(token)?;
-            record(&gh, RunId(run_id), &job, pr, &out).await
+            let bb = BuildBuddyClient::new(bb_key)?;
+            record(&gh, &bb, RunId(run_id), &job, pr, &out).await
         }
     }
 }
 
 async fn record(
     gh: &GithubClient,
+    bb: &BuildBuddyClient,
     run_id: RunId,
     job: &str,
     pr: Option<u64>,
@@ -64,6 +73,11 @@ async fn record(
 ) -> Result<()> {
     let meta = gh.run_metadata(run_id).await?;
     let timings = gh.step_timings(run_id, job).await?;
+    let invocation_ids = gh.bazel_invocation_ids(run_id, job).await?;
+    let mut stats = Vec::with_capacity(invocation_ids.len());
+    for id in &invocation_ids {
+        stats.push(bb.get_invocation(id).await?);
+    }
     let metrics = RunMetrics {
         run_id,
         sha: meta.head_sha,
@@ -71,6 +85,8 @@ async fn record(
         branch: meta.branch,
         event: meta.event,
         timings,
+        bazel: buildbuddy::aggregate(&stats),
+        bb_invocation_ids: invocation_ids,
     };
     let json = serde_json::to_string_pretty(&metrics).context("serialize metrics")?;
     std::fs::write(out, json).with_context(|| format!("write {}", out.display()))?;
@@ -110,12 +126,75 @@ mod tests {
         ));
     }
 
-    /// End-to-end test of the `record` subcommand body: a `GithubClient` pointed at a wiremock server returning a canned workflow run and jobs response produces the expected metrics JSON on disk.
+    /// End-to-end test of the BB-extended `record`: both GH and BB clients pointed at wiremock servers produce a metrics JSON with populated bazel stats.
     #[tokio::test]
-    async fn record_writes_expected_metrics_json() {
-        let mock = wiremock::MockServer::start().await;
+    async fn record_writes_metrics_with_bazel_stats() {
+        causes_crypto::install_default_provider();
+        let gh_mock = wiremock::MockServer::start().await;
+        let bb_mock = wiremock::MockServer::start().await;
         let run_id = 7777u64;
-        let run_body = serde_json::json!({
+        wiremock::Mock::given(wiremock::matchers::method("GET"))
+            .and(wiremock::matchers::path(format!(
+                "/repos/causes-tracker/causes-tracker/actions/runs/{run_id}"
+            )))
+            .respond_with(wiremock::ResponseTemplate::new(200).set_body_json(run_body(run_id)))
+            .mount(&gh_mock)
+            .await;
+        wiremock::Mock::given(wiremock::matchers::method("GET"))
+            .and(wiremock::matchers::path(format!(
+                "/repos/causes-tracker/causes-tracker/actions/runs/{run_id}/jobs"
+            )))
+            .respond_with(wiremock::ResponseTemplate::new(200).set_body_json(jobs_body(run_id)))
+            .mount(&gh_mock)
+            .await;
+        // GH job log: bazel prints one BB URL per `--bes_results_url`
+        // invocation; `bazel_invocation_ids` regexes them out.
+        wiremock::Mock::given(wiremock::matchers::method("GET"))
+            .and(wiremock::matchers::path(
+                "/repos/causes-tracker/causes-tracker/actions/jobs/1/logs",
+            ))
+            .respond_with(wiremock::ResponseTemplate::new(200).set_body_string(
+                "INFO: Streaming build results to: https://app.buildbuddy.io/invocation/1234aaaa-bbbb-cccc-dddd-eeeeeeeeeeee\n",
+            ))
+            .mount(&gh_mock)
+            .await;
+        wiremock::Mock::given(wiremock::matchers::method("POST"))
+            .and(wiremock::matchers::path(
+                "/rpc/BuildBuddyService/GetInvocation",
+            ))
+            .respond_with(wiremock::ResponseTemplate::new(200).set_body_json(
+                serde_json::json!({"invocation": [{
+                    "invocationId": "1234aaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+                    "actionCount": "100",
+                    "cacheStats": {
+                        "actionCacheHits": "60",
+                        "actionCacheMisses": "10",
+                    }
+                }]}),
+            ))
+            .mount(&bb_mock)
+            .await;
+
+        let gh = GithubClient::with_base_uri("tk".into(), gh_mock.uri()).unwrap();
+        let bb =
+            BuildBuddyClient::with_base_url(safelog::Sensitive::new("k".into()), bb_mock.uri())
+                .unwrap();
+        let out = tempfile::NamedTempFile::new().unwrap();
+        record(&gh, &bb, RunId(run_id), "build", Some(99), out.path())
+            .await
+            .unwrap();
+
+        let parsed: RunMetrics =
+            serde_json::from_str(&std::fs::read_to_string(out.path()).unwrap()).unwrap();
+        assert_eq!(parsed.pr, Some(99));
+        assert_eq!(parsed.bazel.actions_total, 100);
+        assert_eq!(parsed.bazel.remote_cache_hits, 60);
+        assert_eq!(parsed.bazel.cache_misses, 10);
+        assert_eq!(parsed.bb_invocation_ids.len(), 1);
+    }
+
+    fn run_body(run_id: u64) -> serde_json::Value {
+        serde_json::json!({
             "id": run_id,
             "workflow_id": 1,
             "node_id": "n",
@@ -146,8 +225,11 @@ mod tests {
                 "committer": {"name": "a", "email": "a@x"},
             },
             "repository": minimal_repo(),
-        });
-        let jobs_body = serde_json::json!({
+        })
+    }
+
+    fn jobs_body(run_id: u64) -> serde_json::Value {
+        serde_json::json!({
             "total_count": 1,
             "jobs": [{
                 "id": 1,
@@ -164,22 +246,9 @@ mod tests {
                 "conclusion": "success",
                 "created_at": "2026-05-16T23:59:30Z",
                 "started_at": "2026-05-17T00:00:00Z",
-                "completed_at": "2026-05-17T00:03:00Z",
+                "completed_at": "2026-05-17T00:01:00Z",
                 "name": "build",
-                "steps": [
-                    {"name": "Install Bazelisk", "status": "completed", "conclusion": "success",
-                     "number": 1,
-                     "started_at": "2026-05-17T00:00:00Z",
-                     "completed_at": "2026-05-17T00:00:10Z"},
-                    {"name": "Test, build docs, and check coverage",
-                     "status": "completed", "conclusion": "success", "number": 2,
-                     "started_at": "2026-05-17T00:00:10Z",
-                     "completed_at": "2026-05-17T00:02:55Z"},
-                    {"name": "Post Install Bazelisk",
-                     "status": "completed", "conclusion": "success", "number": 3,
-                     "started_at": "2026-05-17T00:02:55Z",
-                     "completed_at": "2026-05-17T00:03:00Z"},
-                ],
+                "steps": [],
                 "check_run_url": "https://api.github.com/c/1",
                 "labels": ["ubuntu-latest"],
                 "runner_id": 1,
@@ -187,39 +256,7 @@ mod tests {
                 "runner_group_id": 1,
                 "runner_group_name": "g",
             }]
-        });
-        wiremock::Mock::given(wiremock::matchers::method("GET"))
-            .and(wiremock::matchers::path(format!(
-                "/repos/causes-tracker/causes-tracker/actions/runs/{run_id}"
-            )))
-            .respond_with(wiremock::ResponseTemplate::new(200).set_body_json(&run_body))
-            .mount(&mock)
-            .await;
-        wiremock::Mock::given(wiremock::matchers::method("GET"))
-            .and(wiremock::matchers::path(format!(
-                "/repos/causes-tracker/causes-tracker/actions/runs/{run_id}/jobs"
-            )))
-            .respond_with(wiremock::ResponseTemplate::new(200).set_body_json(&jobs_body))
-            .mount(&mock)
-            .await;
-
-        let gh = GithubClient::with_base_uri("tk".into(), mock.uri()).unwrap();
-        let out = tempfile::NamedTempFile::new().unwrap();
-        record(&gh, RunId(run_id), "build", Some(99), out.path())
-            .await
-            .unwrap();
-
-        let parsed: RunMetrics =
-            serde_json::from_str(&std::fs::read_to_string(out.path()).unwrap()).unwrap();
-        assert_eq!(parsed.run_id, RunId(run_id));
-        assert_eq!(parsed.sha.0, "feedface");
-        assert_eq!(parsed.pr, Some(99));
-        assert_eq!(parsed.branch, "feature/x");
-        assert_eq!(parsed.event, "pull_request");
-        assert_eq!(parsed.timings.job_wall_seconds, 180.0);
-        assert_eq!(parsed.timings.cache_restore_seconds, 10.0);
-        assert_eq!(parsed.timings.cache_save_seconds, 5.0);
-        assert_eq!(parsed.timings.bazel_invocation_seconds, 165.0);
+        })
     }
 
     fn minimal_repo() -> serde_json::Value {

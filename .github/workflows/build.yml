@@ -7,8 +7,21 @@ on:
 permissions:
   contents: write
 env:
-  BB_FLAGS: >-
-    --config=ci --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_ORG_API_KEY }}
+  # BB_FLAGS travels with every CI bazel invocation. The --build_metadata
+  # tags make BuildBuddy invocations searchable by GitHub run/PR/branch so
+  # tooling can correlate BB stats back to a specific CI run without
+  # having to capture per-invocation UUIDs. The literal-block scalar (|)
+  # keeps each flag on its own line for readability and yamllint compliance;
+  # shell word-splitting on $BB_FLAGS treats newlines as separators.
+  BB_FLAGS: |
+    --config=ci
+    --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_ORG_API_KEY }}
+    --build_metadata=GITHUB_RUN_ID=${{ github.run_id }}
+    --build_metadata=GITHUB_RUN_ATTEMPT=${{ github.run_attempt }}
+    --build_metadata=GITHUB_EVENT_NAME=${{ github.event_name }}
+    --build_metadata=GITHUB_PR_NUMBER=${{ github.event.pull_request.number }}
+    --build_metadata=GITHUB_BRANCH=${{ github.ref_name }}
+    --build_metadata=GITHUB_JOB=${{ github.job }}
 jobs:
   build:
     runs-on: ubuntu-latest

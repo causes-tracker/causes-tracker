@@ -43,6 +43,23 @@ if jj_conflicts="$(jj log -r '@ & conflicts()' --no-graph -T commit_id 2>/dev/nu
 		parent_ids="$(jj log -r "$target-" --no-graph -T 'commit_id ++ "\n"' 2>/dev/null)"
 		parent_count=$(printf '%s' "$parent_ids" | grep -c . || true)
 		if [[ "$parent_count" -ne 1 ]]; then
+			# Walked up empty diffs and hit either a merge (2+ parents) or the
+			# root (0 parents). Two cases:
+			#
+			# - In immutable history (e.g. master itself, which is a chain of
+			#   GH-merged PR commits with multiple parents). Unfixable by the
+			#   user — master can't be rebased to stop being a merge. Treat as
+			#   no-op success so the Stop hook doesn't block on a transient
+			#   navigation state (common right after `jj rebase -r 'mutable()'
+			#   -d master` leaves `@` empty on top of a synthetic merge).
+			#
+			# - In mutable history (e.g. a user-constructed WIP merge-of-all-
+			#   work). The user can rebase or otherwise resolve this; surfacing
+			#   it as an error is the right signal.
+			if jj log -r "$target & immutable()" --no-graph -T commit_id 2>/dev/null | grep -q .; then
+				echo "coverage skipped${CHANGE_ID:+ ($CHANGE_ID)}: nothing to verify — $target is in immutable history with empty diff and $parent_count parent(s)"
+				exit 0
+			fi
 			echo "error: $target has empty diff and $parent_count parent(s); cannot determine what to verify" >&2
 			exit 1
 		fi

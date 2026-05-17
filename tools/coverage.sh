@@ -27,7 +27,9 @@ MIN_PCT=25
 # patch to verify.
 #
 # Cache lives in .coverage-green/ (gitignored), one file per key. A
-# conflicted working copy is never cached.
+# conflicted working copy is never cached. The cache-hit message prints
+# the full path of the green-marker file so `rm <printed-path>` is the
+# direct override knob when you want to force a real re-run.
 GREEN_CACHE_DIR=".coverage-green"
 CACHE_KEY=""
 # Shortest unambiguous jj change id of @, captured up front so the success
@@ -61,7 +63,7 @@ if jj_conflicts="$(jj log -r '@ & conflicts()' --no-graph -T commit_id 2>/dev/nu
 		sha256sum | awk '{print $1}')"
 fi
 if [[ -n "$CACHE_KEY" && -f "$GREEN_CACHE_DIR/$CACHE_KEY" ]]; then
-	echo "coverage ok${CHANGE_ID:+ ($CHANGE_ID)}: unchanged since last green (key ${CACHE_KEY:0:12})"
+	echo "coverage ok${CHANGE_ID:+ ($CHANGE_ID)}: unchanged since last green ($GREEN_CACHE_DIR/$CACHE_KEY)"
 	exit 0
 fi
 

@@ -9,16 +9,16 @@ importers:
   .:
     dependencies:
       '@devcontainers/cli':
-        specifier: 0.86.1
-        version: 0.86.1
+        specifier: 0.87.0
+        version: 0.87.0
 
 packages:
 
-  '@devcontainers/cli@0.86.1':
-    resolution: {integrity: sha512-4VVJR/9Cuvkdg3uOD6nTspnZzpxqjeaQ7YzQjlSnX3lyb+LUeyO8SVdHa24KNBPp5xNu8PWq6aRY5k1KILwyHQ==}
+  '@devcontainers/cli@0.87.0':
+    resolution: {integrity: sha512-OVwjI0LH6cYilo2MXrnqYALtCwKM0dsdphNsIguw0ESRBG8s1wPIjDbPiDO5taxPTe3cLshsQYVZY1UpKtFaJA==}
     engines: {node: '>=20.0.0'}
     hasBin: true
 
 snapshots:
 
-  '@devcontainers/cli@0.86.1': {}
+  '@devcontainers/cli@0.87.0': {}

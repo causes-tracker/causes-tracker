@@ -2,10 +2,13 @@ use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 
 mod buildbuddy;
+mod comparison;
+mod config;
 mod github;
 mod metrics;
 
 use crate::buildbuddy::BuildBuddyClient;
+use crate::comparison::{Baseline, Verdict, classify, load_baseline_dir};
 use crate::github::GithubClient;
 use crate::metrics::{RunId, RunMetrics};
 
@@ -36,6 +39,17 @@ enum Command {
         #[arg(long)]
         pr: Option<u64>,
     },
+    /// Classify a run's metrics against a baseline directory of recent
+    /// successful master runs. Exit code reflects the verdict (0 = ok,
+    /// 1 = regressed). The baseline directory must contain one
+    /// `<anything>.json` file per past run, in the same `RunMetrics`
+    /// schema that `record` emits.
+    Compare {
+        #[arg(long)]
+        current: std::path::PathBuf,
+        #[arg(long)]
+        baseline_dir: std::path::PathBuf,
+    },
 }
 
 #[tokio::main]
@@ -59,6 +73,41 @@ async fn main() -> Result<()> {
             let gh = GithubClient::new(token)?;
             let bb = BuildBuddyClient::new(bb_key)?;
             record(&gh, &bb, RunId(run_id), &job, pr, &out).await
+        }
+        Command::Compare {
+            current,
+            baseline_dir,
+        } => compare(&current, &baseline_dir),
+    }
+}
+
+fn compare(current: &std::path::Path, baseline_dir: &std::path::Path) -> Result<()> {
+    let cur_text =
+        std::fs::read_to_string(current).with_context(|| format!("read {}", current.display()))?;
+    let cur: RunMetrics =
+        serde_json::from_str(&cur_text).with_context(|| format!("parse {}", current.display()))?;
+    let runs = load_baseline_dir(baseline_dir)?;
+    let baseline = Baseline::from_runs(&runs);
+    let thresholds = config::PR;
+    let verdict = classify(&cur, &baseline, thresholds);
+    match verdict {
+        Verdict::Ok => {
+            println!(
+                "ok: job {:.0}s, cache hit rate {:.1}% (baseline n={}, median {:.0}s / {:.1}%)",
+                cur.timings.job_wall_seconds,
+                cur.bazel.cache_hit_rate().unwrap_or(0.0) * 100.0,
+                baseline.sample_count,
+                baseline.median_job_wall_seconds,
+                baseline.median_cache_hit_rate * 100.0,
+            );
+            Ok(())
+        }
+        Verdict::Regressed { reasons } => {
+            eprintln!("regressed:");
+            for r in &reasons {
+                eprintln!("  - {r}");
+            }
+            std::process::exit(1);
         }
     }
 }
@@ -126,6 +175,20 @@ mod tests {
                 ..
             }
         ));
+    }
+
+    #[test]
+    fn compare_subcommand_parses() {
+        let cli = Cli::try_parse_from([
+            "ci_health",
+            "compare",
+            "--current",
+            "/tmp/c.json",
+            "--baseline-dir",
+            "/tmp/b",
+        ])
+        .expect("compare args parse");
+        assert!(matches!(cli.command, Command::Compare { .. }));
     }
 
     /// End-to-end test of the BB-extended `record`: both GH and BB clients pointed at wiremock servers produce a metrics JSON with populated bazel stats.

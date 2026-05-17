@@ -10,6 +10,15 @@ build --experimental_proto_descriptor_sets_include_source_info
 # Local disk cache (shared across workspaces on the same machine)
 build --disk_cache=~/.cache/bazel-disk-cache
 
+# Compress remote-cache traffic with zstd.
+# Default-off in Bazel, but our CI runs are network-bound — a single `coverage`
+# invocation pulls hundreds of MB from the BB remote cache.
+# Compression typically halves on-the-wire bytes for Rust artifacts (rlibs +
+# debug info) at modest CPU cost, which we have spare on the GH runners and
+# locally.
+# BuildBuddy supports zstd on both ends.
+build --remote_cache_compression
+
 # Workspace status: populates COMMIT_SHA and REPO_URL for BuildBuddy flake detection.
 build --workspace_status_command="bash workspace_status.sh"
 

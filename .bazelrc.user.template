@@ -5,3 +5,10 @@ build --remote_cache=grpcs://remote.buildbuddy.io
 build --remote_header=x-buildbuddy-api-key=YOUR_KEY_HERE
 build --bes_backend=grpcs://remote.buildbuddy.io
 build --bes_results_url=https://app.buildbuddy.io/invocation/
+
+# Optional: richer Chrome-trace profile in BuildBuddy's timing view.
+# Costs slightly larger BES uploads per invocation; useful when chasing a slow
+# target. Uncomment for the session, then re-comment to keep BES streams lean.
+# build --noslim_profile
+# build --experimental_profile_include_target_label
+# build --experimental_profile_include_primary_output

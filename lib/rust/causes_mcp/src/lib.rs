@@ -547,9 +547,7 @@ mod tests {
     // ── TLS tests ───────────────────────────────────────────────────────────
 
     async fn start_mock_grpc_tls() -> (String, tonic::transport::Certificate) {
-        rustls::crypto::ring::default_provider()
-            .install_default()
-            .ok();
+        causes_crypto::install_default_provider();
         let key_pair = rcgen::KeyPair::generate().expect("keygen");
         let ca = rcgen::CertificateParams::new(vec!["localhost".to_string()])
             .expect("cert params")

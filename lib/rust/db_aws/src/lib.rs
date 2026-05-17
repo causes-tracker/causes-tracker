@@ -17,7 +17,17 @@ pub use iam::IamParams;
 /// rotates the IAM token on the production schedule.
 #[tracing::instrument(fields(db.system = "postgresql"))]
 pub async fn connect_iam(host: &str, port: u16, user: &str) -> anyhow::Result<db_pool::DbPool> {
-    let sdk_config = aws_config::load_defaults(aws_config::BehaviorVersion::latest()).await;
+    // `aws-config`'s default-https-client feature is disabled at the workspace level (see Cargo.toml) so that the SDK does not silently pull in `rustls-aws-lc` and double up rustls providers — every other workspace member uses ring. We provide the HttpClient explicitly here with the ring CryptoMode.
+    use aws_smithy_http_client::{Builder, tls};
+    let http_client = Builder::new()
+        .tls_provider(tls::Provider::Rustls(
+            tls::rustls_provider::CryptoMode::Ring,
+        ))
+        .build_https();
+    let sdk_config = aws_config::defaults(aws_config::BehaviorVersion::latest())
+        .http_client(http_client)
+        .load()
+        .await;
     let params = IamParams::new(host.to_owned(), port, user.to_owned());
     connect_iam_with_sdk(params, sdk_config).await
 }

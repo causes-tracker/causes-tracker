@@ -43,6 +43,10 @@ pub struct RunMetrics {
     pub timings: StepTimings,
     pub bazel: BazelStats,
     pub bb_invocation_ids: Vec<InvocationId>,
+    /// Wall-clock seconds spent inside the `record` invocation itself: GH API calls (run metadata, jobs list, step timings, job log) plus BB GetInvocation round-trips plus JSON serialization.
+    /// This is the overhead the metrics-gathering step adds to a CI run.
+    /// The GH Actions step timing for the record step will be this plus runner/process startup, so the two numbers are complementary, not redundant.
+    pub metrics_collection_seconds: f64,
 }
 
 #[cfg(test)]
@@ -74,6 +78,7 @@ mod tests {
                 critical_path_seconds: 90.0,
             },
             bb_invocation_ids: vec![InvocationId("uuid-1".into())],
+            metrics_collection_seconds: 2.75,
         };
         let s = serde_json::to_string(&m).unwrap();
         let back: RunMetrics = serde_json::from_str(&s).unwrap();

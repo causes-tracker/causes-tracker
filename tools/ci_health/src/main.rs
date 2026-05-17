@@ -71,6 +71,7 @@ async fn record(
     pr: Option<u64>,
     out: &std::path::Path,
 ) -> Result<()> {
+    let started = std::time::Instant::now();
     let meta = gh.run_metadata(run_id).await?;
     let timings = gh.step_timings(run_id, job).await?;
     let invocation_ids = gh.bazel_invocation_ids(run_id, job).await?;
@@ -87,6 +88,7 @@ async fn record(
         timings,
         bazel: buildbuddy::aggregate(&stats),
         bb_invocation_ids: invocation_ids,
+        metrics_collection_seconds: started.elapsed().as_secs_f64(),
     };
     let json = serde_json::to_string_pretty(&metrics).context("serialize metrics")?;
     std::fs::write(out, json).with_context(|| format!("write {}", out.display()))?;
@@ -191,6 +193,9 @@ mod tests {
         assert_eq!(parsed.bazel.remote_cache_hits, 60);
         assert_eq!(parsed.bazel.cache_misses, 10);
         assert_eq!(parsed.bb_invocation_ids.len(), 1);
+        // Self-timer was started and stopped; with mock latency it's tiny
+        // but strictly positive.
+        assert!(parsed.metrics_collection_seconds > 0.0);
     }
 
     fn run_body(run_id: u64) -> serde_json::Value {

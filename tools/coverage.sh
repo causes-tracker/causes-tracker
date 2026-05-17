@@ -46,7 +46,15 @@ if jj_conflicts="$(jj log -r '@ & conflicts()' --no-graph -T commit_id 2>/dev/nu
 		sed -E -e '/^index [0-9a-f]+\.\.[0-9a-f]+/d' \
 			-e 's/^@@ -[0-9,]+ \+[0-9,]+ @@/@@/' |
 		sha256sum | awk '{print $1}')"
-	CACHE_KEY="$(printf '%s\t%s' "$diff_hash" "$*" | sha256sum | awk '{print $1}')"
+	# Lockfile state is folded into the key so that a stack rewrite that
+	# leaves a commit's patch unchanged but shifts the lockfile content (e.g.
+	# bumping a workspace dep in an ancestor) invalidates the cached green
+	# verdict — without this, the cache would falsely claim green on the new
+	# state because the patch hash is identical to before the rewrite.
+	lockfile_hash="$(sha256sum MODULE.bazel.lock Cargo.lock requirements_lock.txt 2>/dev/null |
+		sha256sum | awk '{print $1}')"
+	CACHE_KEY="$(printf '%s\t%s\t%s' "$diff_hash" "$lockfile_hash" "$*" |
+		sha256sum | awk '{print $1}')"
 fi
 if [[ -n "$CACHE_KEY" && -f "$GREEN_CACHE_DIR/$CACHE_KEY" ]]; then
 	echo "coverage ok: unchanged since last green (key ${CACHE_KEY:0:12})"

@@ -143,6 +143,7 @@ mod tests {
 
     #[tokio::test]
     async fn returns_false_when_users_exist() {
+        causes_crypto::install_default_provider();
         let mut store = MockStore::new();
         store.expect_user_count().returning(|| Ok(1));
 
@@ -166,6 +167,7 @@ mod tests {
 
     #[tokio::test]
     async fn errors_when_both_credentials_missing() {
+        causes_crypto::install_default_provider();
         let mut store = MockStore::new();
         store.expect_user_count().returning(|| Ok(0));
 
@@ -188,6 +190,7 @@ mod tests {
 
     #[tokio::test]
     async fn errors_when_client_id_missing() {
+        causes_crypto::install_default_provider();
         use clap::Parser;
         let mut store = MockStore::new();
         store.expect_user_count().returning(|| Ok(0));
@@ -215,6 +218,7 @@ mod tests {
 
     #[tokio::test]
     async fn errors_when_client_secret_missing() {
+        causes_crypto::install_default_provider();
         use clap::Parser;
         let mut store = MockStore::new();
         store.expect_user_count().returning(|| Ok(0));
@@ -242,6 +246,7 @@ mod tests {
 
     #[tokio::test]
     async fn full_flow_creates_admin() {
+        causes_crypto::install_default_provider();
         let mock_server = MockServer::start().await;
 
         Mock::given(method("POST"))
@@ -303,6 +308,7 @@ mod tests {
 
     #[tokio::test]
     async fn poll_cycles_pending_then_succeeds() {
+        causes_crypto::install_default_provider();
         let mock_server = MockServer::start().await;
         let call_count = Arc::new(AtomicU32::new(0));
         let cc = call_count.clone();
@@ -335,6 +341,7 @@ mod tests {
 
     #[tokio::test]
     async fn poll_slow_down_increases_interval() {
+        causes_crypto::install_default_provider();
         // slow_down on the first call, success on the second.
         // We can't easily measure wall time in a unit test, but we can
         // verify the function succeeds after handling slow_down.
@@ -370,6 +377,7 @@ mod tests {
 
     #[tokio::test]
     async fn poll_errors_on_unknown_error() {
+        causes_crypto::install_default_provider();
         let mock_server = MockServer::start().await;
 
         Mock::given(method("POST"))
@@ -395,6 +403,7 @@ mod tests {
 
     #[tokio::test]
     async fn validate_parses_claims() {
+        causes_crypto::install_default_provider();
         let mock_server = MockServer::start().await;
 
         Mock::given(method("GET"))
@@ -422,6 +431,7 @@ mod tests {
 
     #[tokio::test]
     async fn validate_propagates_http_error() {
+        causes_crypto::install_default_provider();
         let mock_server = MockServer::start().await;
 
         Mock::given(method("GET"))
@@ -444,6 +454,7 @@ mod tests {
 
     #[tokio::test]
     async fn request_device_code_propagates_http_error() {
+        causes_crypto::install_default_provider();
         let mock_server = MockServer::start().await;
 
         Mock::given(method("POST"))

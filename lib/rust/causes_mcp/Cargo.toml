@@ -19,6 +19,6 @@ tonic.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
+causes_crypto = { path = "../causes_crypto" }
 rcgen.workspace = true
 tempfile.workspace = true
-rustls = { version = "0.23", default-features = false, features = ["ring"] }

@@ -10,6 +10,7 @@ rust_library(
         "@crates//:anyhow",
         "@crates//:aws-config",
         "@crates//:aws-sdk-rds",
+        "@crates//:aws-smithy-http-client",
         "@crates//:aws-types",
         "@crates//:sqlx",
         "@crates//:tracing",

@@ -234,6 +234,7 @@ mod tests {
 
     #[tokio::test]
     async fn start_login_returns_user_code_and_nonce() {
+        causes_crypto::install_default_provider();
         let server = MockServer::start().await;
         Mock::given(method("POST"))
             .and(path("/device"))
@@ -267,6 +268,7 @@ mod tests {
 
     #[tokio::test]
     async fn complete_login_returns_pending_when_authorization_pending() {
+        causes_crypto::install_default_provider();
         let server = MockServer::start().await;
         Mock::given(method("POST"))
             .and(path("/token"))
@@ -304,6 +306,7 @@ mod tests {
 
     #[tokio::test]
     async fn complete_login_returns_session_on_success() {
+        causes_crypto::install_default_provider();
         let server = MockServer::start().await;
         Mock::given(method("POST"))
             .and(path("/token"))
@@ -365,6 +368,7 @@ mod tests {
 
     #[tokio::test]
     async fn complete_login_rejects_unknown_nonce() {
+        causes_crypto::install_default_provider();
         let store = MockStore::new();
         // MockStore default: lookup_pending_login not set → panic.
         // We need it to return None.
@@ -385,6 +389,7 @@ mod tests {
 
     #[tokio::test]
     async fn complete_login_rejects_invalid_nonce() {
+        causes_crypto::install_default_provider();
         let store = MockStore::new();
         let handler = handler_with_urls(store, "http://unused");
         let err = handler
@@ -400,6 +405,7 @@ mod tests {
 
     #[tokio::test]
     async fn complete_login_provisions_new_user_on_first_login() {
+        causes_crypto::install_default_provider();
         let server = MockServer::start().await;
         Mock::given(method("POST"))
             .and(path("/token"))
@@ -474,6 +480,7 @@ mod tests {
 
     #[tokio::test]
     async fn who_am_i_returns_user_info() {
+        causes_crypto::install_default_provider();
         let user_id = api_db::UserId::new();
         let uid = user_id.clone();
         let uid2 = user_id.clone();
@@ -509,6 +516,7 @@ mod tests {
 
     #[tokio::test]
     async fn who_am_i_returns_admin_for_unrestricted_session() {
+        causes_crypto::install_default_provider();
         let user_id = api_db::UserId::new();
         let uid = user_id.clone();
 
@@ -539,6 +547,7 @@ mod tests {
 
     #[tokio::test]
     async fn who_am_i_rejects_missing_token() {
+        causes_crypto::install_default_provider();
         let store = MockStore::new();
         let handler = handler_with_urls(store, "http://unused");
         let err = handler

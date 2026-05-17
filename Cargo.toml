@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "lib/rust/api_db",
+  "lib/rust/causes_crypto",
   "lib/rust/causes_mcp",
   "lib/rust/db_aws",
   "lib/rust/db_connect",
@@ -38,7 +39,7 @@ sqlx = { version = "0.8", features = [
 ] }
 reqwest = { version = "0.13", features = [
   "json",
-  "rustls",
+  "rustls-no-provider",
   "form",
   "query",
 ], default-features = false }
@@ -63,7 +64,13 @@ prost = "0.14"
 prost-types = "0.14"
 tonic-prost = "0.14"
 tonic-prost-build = "0.14"
-rustls-acme = { version = "0.15", features = ["tokio"] }
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
+rustls-acme = { version = "0.15", default-features = false, features = [
+  "tokio",
+  "ring",
+  "tls12",
+  "webpki-roots",
+] }
 futures = "0.3"
 tokio-stream = "0.1"
 tower = { version = "0.5", features = ["util"] }
@@ -74,8 +81,20 @@ tempfile = "3"
 rcgen = "0.14"
 wiremock = "0.6"
 arc-swap = "1"
-aws-config = { version = "1", features = ["behavior-version-latest"] }
+# AWS SDK crates: default features enable BOTH `default-https-client` (which selects aws-smithy-http-client/rustls-aws-lc — aws-lc-rs) AND `rustls` (which selects aws-smithy-http-client/legacy-rustls-ring — old rustls 0.21).
+# Both are disabled here so the workspace stays on a single rustls 0.23 + ring stack matching tonic, sqlx-cli, octocrab, causes_mcp, and rustls-acme (overridden to ring below).
+# `db_aws::connect_iam` builds the HttpClient explicitly via aws-smithy-http-client with the rustls-ring feature and passes it to aws_config.
+# `sso` is dropped because this codebase uses IAM auth (db_aws), not SSO.
+aws-config = { version = "1", default-features = false, features = [
+  "behavior-version-latest",
+  "credentials-process",
+  "rt-tokio",
+] }
 aws-credential-types = "1"
-aws-sdk-rds = "1"
+aws-sdk-rds = { version = "1", default-features = false, features = [
+  "behavior-version-latest",
+  "rt-tokio",
+] }
 aws-smithy-async = { version = "1", features = ["test-util"] }
+aws-smithy-http-client = { version = "1", features = ["rustls-ring"] }
 aws-types = "1"

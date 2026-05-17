@@ -1,0 +1,18 @@
+load("//build:rust.bzl", "rust_library", "rust_test")
+load("//tools/lint:format_check.bzl", "format_srcs")
+
+rust_library(
+    name = "causes_crypto",
+    srcs = glob(["src/**/*.rs"]),
+    visibility = ["//visibility:public"],
+    deps = [
+        "@crates//:rustls",
+    ],
+)
+
+rust_test(
+    name = "causes_crypto_test",
+    crate = ":causes_crypto",
+)
+
+format_srcs()

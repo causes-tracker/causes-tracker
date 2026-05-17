@@ -333,6 +333,7 @@ mod tests {
 
     #[tokio::test]
     async fn request_device_code_propagates_http_error() {
+        causes_crypto::install_default_provider();
         let server = MockServer::start().await;
         Mock::given(method("POST"))
             .and(path("/device/code"))
@@ -352,6 +353,7 @@ mod tests {
 
     #[tokio::test]
     async fn request_device_code_parses_response() {
+        causes_crypto::install_default_provider();
         let server = MockServer::start().await;
         Mock::given(method("POST"))
             .and(path("/device/code"))
@@ -379,6 +381,7 @@ mod tests {
 
     #[tokio::test]
     async fn validate_id_token_propagates_http_error() {
+        causes_crypto::install_default_provider();
         let server = MockServer::start().await;
         Mock::given(method("GET"))
             .and(path("/tokeninfo"))
@@ -398,6 +401,7 @@ mod tests {
 
     #[tokio::test]
     async fn validate_id_token_parses_claims() {
+        causes_crypto::install_default_provider();
         let server = MockServer::start().await;
         Mock::given(method("GET"))
             .and(path("/tokeninfo"))

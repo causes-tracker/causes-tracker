@@ -20,6 +20,8 @@ mod tls;
 /// Production entry point for the Causes API service.
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    causes_crypto::install_default_provider();
+
     // Load .env file if present (no error if absent).
     dotenvy::dotenv().ok();
 

@@ -150,6 +150,7 @@ mod tests {
 
     #[tokio::test]
     async fn serve_with_config_starts_and_shuts_down() {
+        causes_crypto::install_default_provider();
         use rustls_acme::caches::DirCache;
 
         let cache_dir =

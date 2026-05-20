@@ -50,12 +50,28 @@ jobs:
         run: bazel run $BB_FLAGS //:format.check
       - name: Test, build docs, and check coverage
         run: tools/coverage.sh $BB_FLAGS //...
-      # The metrics step is best-effort: a failure here must not turn a
-      # green build red. It also runs on failed builds so we keep
-      # visibility into "the build failed because cache restore took 5
-      # minutes" kinds of regressions.
+  # Metrics collection runs as a separate job depending on `build` so
+  # that the job's step logs are finalized by the time `record` reads
+  # them. Inside the build job, the GH logs endpoint 404s on the
+  # presigned Azure blob until the job ends. The whole job is best-effort
+  # (`if: always()` + `continue-on-error` per step) so a metrics failure
+  # never turns a green build red, and metrics still get collected when
+  # the build itself failed.
+  ci-metrics:
+    runs-on: ubuntu-latest
+    needs: build
+    if: always()
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - name: Remove deprecated gold linker
+        run: sudo rm -f /usr/bin/x86_64-linux-gnu-ld.gold /usr/bin/ld.gold
+      - name: Install Bazelisk
+        uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86  # 0.19.0
+        with:
+          bazelisk-cache: true
+          disk-cache: ${{ github.workflow }}-ci-metrics
+          repository-cache: true
       - name: Record CI metrics
-        if: always()
         continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -67,7 +83,6 @@ jobs:
             --out ci-metrics.json \
             ${{ github.event.pull_request.number && format('--pr {0}', github.event.pull_request.number) || '' }}
       - name: Upload CI metrics artifact
-        if: always()
         continue-on-error: true
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:

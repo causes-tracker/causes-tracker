@@ -14,7 +14,7 @@
 use crate::metrics::RunMetrics;
 use anyhow::{Context, Result};
 use octocrab::Octocrab;
-use octocrab::models::ArtifactId;
+use octocrab::models::{ArtifactId, RunId};
 use octocrab::params::actions::ArchiveFormat;
 use serde::Deserialize;
 
@@ -84,6 +84,29 @@ impl ArtifactClient {
             }
         }
         Ok(runs)
+    }
+
+    /// Fetch the metrics artifact for a specific workflow run, if one
+    /// was uploaded. Returns Ok(None) when the run has no matching
+    /// artifact (e.g. the metrics step was disabled or failed).
+    pub async fn fetch_run_metrics(&self, run_id: u64) -> Result<Option<RunMetrics>> {
+        let page = self
+            .octo
+            .actions()
+            .list_workflow_run_artifacts(&self.owner, &self.repo, RunId(run_id))
+            .send()
+            .await
+            .with_context(|| format!("list artifacts for run {run_id}"))?;
+        let Some(items) = page.value else {
+            return Ok(None);
+        };
+        let Some(a) = items
+            .into_iter()
+            .find(|a| a.name.starts_with(ARTIFACT_NAME_PREFIX))
+        else {
+            return Ok(None);
+        };
+        Ok(Some(self.download_and_extract(a.id).await?))
     }
 
     async fn download_and_extract(&self, artifact_id: ArtifactId) -> Result<RunMetrics> {

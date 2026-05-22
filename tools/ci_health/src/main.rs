@@ -68,6 +68,24 @@ enum Command {
         #[arg(long)]
         pr: u64,
     },
+    /// Developer-facing inspection of CI health from a local terminal.
+    /// Pick exactly one of --pr / --branch / --run-id / --baseline.
+    Query {
+        #[arg(long, conflicts_with_all = ["branch", "run_id", "baseline"])]
+        pr: Option<u64>,
+        #[arg(long, conflicts_with_all = ["pr", "run_id", "baseline"])]
+        branch: Option<String>,
+        #[arg(long, conflicts_with_all = ["pr", "branch", "baseline"])]
+        run_id: Option<u64>,
+        #[arg(long, conflicts_with_all = ["pr", "branch", "run_id"])]
+        baseline: bool,
+        #[arg(long, default_value_t = 1)]
+        last: usize,
+        #[arg(long)]
+        verbose: bool,
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 #[tokio::main]
@@ -101,6 +119,25 @@ async fn main() -> Result<()> {
             baseline_window,
             pr,
         } => pr_comment(&current, baseline_window, pr).await,
+        Command::Query {
+            pr,
+            branch,
+            run_id,
+            baseline,
+            last,
+            verbose: _,
+            json,
+        } => {
+            query(QueryArgs {
+                pr,
+                branch,
+                run_id,
+                baseline,
+                last,
+                json,
+            })
+            .await
+        }
     }
 }
 
@@ -209,6 +246,140 @@ async fn upsert_marked_comment(octo: &Octocrab, pr: u64, body: &str) -> Result<(
     Ok(())
 }
 
+struct QueryArgs {
+    pr: Option<u64>,
+    branch: Option<String>,
+    run_id: Option<u64>,
+    baseline: bool,
+    last: usize,
+    json: bool,
+}
+
+async fn query(args: QueryArgs) -> Result<()> {
+    let token = std::env::var("GH_TOKEN")
+        .or_else(|_| std::env::var("GITHUB_TOKEN"))
+        .context("GH_TOKEN or GITHUB_TOKEN must be set (try `export GH_TOKEN=$(gh auth token)`)")?;
+    let artifacts = ArtifactClient::new(token.clone(), OWNER.into(), REPO.into())?;
+
+    if args.baseline {
+        let runs = artifacts.fetch_baseline_runs("master", 20).await?;
+        let b = Baseline::from_runs(&runs);
+        if args.json {
+            println!("{}", serde_json::to_string_pretty(&BaselineJson::from(&b))?);
+        } else {
+            println!(
+                "baseline (n={}): median wall {:.0}s, median cache hit rate {:.1}%",
+                b.sample_count,
+                b.median_job_wall_seconds,
+                b.median_cache_hit_rate * 100.0,
+            );
+        }
+        return Ok(());
+    }
+
+    if let Some(run_id) = args.run_id {
+        let metrics = artifacts.fetch_run_metrics(run_id).await?;
+        emit_one_or_none(metrics, args.json);
+        return Ok(());
+    }
+
+    if let Some(pr) = args.pr {
+        anyhow::bail!(
+            "query --pr {pr} is not yet wired; pass --run-id <id> from the PR's checks tab",
+        );
+    }
+
+    let branch = args.branch.unwrap_or_else(|| "master".into());
+    let runs = artifacts.fetch_baseline_runs(&branch, args.last).await?;
+    if args.json {
+        println!("{}", serde_json::to_string_pretty(&runs)?);
+    } else {
+        print_run_table(&branch, &runs);
+    }
+    Ok(())
+}
+
+fn emit_one_or_none(metrics: Option<RunMetrics>, json: bool) {
+    let Some(m) = metrics else {
+        println!("no metrics artifact found for that run");
+        return;
+    };
+    if json {
+        println!("{}", serde_json::to_string_pretty(&m).expect("serialize"));
+    } else {
+        let hit_rate = m
+            .bazel
+            .cache_hit_rate()
+            .map(|r| format!("{:.1}%", r * 100.0))
+            .unwrap_or_else(|| "n/a".into());
+        println!(
+            "run {} on {} ({}): wall {:.0}s = restore {:.0} + bazel {:.0} + save {:.0} + other {:.0}",
+            m.run_id.0,
+            m.branch,
+            m.event,
+            m.timings.job_wall_seconds,
+            m.timings.cache_restore_seconds,
+            m.timings.bazel_invocation_seconds,
+            m.timings.cache_save_seconds,
+            m.timings.other_seconds,
+        );
+        println!(
+            "  bazel: {} actions, {} local hits, {} remote hits, {} misses, {} bytes down",
+            m.bazel.actions_total,
+            m.bazel.local_cache_hits,
+            m.bazel.remote_cache_hits,
+            m.bazel.cache_misses,
+            m.bazel.remote_bytes_downloaded,
+        );
+        println!("  cache hit rate: {hit_rate}");
+    }
+}
+
+fn print_run_table(branch: &str, runs: &[RunMetrics]) {
+    if runs.is_empty() {
+        println!("no metrics artifacts found for branch {branch}");
+        return;
+    }
+    println!("branch={branch}, n={}", runs.len());
+    println!(
+        "{:>12}  {:>7}  {:>7}  {:>7}  {:>7}  {:>8}",
+        "run_id", "wall", "rest", "bazel", "save", "hit_rate"
+    );
+    for m in runs {
+        let hit_rate = m
+            .bazel
+            .cache_hit_rate()
+            .map(|r| format!("{:.1}%", r * 100.0))
+            .unwrap_or_else(|| "n/a".into());
+        println!(
+            "{:>12}  {:>6.0}s  {:>6.0}s  {:>6.0}s  {:>6.0}s  {:>8}",
+            m.run_id.0,
+            m.timings.job_wall_seconds,
+            m.timings.cache_restore_seconds,
+            m.timings.bazel_invocation_seconds,
+            m.timings.cache_save_seconds,
+            hit_rate,
+        );
+    }
+}
+
+#[derive(serde::Serialize)]
+struct BaselineJson {
+    sample_count: usize,
+    median_job_wall_seconds: f64,
+    median_cache_hit_rate: f64,
+}
+
+impl From<&Baseline> for BaselineJson {
+    fn from(b: &Baseline) -> Self {
+        Self {
+            sample_count: b.sample_count,
+            median_job_wall_seconds: b.median_job_wall_seconds,
+            median_cache_hit_rate: b.median_cache_hit_rate,
+        }
+    }
+}
+
 async fn record(
     gh: &GithubClient,
     bb: &BuildBuddyClient,
@@ -300,6 +471,16 @@ mod tests {
         ])
         .expect("pr-comment args parse");
         assert!(matches!(cli.command, Command::PrComment { pr: 42, .. }));
+    }
+
+    #[test]
+    fn query_pr_conflicts_with_branch() {
+        let err = Cli::try_parse_from(["ci_health", "query", "--pr", "1", "--branch", "master"])
+            .expect_err("--pr and --branch are mutually exclusive");
+        assert!(matches!(
+            err.kind(),
+            clap::error::ErrorKind::ArgumentConflict
+        ));
     }
 
     /// End-to-end test of the BB-extended `record`: both GH and BB clients pointed at wiremock servers produce a metrics JSON with populated bazel stats.

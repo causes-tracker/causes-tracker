@@ -94,6 +94,19 @@ jobs:
           path: ci-metrics.json
           retention-days: 90
           if-no-files-found: ignore
+      # Posts a marked comment on the PR only if this run is materially
+      # slower or has worse cache behavior than the rolling baseline.
+      # Silent on healthy runs. Best-effort: never fails the build.
+      - name: Comment on PR if regressed
+        if: always() && github.event_name == 'pull_request' && hashFiles('ci-metrics.json') != ''
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          bazel run $BB_FLAGS //tools/ci_health -- pr-comment \
+            --current "${{ github.workspace }}/ci-metrics.json" \
+            --baseline-window 20 \
+            --pr ${{ github.event.pull_request.number }}
   deploy:
     runs-on: ubuntu-latest
     needs: build

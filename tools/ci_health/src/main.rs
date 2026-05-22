@@ -1,16 +1,22 @@
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 
+mod artifacts;
 mod buildbuddy;
 mod comparison;
 mod config;
 mod github;
 mod metrics;
 
+use crate::artifacts::ArtifactClient;
 use crate::buildbuddy::BuildBuddyClient;
-use crate::comparison::{Baseline, Verdict, classify, load_baseline_dir};
-use crate::github::GithubClient;
+use crate::comparison::{
+    Baseline, COMMENT_MARKER, Verdict, classify, load_baseline_dir, render_pr_comment,
+};
+use crate::github::{GithubClient, OWNER, REPO};
 use crate::metrics::{RunId, RunMetrics};
+use octocrab::Octocrab;
+use octocrab::models::CommentId;
 
 #[derive(Parser, Debug)]
 #[command(
@@ -50,6 +56,18 @@ enum Command {
         #[arg(long)]
         baseline_dir: std::path::PathBuf,
     },
+    /// Upsert a regression-report comment on a pull request when its
+    /// build is materially slower or has worse cache behavior than
+    /// baseline. Fetches recent successful master metrics artifacts
+    /// automatically. Silent (no comment touched) when the run is healthy.
+    PrComment {
+        #[arg(long)]
+        current: std::path::PathBuf,
+        #[arg(long, default_value_t = 20)]
+        baseline_window: usize,
+        #[arg(long)]
+        pr: u64,
+    },
 }
 
 #[tokio::main]
@@ -78,6 +96,11 @@ async fn main() -> Result<()> {
             current,
             baseline_dir,
         } => compare(&current, &baseline_dir),
+        Command::PrComment {
+            current,
+            baseline_window,
+            pr,
+        } => pr_comment(&current, baseline_window, pr).await,
     }
 }
 
@@ -110,6 +133,80 @@ fn compare(current: &std::path::Path, baseline_dir: &std::path::Path) -> Result<
             std::process::exit(1);
         }
     }
+}
+
+async fn pr_comment(current: &std::path::Path, window: usize, pr: u64) -> Result<()> {
+    let token = std::env::var("GH_TOKEN")
+        .or_else(|_| std::env::var("GITHUB_TOKEN"))
+        .context("GH_TOKEN or GITHUB_TOKEN must be set for the pr-comment subcommand")?;
+
+    let cur_text =
+        std::fs::read_to_string(current).with_context(|| format!("read {}", current.display()))?;
+    let cur: RunMetrics =
+        serde_json::from_str(&cur_text).with_context(|| format!("parse {}", current.display()))?;
+
+    let artifacts = ArtifactClient::new(token.clone(), OWNER.into(), REPO.into())?;
+    let runs = artifacts.fetch_baseline_runs("master", window).await?;
+    let baseline = Baseline::from_runs(&runs);
+    let thresholds = config::PR;
+    let verdict = classify(&cur, &baseline, thresholds);
+
+    let Verdict::Regressed { .. } = &verdict else {
+        println!(
+            "ok: no regression vs baseline (n={})",
+            baseline.sample_count
+        );
+        return Ok(());
+    };
+
+    let body = render_pr_comment(&cur, &baseline, &verdict);
+    let octo = Octocrab::builder()
+        .personal_token(token)
+        .build()
+        .context("build octocrab")?;
+    upsert_marked_comment(&octo, pr, &body).await?;
+    println!("posted regression comment on PR #{pr}");
+    Ok(())
+}
+
+/// Find an existing comment matching our hidden marker and update it;
+/// otherwise create a new one. The marker prevents the bot from stacking
+/// comments across re-runs of the same PR.
+async fn upsert_marked_comment(octo: &Octocrab, pr: u64, body: &str) -> Result<()> {
+    let issues = octo.issues(OWNER, REPO);
+    let mut page = issues
+        .list_comments(pr)
+        .per_page(100)
+        .send()
+        .await
+        .context("list comments")?;
+    loop {
+        for c in &page.items {
+            if c.body
+                .as_deref()
+                .map(|b| b.contains(COMMENT_MARKER))
+                .unwrap_or(false)
+            {
+                issues
+                    .update_comment(CommentId(c.id.0), body)
+                    .await
+                    .context("update comment")?;
+                return Ok(());
+            }
+        }
+        match octo
+            .get_page::<octocrab::models::issues::Comment>(&page.next)
+            .await
+        {
+            Ok(Some(next)) => page = next,
+            _ => break,
+        }
+    }
+    issues
+        .create_comment(pr, body)
+        .await
+        .context("create comment")?;
+    Ok(())
 }
 
 async fn record(
@@ -189,6 +286,20 @@ mod tests {
         ])
         .expect("compare args parse");
         assert!(matches!(cli.command, Command::Compare { .. }));
+    }
+
+    #[test]
+    fn pr_comment_subcommand_parses() {
+        let cli = Cli::try_parse_from([
+            "ci_health",
+            "pr-comment",
+            "--current",
+            "/tmp/c.json",
+            "--pr",
+            "42",
+        ])
+        .expect("pr-comment args parse");
+        assert!(matches!(cli.command, Command::PrComment { pr: 42, .. }));
     }
 
     /// End-to-end test of the BB-extended `record`: both GH and BB clients pointed at wiremock servers produce a metrics JSON with populated bazel stats.

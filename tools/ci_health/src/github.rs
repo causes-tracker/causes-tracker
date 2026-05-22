@@ -5,8 +5,8 @@ use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use octocrab::Octocrab;
 
-const OWNER: &str = "causes-tracker";
-const REPO: &str = "causes-tracker";
+pub const OWNER: &str = "causes-tracker";
+pub const REPO: &str = "causes-tracker";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RunMetadata {

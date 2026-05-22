@@ -8,6 +8,18 @@ use octocrab::Octocrab;
 pub const OWNER: &str = "causes-tracker";
 pub const REPO: &str = "causes-tracker";
 
+/// Read a GitHub PAT from `GH_TOKEN` (what `gh auth token` writes) or `GITHUB_TOKEN` (what GH Actions injects).
+/// `subcommand` is folded into the error message so the user sees which call needed the credential.
+pub fn token_from_env(subcommand: &str) -> Result<String> {
+    std::env::var("GH_TOKEN")
+        .or_else(|_| std::env::var("GITHUB_TOKEN"))
+        .with_context(|| {
+            format!(
+                "GH_TOKEN or GITHUB_TOKEN must be set for the {subcommand} subcommand (try `export GH_TOKEN=$(gh auth token)`)"
+            )
+        })
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RunMetadata {
     pub head_sha: CommitSha,

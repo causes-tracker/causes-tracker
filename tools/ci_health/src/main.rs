@@ -13,7 +13,7 @@ use crate::buildbuddy::BuildBuddyClient;
 use crate::comparison::{
     Baseline, COMMENT_MARKER, Verdict, classify, load_baseline_dir, render_pr_comment,
 };
-use crate::github::{GithubClient, OWNER, REPO};
+use crate::github::{GithubClient, OWNER, REPO, token_from_env};
 use crate::metrics::{RunId, RunMetrics};
 use octocrab::Octocrab;
 use octocrab::models::CommentId;
@@ -99,9 +99,7 @@ async fn main() -> Result<()> {
             job,
             pr,
         } => {
-            let token = std::env::var("GH_TOKEN")
-                .or_else(|_| std::env::var("GITHUB_TOKEN"))
-                .context("GH_TOKEN or GITHUB_TOKEN must be set for the record subcommand")?;
+            let token = token_from_env("record")?;
             let bb_key = safelog::Sensitive::new(
                 std::env::var("BUILDBUDDY_API_KEY")
                     .context("BUILDBUDDY_API_KEY must be set for the record subcommand")?,
@@ -173,9 +171,7 @@ fn compare(current: &std::path::Path, baseline_dir: &std::path::Path) -> Result<
 }
 
 async fn pr_comment(current: &std::path::Path, window: usize, pr: u64) -> Result<()> {
-    let token = std::env::var("GH_TOKEN")
-        .or_else(|_| std::env::var("GITHUB_TOKEN"))
-        .context("GH_TOKEN or GITHUB_TOKEN must be set for the pr-comment subcommand")?;
+    let token = token_from_env("pr-comment")?;
 
     let cur_text =
         std::fs::read_to_string(current).with_context(|| format!("read {}", current.display()))?;
@@ -256,9 +252,7 @@ struct QueryArgs {
 }
 
 async fn query(args: QueryArgs) -> Result<()> {
-    let token = std::env::var("GH_TOKEN")
-        .or_else(|_| std::env::var("GITHUB_TOKEN"))
-        .context("GH_TOKEN or GITHUB_TOKEN must be set (try `export GH_TOKEN=$(gh auth token)`)")?;
+    let token = token_from_env("query")?;
     let artifacts = ArtifactClient::new(token.clone(), OWNER.into(), REPO.into())?;
 
     if args.baseline {

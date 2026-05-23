@@ -61,8 +61,9 @@ Commits must pass all linting and tests before being made.
 Commits are kept strictly small: **400–500 lines maximum** (diff lines added, ignoring generated files, ignoring removed lines).
 If a change is larger, split it into a sequence of focused commits.
 
-Before pushing, verify the change the way CI does:
-run `tools/coverage.sh //...` (not bare `bazel test //...`) — it runs coverage and enforces per-file thresholds.
+The project's quality gates (lint, format, test, coverage, per-file thresholds) run automatically via the pre-push and end-of-turn hooks.
+If a gate fails, fix the underlying issue.
+Never introduce a suppression marker (`# shellcheck disable`, `#[allow(...)]`, `// eslint-disable`, `// @ts-ignore`, `# noqa`, `# type: ignore`, `#[ignore]`) or edit a gate-config file (`.bazelignore`, `.clippy.toml`, `rustfmt.toml`, `.shellcheckrc`, `.yamlfmt`, `tools/check.sh`) — the end-of-turn hook will block any such change.
 
 For `bazel run` targets (servers, binaries): run them and confirm they start correctly before pushing — even long-running ones, which should be started, verified, then killed.
 "It builds" is not the same as "it works."

@@ -2,7 +2,7 @@
 # Verifies that every Bazel package has a README.md file.
 #
 # Usage: tools/require_readme_test.sh
-#   Run from the workspace root (same as coverage.sh).
+#   Run from the workspace root (same as check.sh).
 set -euo pipefail
 
 missing=()

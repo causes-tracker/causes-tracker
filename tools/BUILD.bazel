@@ -135,4 +135,16 @@ sh_test(
     ],
 )
 
+# Exercises the agent-mode suppression scanner in tools/check.sh by sourcing
+# the script (with _CHECK_SH_SOURCED=1 to skip dispatch) and piping synthetic
+# git-format diffs into scan_diff_for_suppressions.
+sh_test(
+    name = "check_scan_test",
+    srcs = ["test_check_scan.sh"],
+    data = [
+        "check.sh",
+        "@bazel_tools//tools/bash/runfiles",
+    ],
+)
+
 format_srcs()

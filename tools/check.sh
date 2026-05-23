@@ -51,10 +51,14 @@ SKIP_FILES=(
 
 # Patterns the agent scanner flags when added on a `+` line.
 # Each is a POSIX ERE matched by awk against the line body (minus the +).
+# Backslashes are doubled: `awk -v var=value` strips one level of escapes
+# before the value becomes a regex, and stricter awks (CI's mawk emits
+# `escape sequence '\[' treated as plain '['`) otherwise leave a bare `[`
+# in the pattern and fail to compile it.
 SUPPRESSION_LINE_PATTERNS=(
 	'# *shellcheck +disable'        # bash
-	'#!?\[allow\('                  # rust attribute (item or crate)
-	'#\[ignore(\]|\()'              # rust #[ignore] or #[ignore("...")]
+	'#!?\\[allow\\('                # rust attribute (item or crate)
+	'#\\[ignore(\\]|\\()'           # rust #[ignore] or #[ignore("...")]
 	'// *eslint-disable'            # js/ts
 	'// *@ts-(ignore|expect-error)' # ts
 	'(^|[ \t])# *noqa([: ]|$)'      # python
@@ -71,6 +75,21 @@ SUPPRESSION_GATE_FILES=(
 	".shellcheckrc"
 	".yamlfmt"
 	"tools/check.sh"
+)
+
+# Patterns matched on `+` lines whose file is `.bazelrc` or `.bazelrc.user`.
+# Targeted at lint-allow flags (rustc/clippy `-A`); we do NOT flag the file
+# itself, since legitimate cache/network/toolchain config lives here too.
+SUPPRESSION_BAZELRC_PATTERNS=(
+	'(^|[ \t=,])-A(warnings|clippy|[ \t=,])' # rustc/clippy lint-allow
+)
+
+# Patterns matched on `+` lines whose basename is `BUILD.bazel`.
+# These are the test-evasion attributes a human reviewer would want to see
+# flagged at the door, since they detach a target from the default build.
+SUPPRESSION_BUILDBAZEL_PATTERNS=(
+	'tags *= *\\[[^]]*"(manual|no-ci|flaky)"' # opt-out tags on tests
+	'target_compatible_with *= *'             # platform-incompatible carve-out
 )
 
 # Argument parsing is deferred until after the function definitions so that
@@ -154,13 +173,28 @@ compute_cache_key() {
 scan_diff_for_suppressions() {
 	awk \
 		-v line_patterns="$(printf '%s\n' "${SUPPRESSION_LINE_PATTERNS[@]}")" \
-		-v gate_files="$(printf '%s\n' "${SUPPRESSION_GATE_FILES[@]}")" '
+		-v gate_files="$(printf '%s\n' "${SUPPRESSION_GATE_FILES[@]}")" \
+		-v bazelrc_patterns="$(printf '%s\n' "${SUPPRESSION_BAZELRC_PATTERNS[@]}")" \
+		-v buildbazel_patterns="$(printf '%s\n' "${SUPPRESSION_BUILDBAZEL_PATTERNS[@]}")" \
+		-v master_exts="${MASTER_FILE_EXTENSIONS:-}" '
 BEGIN {
 	n_line = split(line_patterns, line_pat, "\n")
 	n_gate = split(gate_files, gate_arr, "\n")
 	for (i = 1; i <= n_gate; i++) gate_set[gate_arr[i]] = 1
+	n_bazelrc = split(bazelrc_patterns, bazelrc_pat, "\n")
+	n_buildbazel = split(buildbazel_patterns, buildbazel_pat, "\n")
+	n_master_ext = split(master_exts, ext_arr, ",")
+	have_master_exts = 0
+	for (i = 1; i <= n_master_ext; i++) {
+		if (ext_arr[i] != "") {
+			master_ext_set[ext_arr[i]] = 1
+			have_master_exts = 1
+		}
+	}
 	n_violations = 0
 	file = ""
+	is_bazelrc = 0
+	is_buildbazel = 0
 }
 /^diff --git a\// {
 	file = $0
@@ -168,6 +202,21 @@ BEGIN {
 	sub(/ b\/.*$/, "", file)
 	if (file in gate_set) {
 		violations[n_violations++] = file ": edits to a quality-gate config file"
+	}
+	base = file
+	sub(/.*\//, "", base)
+	is_bazelrc = (file == ".bazelrc" || file == ".bazelrc.user")
+	is_buildbazel = (base == "BUILD.bazel")
+	# New-language detection: extension not seen in master is a likely
+	# bypass via the simple "switch language to dodge the existing gates"
+	# route. Only runs when the harness supplied master_exts (i.e. agent
+	# mode against a real jj tree, not synthetic test diffs).
+	if (have_master_exts && index(base, ".") > 0) {
+		ext = base
+		sub(/^.*\./, "", ext)
+		if (!(ext in master_ext_set)) {
+			violations[n_violations++] = file ": introduces file extension '." ext "' not present in master (new language?)"
+		}
 	}
 	next
 }
@@ -177,6 +226,20 @@ BEGIN {
 	for (i = 1; i <= n_line; i++) {
 		if (line_pat[i] != "" && body ~ line_pat[i]) {
 			violations[n_violations++] = file ": + matches /" line_pat[i] "/"
+		}
+	}
+	if (is_bazelrc) {
+		for (i = 1; i <= n_bazelrc; i++) {
+			if (bazelrc_pat[i] != "" && body ~ bazelrc_pat[i]) {
+				violations[n_violations++] = file ": + matches /" bazelrc_pat[i] "/ (lint-allow flag in bazelrc)"
+			}
+		}
+	}
+	if (is_buildbazel) {
+		for (i = 1; i <= n_buildbazel; i++) {
+			if (buildbazel_pat[i] != "" && body ~ buildbazel_pat[i]) {
+				violations[n_violations++] = file ": + matches /" buildbazel_pat[i] "/ (suspect BUILD attribute)"
+			}
 		}
 	}
 }
@@ -198,7 +261,16 @@ run_agent_scan() {
 		exit 1
 	fi
 	[[ -z "$diff" ]] && return 0
-	printf '%s\n' "$diff" | scan_diff_for_suppressions
+	# Comma-separated set of extensions present in master, used by the
+	# new-language detector. Computed once per agent run; cheap (a single
+	# jj invocation listing tracked paths).
+	local master_exts
+	master_exts="$(jj file list -r master 2>/dev/null |
+		awk -F/ '{print $NF}' |
+		awk -F. 'NF > 1 { print $NF }' |
+		sort -u | tr '\n' ',')"
+	MASTER_FILE_EXTENSIONS="$master_exts" \
+		scan_diff_for_suppressions <<<"$diff"
 }
 
 # ── individual gates ──────────────────────────────────────────────────────

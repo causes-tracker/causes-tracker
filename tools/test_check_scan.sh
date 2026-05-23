@@ -251,6 +251,117 @@ case_fail "two suppressions on two added lines" 'diff --git a/x.rs b/x.rs
 +#[ignore]
 '
 
+# ── .bazelrc content (file edits OK, lint-allow flags NOT) ────────────────
+
+case_fail ".bazelrc adds -A warnings" 'diff --git a/.bazelrc b/.bazelrc
+--- a/.bazelrc
++++ b/.bazelrc
+@@ -1 +1,2 @@
+ build --remote_cache=https://example
++build --@rules_rust//:extra_rustc_flags=-A,warnings
+'
+
+case_fail ".bazelrc.user adds -A clippy::all" 'diff --git a/.bazelrc.user b/.bazelrc.user
+--- a/.bazelrc.user
++++ b/.bazelrc.user
+@@ -1 +1,2 @@
+ build --jobs=8
++build --rustc-flag=-Aclippy::all
+'
+
+case_pass ".bazelrc benign cache config" 'diff --git a/.bazelrc b/.bazelrc
+--- a/.bazelrc
++++ b/.bazelrc
+@@ -1 +1,2 @@
+ build --remote_cache=https://example
++build --remote_upload_local_results=true
+'
+
+# ── BUILD.bazel suspect attributes ────────────────────────────────────────
+
+case_fail "BUILD.bazel adds tags = [\"manual\"]" 'diff --git a/lib/x/BUILD.bazel b/lib/x/BUILD.bazel
+--- a/lib/x/BUILD.bazel
++++ b/lib/x/BUILD.bazel
+@@ -1,3 +1,4 @@
+ rust_test(
+     name = "foo",
++    tags = ["manual"],
+ )
+'
+
+case_fail "BUILD.bazel adds target_compatible_with" 'diff --git a/lib/x/BUILD.bazel b/lib/x/BUILD.bazel
+--- a/lib/x/BUILD.bazel
++++ b/lib/x/BUILD.bazel
+@@ -1,3 +1,4 @@
+ rust_test(
+     name = "foo",
++    target_compatible_with = ["@platforms//os:macos"],
+ )
+'
+
+case_pass "BUILD.bazel adds a normal dep" 'diff --git a/lib/x/BUILD.bazel b/lib/x/BUILD.bazel
+--- a/lib/x/BUILD.bazel
++++ b/lib/x/BUILD.bazel
+@@ -1,3 +1,4 @@
+ rust_test(
+     name = "foo",
++    deps = ["//lib/bar"],
+ )
+'
+
+# ── new-language detection (driven by MASTER_FILE_EXTENSIONS) ─────────────
+
+run_with_master_exts() {
+	local name="$1" expected="$2" diff="$3"
+	local out rc=0
+	out="$(printf '%s' "$diff" |
+		MASTER_FILE_EXTENSIONS="rs,sh,py,toml,md,bzl" scan_diff_for_suppressions 2>&1)" || rc=$?
+	if [[ "$rc" == "$expected" ]]; then
+		echo "PASS: $name"
+		((PASS++)) || true
+	else
+		echo "FAIL: $name — expected rc=$expected, got $rc"
+		printf '%s\n' "$out"
+		((FAIL++)) || true
+	fi
+}
+case_fail_with_master_exts() { run_with_master_exts "$1" 1 "$2"; }
+case_pass_with_master_exts() { run_with_master_exts "$1" 0 "$2"; }
+
+case_fail_with_master_exts "new .go file flagged when master lacks .go" 'diff --git a/lib/x/main.go b/lib/x/main.go
+new file mode 100644
+--- /dev/null
++++ b/lib/x/main.go
+@@ -0,0 +1,1 @@
++package main
+'
+
+case_pass_with_master_exts "new .rs file fine (extension exists in master)" 'diff --git a/lib/x/y.rs b/lib/x/y.rs
+new file mode 100644
+--- /dev/null
++++ b/lib/x/y.rs
+@@ -0,0 +1,1 @@
++fn foo() {}
+'
+
+case_pass_with_master_exts "modify .rs file (existing extension)" 'diff --git a/lib/x/y.rs b/lib/x/y.rs
+--- a/lib/x/y.rs
++++ b/lib/x/y.rs
+@@ -1 +1 @@
+-fn foo() {}
++fn bar() {}
+'
+
+# Without master_exts set, language detector is a no-op (default fall-back
+# for synthetic-diff tests that don't care about the language gate).
+case_pass "new .go file passes when master_exts unset" 'diff --git a/lib/x/main.go b/lib/x/main.go
+new file mode 100644
+--- /dev/null
++++ b/lib/x/main.go
+@@ -0,0 +1,1 @@
++package main
+'
+
 # ── summary ───────────────────────────────────────────────────────────────
 
 echo ""

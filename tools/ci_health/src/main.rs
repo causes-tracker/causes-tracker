@@ -83,16 +83,23 @@ enum Command {
         window_days: u32,
     },
     /// Developer-facing inspection of CI health from a local terminal.
-    /// Pick exactly one of --pr / --branch / --run-id / --baseline.
+    /// Pick exactly one of --pr / --branch / --run-id / --baseline / --trend.
+    /// `--trend` reports the same trailing-vs-prior comparison the
+    /// scheduled `trend` subcommand uses, but read-only (no issue write).
     Query {
-        #[arg(long, conflicts_with_all = ["branch", "run_id", "baseline"])]
+        #[arg(long, conflicts_with_all = ["branch", "run_id", "baseline", "trend"])]
         pr: Option<u64>,
-        #[arg(long, conflicts_with_all = ["pr", "run_id", "baseline"])]
+        #[arg(long, conflicts_with_all = ["pr", "run_id", "baseline", "trend"])]
         branch: Option<String>,
-        #[arg(long, conflicts_with_all = ["pr", "branch", "baseline"])]
+        #[arg(long, conflicts_with_all = ["pr", "branch", "baseline", "trend"])]
         run_id: Option<u64>,
-        #[arg(long, conflicts_with_all = ["pr", "branch", "run_id"])]
+        #[arg(long, conflicts_with_all = ["pr", "branch", "run_id", "trend"])]
         baseline: bool,
+        #[arg(long, conflicts_with_all = ["pr", "branch", "run_id", "baseline"])]
+        trend: bool,
+        /// Window size in days for `--trend`; trailing N days vs prior N days.
+        #[arg(long, default_value_t = 7)]
+        window_days: u32,
         #[arg(long, default_value_t = 1)]
         last: usize,
         #[arg(long)]
@@ -136,6 +143,8 @@ async fn main() -> Result<()> {
             branch,
             run_id,
             baseline,
+            trend,
+            window_days,
             last,
             verbose: _,
             json,
@@ -145,6 +154,8 @@ async fn main() -> Result<()> {
                 branch,
                 run_id,
                 baseline,
+                trend,
+                window_days,
                 last,
                 json,
             })
@@ -257,39 +268,37 @@ async fn upsert_marked_comment(octo: &Octocrab, pr: u64, body: &str) -> Result<(
     Ok(())
 }
 
+/// Fetch the trailing 2N days of master metrics and split them client-side
+/// into two N-day windows for trend classification.
+/// Used by both the scheduled `trend` subcommand and the read-only
+/// `query --trend` mode so their verdicts cannot drift.
+/// The split is by index, not by artifact timestamp: we don't carry
+/// `created_at` into `RunMetrics`, so we rely on the GH artifacts API
+/// returning newest-first and bucket the first half as trailing.
+async fn compute_windowed_trend(
+    artifacts: &ArtifactClient,
+    window_days: u32,
+) -> Result<(WindowStats, WindowStats, TrendVerdict)> {
+    let now = Utc::now();
+    let window = Duration::days(window_days as i64);
+    // 100 is the GH API's per_page max; plenty for two weeks of master CI.
+    let all = artifacts
+        .fetch_runs_since("master", now - window - window, 100)
+        .await?;
+    let mid = all.len() / 2;
+    let (trailing, prior) = all.split_at(mid);
+    let trailing_stats = WindowStats::from_runs(trailing);
+    let prior_stats = WindowStats::from_runs(prior);
+    let verdict = trend::classify(&trailing_stats, &prior_stats, &config::TREND);
+    Ok((trailing_stats, prior_stats, verdict))
+}
+
 async fn trend_cmd(window_days: u32) -> Result<()> {
     let token = token_from_env("trend")?;
     let artifacts = ArtifactClient::new(token.clone(), OWNER.into(), REPO.into())?;
 
-    let now = Utc::now();
-    let window = Duration::days(window_days as i64);
-    let prior_start = now - window - window;
-    // One fetch over the full 2N-day span, then split client-side so we
-    // pay a single artifact list call.
-    let all = artifacts
-        .fetch_runs_since(
-            "master",
-            prior_start,
-            // 100 is the GH API's per_page max; that's plenty for two
-            // weeks of master CI at this repo's rate.
-            100,
-        )
-        .await?;
-    let trailing: Vec<RunMetrics> = all
-        .iter()
-        .filter(|_| true) // placeholder; real splitting happens via run_id+artifact created_at lookup
-        .cloned()
-        .collect();
-    // We don't carry the artifact created_at into RunMetrics, so use a
-    // simple two-bucket split by run_id ordering: assume the API
-    // returns artifacts newest-first, so the first half-and-a-bit of
-    // the fetched list is trailing and the rest is prior.
-    let mid = trailing.len() / 2;
-    let (trailing_runs, prior_runs) = trailing.split_at(mid);
-    let trailing_stats = WindowStats::from_runs(trailing_runs);
-    let prior_stats = WindowStats::from_runs(prior_runs);
-
-    let verdict = trend::classify(&trailing_stats, &prior_stats, &config::TREND);
+    let (trailing_stats, prior_stats, verdict) =
+        compute_windowed_trend(&artifacts, window_days).await?;
 
     let octo = Octocrab::builder()
         .personal_token(token)
@@ -375,6 +384,8 @@ struct QueryArgs {
     branch: Option<String>,
     run_id: Option<u64>,
     baseline: bool,
+    trend: bool,
+    window_days: u32,
     last: usize,
     json: bool,
 }
@@ -395,6 +406,30 @@ async fn query(args: QueryArgs) -> Result<()> {
                 b.median_job_wall_seconds,
                 b.median_cache_hit_rate * 100.0,
             );
+        }
+        return Ok(());
+    }
+
+    if args.trend {
+        let (trailing_stats, prior_stats, verdict) =
+            compute_windowed_trend(&artifacts, args.window_days).await?;
+        if args.json {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&TrendReport {
+                    window_days: args.window_days,
+                    trailing: WindowStatsJson::from(&trailing_stats),
+                    prior: WindowStatsJson::from(&prior_stats),
+                    verdict: match &verdict {
+                        TrendVerdict::Healthy => "healthy".into(),
+                        TrendVerdict::InsufficientData => "insufficient-data".into(),
+                        TrendVerdict::Regressed { reasons } =>
+                            format!("regressed: {}", reasons.join("; ")),
+                    },
+                })?
+            );
+        } else {
+            print_trend_report(args.window_days, &trailing_stats, &prior_stats, &verdict);
         }
         return Ok(());
     }
@@ -498,6 +533,74 @@ impl From<&Baseline> for BaselineJson {
             sample_count: b.sample_count,
             median_job_wall_seconds: b.median_job_wall_seconds,
             median_cache_hit_rate: b.median_cache_hit_rate,
+        }
+    }
+}
+
+#[derive(serde::Serialize)]
+struct WindowStatsJson {
+    sample_count: usize,
+    median_wall_seconds: f64,
+    p95_wall_seconds: f64,
+    median_cache_hit_rate: f64,
+    median_remote_bytes_downloaded: f64,
+}
+
+impl From<&WindowStats> for WindowStatsJson {
+    fn from(s: &WindowStats) -> Self {
+        Self {
+            sample_count: s.sample_count,
+            median_wall_seconds: s.median_wall_seconds,
+            p95_wall_seconds: s.p95_wall_seconds,
+            median_cache_hit_rate: s.median_cache_hit_rate,
+            median_remote_bytes_downloaded: s.median_remote_bytes_downloaded,
+        }
+    }
+}
+
+#[derive(serde::Serialize)]
+struct TrendReport {
+    window_days: u32,
+    trailing: WindowStatsJson,
+    prior: WindowStatsJson,
+    verdict: String,
+}
+
+fn print_trend_report(
+    window_days: u32,
+    trailing: &WindowStats,
+    prior: &WindowStats,
+    verdict: &TrendVerdict,
+) {
+    println!(
+        "trend: trailing {window_days}d (n={}) vs prior {window_days}d (n={})",
+        trailing.sample_count, prior.sample_count,
+    );
+    println!(
+        "  median wall     {:>6.0}s   {:>6.0}s",
+        trailing.median_wall_seconds, prior.median_wall_seconds,
+    );
+    println!(
+        "  p95 wall        {:>6.0}s   {:>6.0}s",
+        trailing.p95_wall_seconds, prior.p95_wall_seconds,
+    );
+    println!(
+        "  hit rate        {:>5.1}%    {:>5.1}%",
+        trailing.median_cache_hit_rate * 100.0,
+        prior.median_cache_hit_rate * 100.0,
+    );
+    println!(
+        "  remote bytes    {:>6.0}    {:>6.0}",
+        trailing.median_remote_bytes_downloaded, prior.median_remote_bytes_downloaded,
+    );
+    match verdict {
+        TrendVerdict::Healthy => println!("verdict: healthy"),
+        TrendVerdict::InsufficientData => println!("verdict: insufficient data"),
+        TrendVerdict::Regressed { reasons } => {
+            println!("verdict: regressed");
+            for r in reasons {
+                println!("  - {r}");
+            }
         }
     }
 }

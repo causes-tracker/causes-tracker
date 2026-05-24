@@ -418,8 +418,12 @@ run_gate() {
 	elapsed=$(awk "BEGIN {printf \"%.3f\", $end - $start}")
 	TIMINGS+=("$name"$'\t'"$rc"$'\t'"$elapsed")
 	if [[ -n "${CHECK_TIMING_JSONL:-}" ]]; then
-		printf '{"gate":"%s","rc":%s,"seconds":%s}\n' \
-			"$name" "$rc" "$elapsed" >>"$CHECK_TIMING_JSONL"
+		jq -nc \
+			--arg gate "$name" \
+			--argjson rc "$rc" \
+			--argjson seconds "$elapsed" \
+			'{gate: $gate, rc: $rc, seconds: $seconds}' \
+			>>"$CHECK_TIMING_JSONL"
 	fi
 	return $rc
 }
@@ -438,6 +442,9 @@ emit_timing_summary() {
 trap emit_timing_summary EXIT
 
 run_all_gates() {
+	if [[ -n "${CHECK_TIMING_JSONL:-}" ]]; then
+		: >"$CHECK_TIMING_JSONL"
+	fi
 	run_gate rules_rs_macros check_rules_rs_macros
 	run_gate package_readmes check_package_readmes
 	run_gate bazel_quiet check_bazel_quiet

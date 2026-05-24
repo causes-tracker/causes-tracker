@@ -762,7 +762,7 @@ async fn record(
         gate_timings,
     };
     let json = serde_json::to_string_pretty(&metrics).context("serialize metrics")?;
-    std::fs::write(out, json).with_context(|| format!("write {}", out.display()))?;
+    write_atomic(out, json.as_bytes()).with_context(|| format!("write {}", out.display()))?;
     Ok(())
 }
 
@@ -802,6 +802,27 @@ fn parse_gate_timings(path: &std::path::Path) -> Result<Vec<GateTiming>> {
     Ok(out)
 }
 
+/// Atomically write `bytes` to `out` via a sibling temp file + rename.
+fn write_atomic(out: &std::path::Path, bytes: &[u8]) -> std::io::Result<()> {
+    let parent = out.parent().ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            format!("{} has no parent directory", out.display()),
+        )
+    })?;
+    let file_name = out
+        .file_name()
+        .ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!("{} has no file name", out.display()),
+            )
+        })?
+        .to_string_lossy();
+    let tmp = parent.join(format!(".{file_name}.tmp.{}", std::process::id()));
+    std::fs::write(&tmp, bytes)?;
+    std::fs::rename(&tmp, out)
+}
 #[cfg(test)]
 mod tests {
     use super::*;

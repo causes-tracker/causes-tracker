@@ -42,6 +42,17 @@ impl BazelStats {
     }
 }
 
+/// One entry from the JSONL file `tools/check.sh` writes when
+/// `CHECK_TIMING_JSONL` is set.
+/// `gate` is the gate name passed to `run_gate` (e.g. `format_check`),
+/// `rc` is the gate's POSIX exit code (0-255), `seconds` is wall-clock duration.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GateTiming {
+    pub gate: String,
+    pub rc: u8,
+    pub seconds: f64,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RunMetrics {
     pub run_id: RunId,
@@ -53,10 +64,13 @@ pub struct RunMetrics {
     pub timings: StepTimings,
     pub bazel: BazelStats,
     pub bb_invocation_ids: Vec<InvocationId>,
-    /// Wall-clock seconds spent inside the `record` invocation itself: GH API calls (run metadata, jobs list, step timings, job log) plus BB GetInvocation round-trips plus JSON serialization.
-    /// This is the overhead the metrics-gathering step adds to a CI run.
-    /// The GH Actions step timing for the record step will be this plus runner/process startup, so the two numbers are complementary, not redundant.
+    /// Wall-clock seconds spent inside the `record` invocation.
     pub metrics_collection_seconds: f64,
+    /// Per-gate timings ingested from the JSONL file `tools/check.sh`
+    /// writes when `CHECK_TIMING_JSONL` is set.
+    /// Empty when `record` was invoked without `--check-timings`.
+    #[serde(default)]
+    pub gate_timings: Vec<GateTiming>,
 }
 
 #[cfg(test)]
@@ -89,9 +103,31 @@ mod tests {
             },
             bb_invocation_ids: vec![InvocationId("uuid-1".into())],
             metrics_collection_seconds: 2.75,
+            gate_timings: vec![GateTiming {
+                gate: "format_check".into(),
+                rc: 0,
+                seconds: 4.221,
+            }],
         };
         let s = serde_json::to_string(&m).unwrap();
         let back: RunMetrics = serde_json::from_str(&s).unwrap();
         assert_eq!(m, back);
+    }
+
+    #[test]
+    fn deserialises_legacy_without_gate_timings() {
+        let legacy = r#"{
+            "run_id": 1, "sha": "x", "pr": null, "branch": "master", "event": "push",
+            "job_wall_seconds": 0.0, "cache_restore_seconds": 0.0, "cache_save_seconds": 0.0,
+            "bazel_invocation_seconds": 0.0, "other_seconds": 0.0,
+            "bazel": {
+                "actions_total": 0, "local_cache_hits": 0, "remote_cache_hits": 0,
+                "cache_misses": 0, "remote_bytes_downloaded": 0, "remote_bytes_uploaded": 0,
+                "critical_path_seconds": 0.0
+            },
+            "bb_invocation_ids": [], "metrics_collection_seconds": 0.0
+        }"#;
+        let m: RunMetrics = serde_json::from_str(legacy).unwrap();
+        assert!(m.gate_timings.is_empty());
     }
 }

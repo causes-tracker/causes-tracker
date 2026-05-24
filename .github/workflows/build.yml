@@ -39,7 +39,17 @@ jobs:
           disk-cache: ${{ github.workflow }}-v2
           repository-cache: true
       - name: Run quality gates (lint, format, test, coverage)
+        env:
+          CHECK_TIMING_JSONL: ${{ github.workspace }}/check-timings.jsonl
         run: tools/check.sh ci $BB_FLAGS //...
+      - name: Upload per-gate timings
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: check-timings-${{ github.run_id }}
+          path: check-timings.jsonl
+          retention-days: 90
+          if-no-files-found: warn
   # Metrics collection runs as a separate job depending on `build` so
   # that the job's step logs are finalized by the time `record` reads
   # them. Inside the build job, the GH logs endpoint 404s on the
@@ -61,10 +71,18 @@ jobs:
           bazelisk-cache: true
           disk-cache: ${{ github.workflow }}-ci-metrics
           repository-cache: true
+      - name: Download per-gate timings
+        continue-on-error: true
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53  # v6.0.0
+        with:
+          name: check-timings-${{ github.run_id }}
+          path: ${{ github.workspace }}
       # `--out` must be absolute: `bazel run` invokes the binary with cwd
       # inside the runfiles tree, not GITHUB_WORKSPACE, so a relative path
       # lands in `~/.cache/bazel/.../ci_health.runfiles/_main/` where
       # upload-artifact can't see it.
+      # `--check-timings` is the JSONL produced by `tools/check.sh` under
+      # `CHECK_TIMING_JSONL` in the `build` job, downloaded above.
       - name: Record CI metrics
         continue-on-error: true
         env:
@@ -75,6 +93,7 @@ jobs:
             --run-id ${{ github.run_id }} \
             --job build \
             --out "${{ github.workspace }}/ci-metrics.json" \
+            --check-timings "${{ github.workspace }}/check-timings.jsonl" \
             ${{ github.event.pull_request.number && format('--pr {0}', github.event.pull_request.number) || '' }}
       - name: Upload CI metrics artifact
         continue-on-error: true

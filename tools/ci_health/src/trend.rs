@@ -6,18 +6,31 @@
 
 use crate::config::TrendThresholds;
 use crate::metrics::RunMetrics;
+use std::collections::BTreeMap;
 
 pub const ISSUE_TITLE: &str = "CI health trend";
 pub const ISSUE_MARKER: &str = "<!-- ci-health-trend-bot -->";
 
+/// Median time observed for a single `tools/check.sh` gate across a window.
+#[derive(Debug, Clone, PartialEq)]
+pub struct GateMedian {
+    pub gate: String,
+    pub sample_count: usize,
+    pub median_seconds: f64,
+}
+
 /// Aggregate statistics over a single time window of master CI runs.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct WindowStats {
     pub sample_count: usize,
     pub median_wall_seconds: f64,
     pub p95_wall_seconds: f64,
     pub median_cache_hit_rate: f64,
     pub median_remote_bytes_downloaded: f64,
+    /// Per-gate median wall time, sorted alphabetically by gate name.
+    /// Populated from `RunMetrics.gate_timings`; gates with `rc != 0`
+    /// are excluded so failures don't skew the timing distribution.
+    pub gate_medians: Vec<GateMedian>,
 }
 
 impl WindowStats {
@@ -31,13 +44,39 @@ impl WindowStats {
             .iter()
             .map(|r| r.bazel.remote_bytes_downloaded as f64)
             .collect();
+        let mut per_gate: BTreeMap<&str, Vec<f64>> = BTreeMap::new();
+        for run in runs {
+            for gt in &run.gate_timings {
+                if gt.rc != 0 {
+                    continue;
+                }
+                per_gate
+                    .entry(gt.gate.as_str())
+                    .or_default()
+                    .push(gt.seconds);
+            }
+        }
+        let gate_medians = per_gate
+            .into_iter()
+            .map(|(gate, mut samples)| GateMedian {
+                gate: gate.to_string(),
+                sample_count: samples.len(),
+                median_seconds: median(&mut samples).unwrap_or(0.0),
+            })
+            .collect();
         Self {
             sample_count: runs.len(),
             median_wall_seconds: median(&mut walls).unwrap_or(0.0),
             p95_wall_seconds: percentile(&mut walls.clone(), 0.95).unwrap_or(0.0),
             median_cache_hit_rate: median(&mut hit_rates).unwrap_or(0.0),
             median_remote_bytes_downloaded: median(&mut bytes).unwrap_or(0.0),
+            gate_medians,
         }
+    }
+
+    /// Find a gate's median in this window by name.
+    pub fn gate(&self, name: &str) -> Option<&GateMedian> {
+        self.gate_medians.iter().find(|g| g.gate == name)
     }
 }
 
@@ -94,6 +133,34 @@ pub fn classify(
         }
     }
 
+    // Per-gate regression: a gate's median seconds rose past
+    // `prior * median_wall_seconds_ratio` while both windows have at
+    // least 3 samples for that gate. Catches single-gate slowdowns the
+    // aggregate `median_wall_seconds` check misses when other gates
+    // sped up enough to keep the total flat.
+    for trailing_gate in &trailing.gate_medians {
+        if trailing_gate.sample_count < 3 {
+            continue;
+        }
+        let Some(prior_gate) = prior.gate(&trailing_gate.gate) else {
+            continue;
+        };
+        if prior_gate.sample_count < 3 || prior_gate.median_seconds <= 0.0 {
+            continue;
+        }
+        let cap = prior_gate.median_seconds * thresholds.median_wall_seconds_ratio;
+        if trailing_gate.median_seconds > cap {
+            reasons.push(format!(
+                "gate `{}` median {:.1}s rose above {:.1}s ({}× prior median {:.1}s)",
+                trailing_gate.gate,
+                trailing_gate.median_seconds,
+                cap,
+                thresholds.median_wall_seconds_ratio,
+                prior_gate.median_seconds,
+            ));
+        }
+    }
+
     if reasons.is_empty() {
         TrendVerdict::Healthy
     } else {
@@ -140,6 +207,27 @@ pub fn render_issue_body(
         "| median remote bytes down | {:.0} | {:.0} |\n",
         trailing.median_remote_bytes_downloaded, prior.median_remote_bytes_downloaded,
     ));
+    if !trailing.gate_medians.is_empty() || !prior.gate_medians.is_empty() {
+        out.push_str("\n**Per-gate medians:**\n\n");
+        out.push_str("| gate | trailing (n) | prior (n) |\n");
+        out.push_str("|---|---|---|\n");
+        let mut names: std::collections::BTreeSet<&str> = std::collections::BTreeSet::new();
+        for g in &trailing.gate_medians {
+            names.insert(&g.gate);
+        }
+        for g in &prior.gate_medians {
+            names.insert(&g.gate);
+        }
+        for name in names {
+            let t = trailing.gate(name);
+            let p = prior.gate(name);
+            let cell = |g: Option<&GateMedian>| match g {
+                Some(g) => format!("{:.1}s ({})", g.median_seconds, g.sample_count),
+                None => "—".to_string(),
+            };
+            out.push_str(&format!("| {} | {} | {} |\n", name, cell(t), cell(p)));
+        }
+    }
     out.push_str("\nThis issue is updated daily; the bot will close it with a recovery note when the trend reverses.\n");
     out
 }
@@ -180,7 +268,27 @@ fn percentile(xs: &mut [f64], p: f64) -> Option<f64> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::metrics::{BazelStats, CommitSha, RunId, StepTimings};
+    use crate::metrics::{BazelStats, CommitSha, GateTiming, RunId, StepTimings};
+
+    fn run_with_gates(
+        wall: f64,
+        hits: u64,
+        total: u64,
+        bytes: u64,
+        gates: Vec<GateTiming>,
+    ) -> RunMetrics {
+        let mut m = run(wall, hits, total, bytes);
+        m.gate_timings = gates;
+        m
+    }
+
+    fn gate(name: &str, seconds: f64) -> GateTiming {
+        GateTiming {
+            gate: name.into(),
+            rc: 0,
+            seconds,
+        }
+    }
 
     fn run(wall: f64, hits: u64, total: u64, bytes: u64) -> RunMetrics {
         RunMetrics {
@@ -284,5 +392,140 @@ mod tests {
         assert!(body.contains("trailing 7d"));
         assert!(body.contains("prior 7d"));
         assert!(body.contains("wall went up"));
+    }
+
+    #[test]
+    fn from_runs_aggregates_per_gate_medians() {
+        let runs = vec![
+            run_with_gates(
+                180.0,
+                900,
+                1000,
+                1000,
+                vec![gate("format_check", 4.0), gate("bazel_coverage", 40.0)],
+            ),
+            run_with_gates(
+                180.0,
+                900,
+                1000,
+                1000,
+                vec![gate("format_check", 5.0), gate("bazel_coverage", 42.0)],
+            ),
+            run_with_gates(
+                180.0,
+                900,
+                1000,
+                1000,
+                vec![gate("format_check", 6.0), gate("bazel_coverage", 44.0)],
+            ),
+        ];
+        let s = WindowStats::from_runs(&runs);
+        assert_eq!(s.gate("format_check").unwrap().median_seconds, 5.0);
+        assert_eq!(s.gate("bazel_coverage").unwrap().median_seconds, 42.0);
+        assert_eq!(s.gate("format_check").unwrap().sample_count, 3);
+        // alphabetical
+        assert_eq!(
+            s.gate_medians
+                .iter()
+                .map(|g| g.gate.as_str())
+                .collect::<Vec<_>>(),
+            vec!["bazel_coverage", "format_check"]
+        );
+    }
+
+    #[test]
+    fn from_runs_excludes_failed_gate_runs() {
+        let mut failed = gate("format_check", 99.0);
+        failed.rc = 1;
+        let runs = vec![
+            run_with_gates(180.0, 900, 1000, 1000, vec![gate("format_check", 4.0)]),
+            run_with_gates(180.0, 900, 1000, 1000, vec![gate("format_check", 5.0)]),
+            run_with_gates(180.0, 900, 1000, 1000, vec![gate("format_check", 6.0)]),
+            run_with_gates(180.0, 900, 1000, 1000, vec![failed]),
+        ];
+        let s = WindowStats::from_runs(&runs);
+        let g = s.gate("format_check").unwrap();
+        assert_eq!(g.sample_count, 3);
+        assert_eq!(g.median_seconds, 5.0);
+    }
+
+    #[test]
+    fn flags_per_gate_regression_when_aggregate_is_flat() {
+        // Aggregate wall stays at 180s in both windows; format_check
+        // doubles while bazel_coverage drops to compensate. Only the
+        // per-gate detector should fire.
+        let prior: Vec<_> = (0..5)
+            .map(|_| {
+                run_with_gates(
+                    180.0,
+                    900,
+                    1000,
+                    1000,
+                    vec![gate("format_check", 4.0), gate("bazel_coverage", 50.0)],
+                )
+            })
+            .collect();
+        let trailing: Vec<_> = (0..5)
+            .map(|_| {
+                run_with_gates(
+                    180.0,
+                    900,
+                    1000,
+                    1000,
+                    vec![gate("format_check", 12.0), gate("bazel_coverage", 30.0)],
+                )
+            })
+            .collect();
+        let v = classify(
+            &WindowStats::from_runs(&trailing),
+            &WindowStats::from_runs(&prior),
+            &thresholds(),
+        );
+        let TrendVerdict::Regressed { reasons } = v else {
+            panic!("expected regression, got {v:?}");
+        };
+        assert!(reasons.iter().any(|r| r.contains("gate `format_check`")));
+        assert!(!reasons.iter().any(|r| r.contains("gate `bazel_coverage`")));
+        // aggregate wall didn't trip
+        assert!(!reasons.iter().any(|r| r.contains("median wall time")));
+    }
+
+    #[test]
+    fn per_gate_skipped_when_insufficient_samples() {
+        let prior: Vec<_> = (0..5)
+            .map(|_| run_with_gates(180.0, 900, 1000, 1000, vec![gate("format_check", 4.0)]))
+            .collect();
+        // Only 2 trailing samples for format_check (other 3 runs lack
+        // the gate entirely); per-gate detector should skip.
+        let trailing: Vec<_> = vec![
+            run_with_gates(180.0, 900, 1000, 1000, vec![gate("format_check", 99.0)]),
+            run_with_gates(180.0, 900, 1000, 1000, vec![gate("format_check", 99.0)]),
+            run_with_gates(180.0, 900, 1000, 1000, vec![]),
+            run_with_gates(180.0, 900, 1000, 1000, vec![]),
+            run_with_gates(180.0, 900, 1000, 1000, vec![]),
+        ];
+        let v = classify(
+            &WindowStats::from_runs(&trailing),
+            &WindowStats::from_runs(&prior),
+            &thresholds(),
+        );
+        assert_eq!(v, TrendVerdict::Healthy);
+    }
+
+    #[test]
+    fn issue_body_renders_per_gate_table() {
+        let prior: Vec<_> = (0..5)
+            .map(|_| run_with_gates(180.0, 900, 1000, 1000, vec![gate("format_check", 4.0)]))
+            .collect();
+        let trailing: Vec<_> = (0..5)
+            .map(|_| run_with_gates(180.0, 900, 1000, 1000, vec![gate("format_check", 12.0)]))
+            .collect();
+        let t = WindowStats::from_runs(&trailing);
+        let p = WindowStats::from_runs(&prior);
+        let body = render_issue_body(7, &t, &p, &["something".into()]);
+        assert!(body.contains("Per-gate medians"));
+        assert!(body.contains("| format_check |"));
+        assert!(body.contains("12.0s (5)"));
+        assert!(body.contains("4.0s (5)"));
     }
 }

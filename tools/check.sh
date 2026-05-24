@@ -18,9 +18,10 @@
 # The gates, in order:
 #   1. No BUILD.bazel file may load @rules_rs directly — use //build:rust.bzl.
 #   2. Every Bazel package must have a README.md.
-#   3. //:format.check (every formatter the project configures).
-#   4. bazel coverage --lockfile_mode=error (runs every test).
-#   5. Per-file Rust coverage threshold (MIN_PCT).
+#   3. Output-captured `bazel run|build` invocations use `--quiet`.
+#   4. //:format.check (every formatter the project configures).
+#   5. bazel coverage --lockfile_mode=error (runs every test).
+#   6. Per-file Rust coverage threshold (MIN_PCT).
 #
 # Usage:
 #   tools/check.sh ci    [bazel-flags...] [target...]
@@ -287,6 +288,10 @@ check_package_readmes() {
 	bash tools/require_readme_test.sh
 }
 
+check_bazel_quiet() {
+	bash tools/require_bazel_quiet_test.sh
+}
+
 run_format_check() {
 	bazel run "${BAZEL_FLAGS[@]}" //:format.check
 }
@@ -381,6 +386,7 @@ enforce_per_file_coverage() {
 run_all_gates() {
 	check_rules_rs_macros
 	check_package_readmes
+	check_bazel_quiet
 	run_format_check
 	run_bazel_coverage
 	enforce_per_file_coverage

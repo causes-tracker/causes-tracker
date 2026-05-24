@@ -31,6 +31,10 @@
 # Anything starting with `-` is treated as a bazel flag (forwarded to
 # format.check and coverage); the rest is treated as bazel targets
 # (forwarded only to coverage).  Default target is //....
+#
+# A per-gate timing summary is printed to stderr at exit.  Setting
+# CHECK_TIMING_JSONL=<path> additionally appends one JSON object per
+# gate (`{"gate":"…","rc":N,"seconds":N.NNN}`) to that path.
 
 set -euo pipefail
 
@@ -383,13 +387,48 @@ enforce_per_file_coverage() {
 	echo "check ok${CHANGE_ID:+ ($CHANGE_ID)}: ${#disk_files[@]} Rust source file(s) checked, all >= ${MIN_PCT}%"
 }
 
+# Per-gate wall-clock timings, populated by run_gate.
+# Emitted as a summary to stderr at exit (via the EXIT trap below) and,
+# when CHECK_TIMING_JSONL is set, appended as one JSON object per gate
+# to that path.
+TIMINGS=()
+
+run_gate() {
+	local name="$1"
+	shift
+	local start end elapsed rc=0
+	start="$EPOCHREALTIME"
+	"$@" || rc=$?
+	end="$EPOCHREALTIME"
+	elapsed=$(awk "BEGIN {printf \"%.3f\", $end - $start}")
+	TIMINGS+=("$name"$'\t'"$rc"$'\t'"$elapsed")
+	if [[ -n "${CHECK_TIMING_JSONL:-}" ]]; then
+		printf '{"gate":"%s","rc":%s,"seconds":%s}\n' \
+			"$name" "$rc" "$elapsed" >>"$CHECK_TIMING_JSONL"
+	fi
+	return $rc
+}
+
+emit_timing_summary() {
+	[[ ${#TIMINGS[@]} -eq 0 ]] && return 0
+	local total=0 t n r s
+	printf '\nGate timings:\n' >&2
+	for t in "${TIMINGS[@]}"; do
+		IFS=$'\t' read -r n r s <<<"$t"
+		printf '  %-24s rc=%s %8ss\n' "$n" "$r" "$s" >&2
+		total=$(awk "BEGIN {printf \"%.3f\", $total + $s}")
+	done
+	printf '  %-24s     %8ss\n' "TOTAL" "$total" >&2
+}
+trap emit_timing_summary EXIT
+
 run_all_gates() {
-	check_rules_rs_macros
-	check_package_readmes
-	check_bazel_quiet
-	run_format_check
-	run_bazel_coverage
-	enforce_per_file_coverage
+	run_gate rules_rs_macros check_rules_rs_macros
+	run_gate package_readmes check_package_readmes
+	run_gate bazel_quiet check_bazel_quiet
+	run_gate format_check run_format_check
+	run_gate bazel_coverage run_bazel_coverage
+	run_gate per_file_coverage enforce_per_file_coverage
 }
 
 # ── dispatch ──────────────────────────────────────────────────────────────

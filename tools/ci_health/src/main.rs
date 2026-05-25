@@ -15,7 +15,7 @@ use crate::comparison::{
     Baseline, COMMENT_MARKER, Verdict, classify, load_baseline_dir, render_pr_comment,
 };
 use crate::github::{GithubClient, OWNER, REPO, token_from_env};
-use crate::metrics::{RunId, RunMetrics};
+use crate::metrics::{GateTiming, RunId, RunMetrics};
 use crate::trend::{
     ISSUE_MARKER, ISSUE_TITLE, TrendVerdict, WindowStats, render_issue_body,
     render_recovery_comment,
@@ -51,6 +51,12 @@ enum Command {
         /// Carried as a CLI arg rather than read from the workflow run because octocrab's `models::workflows::Run` does not expose `pull_requests` (the schema in the wild does not match what octocrab declared).
         #[arg(long)]
         pr: Option<u64>,
+        /// Path to the per-gate timing JSONL emitted by `tools/check.sh`
+        /// when `CHECK_TIMING_JSONL=<path>` is set. Each non-empty line
+        /// parses as `{"gate":"…","rc":N,"seconds":N.NNN}` and is
+        /// folded into the emitted `RunMetrics.gate_timings`.
+        #[arg(long)]
+        check_timings: Option<std::path::PathBuf>,
     },
     /// Classify a run's metrics against a baseline directory of recent
     /// successful master runs. Exit code reflects the verdict (0 = ok,
@@ -119,6 +125,7 @@ async fn main() -> Result<()> {
             out,
             job,
             pr,
+            check_timings,
         } => {
             let token = token_from_env("record")?;
             let bb_key = safelog::Sensitive::new(
@@ -127,7 +134,16 @@ async fn main() -> Result<()> {
             );
             let gh = GithubClient::new(token)?;
             let bb = BuildBuddyClient::new(bb_key)?;
-            record(&gh, &bb, RunId(run_id), &job, pr, &out).await
+            record(
+                &gh,
+                &bb,
+                RunId(run_id),
+                &job,
+                pr,
+                check_timings.as_deref(),
+                &out,
+            )
+            .await
         }
         Command::Compare {
             current,
@@ -611,6 +627,7 @@ async fn record(
     run_id: RunId,
     job: &str,
     pr: Option<u64>,
+    check_timings_path: Option<&std::path::Path>,
     out: &std::path::Path,
 ) -> Result<()> {
     let started = std::time::Instant::now();
@@ -621,6 +638,10 @@ async fn record(
     for id in &invocation_ids {
         stats.push(bb.get_invocation(id).await?);
     }
+    let gate_timings = match check_timings_path {
+        Some(p) => parse_gate_timings(p)?,
+        None => Vec::new(),
+    };
     let metrics = RunMetrics {
         run_id,
         sha: meta.head_sha,
@@ -631,10 +652,47 @@ async fn record(
         bazel: buildbuddy::aggregate(&stats),
         bb_invocation_ids: invocation_ids,
         metrics_collection_seconds: started.elapsed().as_secs_f64(),
+        gate_timings,
     };
     let json = serde_json::to_string_pretty(&metrics).context("serialize metrics")?;
     std::fs::write(out, json).with_context(|| format!("write {}", out.display()))?;
     Ok(())
+}
+
+/// Read the JSONL emitted by `tools/check.sh` with `CHECK_TIMING_JSONL=<path>`.
+/// One `GateTiming` per non-empty line; blank lines are skipped.
+/// A missing file yields an empty Vec — the `build` job may have failed
+/// before writing it, and metrics collection should still proceed.
+/// A malformed line fails loudly.
+fn parse_gate_timings(path: &std::path::Path) -> Result<Vec<GateTiming>> {
+    let text = match std::fs::read_to_string(path) {
+        Ok(t) => t,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(e) => {
+            return Err(e).with_context(|| format!("read check timings from {}", path.display()));
+        }
+    };
+    let mut out = Vec::new();
+    for (i, line) in text.lines().enumerate() {
+        if line.trim().is_empty() {
+            continue;
+        }
+        let entry: GateTiming = serde_json::from_str(line).with_context(|| {
+            let snippet: String = line.chars().take(200).collect();
+            let ellipsis = if line.chars().count() > 200 {
+                "…"
+            } else {
+                ""
+            };
+            format!(
+                "parse {} line {}: {snippet}{ellipsis}",
+                path.display(),
+                i + 1
+            )
+        })?;
+        out.push(entry);
+    }
+    Ok(out)
 }
 
 #[cfg(test)]
@@ -762,9 +820,37 @@ mod tests {
             BuildBuddyClient::with_base_url(safelog::Sensitive::new("k".into()), bb_mock.uri())
                 .unwrap();
         let out = tempfile::NamedTempFile::new().unwrap();
-        record(&gh, &bb, RunId(run_id), "build", Some(99), out.path())
-            .await
-            .unwrap();
+        let timings = tempfile::NamedTempFile::new().unwrap();
+        let fixture = [
+            GateTiming {
+                gate: "format_check".into(),
+                rc: 0,
+                seconds: 4.221,
+            },
+            GateTiming {
+                gate: "bazel_coverage".into(),
+                rc: 0,
+                seconds: 42.106,
+            },
+        ];
+        let jsonl: String = fixture
+            .iter()
+            .map(|e| serde_json::to_string(e).unwrap())
+            .collect::<Vec<_>>()
+            .join("\n")
+            + "\n";
+        std::fs::write(timings.path(), jsonl).unwrap();
+        record(
+            &gh,
+            &bb,
+            RunId(run_id),
+            "build",
+            Some(99),
+            Some(timings.path()),
+            out.path(),
+        )
+        .await
+        .unwrap();
 
         let parsed: RunMetrics =
             serde_json::from_str(&std::fs::read_to_string(out.path()).unwrap()).unwrap();
@@ -776,6 +862,9 @@ mod tests {
         // Self-timer was started and stopped; with mock latency it's tiny
         // but strictly positive.
         assert!(parsed.metrics_collection_seconds > 0.0);
+        assert_eq!(parsed.gate_timings.len(), 2);
+        assert_eq!(parsed.gate_timings[0].gate, "format_check");
+        assert_eq!(parsed.gate_timings[1].seconds, 42.106);
     }
 
     fn run_body(run_id: u64) -> serde_json::Value {

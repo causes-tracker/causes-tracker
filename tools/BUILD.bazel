@@ -27,6 +27,7 @@ rust_binary(
     deps = [
         "@crates//:clap",
         "@crates//:console",
+        "@crates//:sqlx",
         "@crates//:sqlx-cli",
         "@crates//:tokio",
     ],

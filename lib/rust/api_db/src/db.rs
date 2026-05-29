@@ -48,12 +48,10 @@ mod tests {
 
     /// An empty migrator — gives us a bare database from `#[sqlx::test]` so we
     /// can exercise `DbPool::connect` and `migrate` ourselves.
-    static EMPTY: sqlx::migrate::Migrator = sqlx::migrate::Migrator {
-        migrations: std::borrow::Cow::Borrowed(&[]),
-        ignore_missing: false,
-        locking: true,
-        no_tx: false,
-    };
+    /// `Migrator::DEFAULT` already carries empty migrations and the standard
+    /// flags, so we reuse it rather than spelling out the struct literal —
+    /// that keeps us compiling across sqlx releases that add fields.
+    static EMPTY: sqlx::migrate::Migrator = sqlx::migrate::Migrator::DEFAULT;
 
     #[sqlx::test(migrator = "crate::db::tests::EMPTY")]
     async fn connect_and_migrate(pool: sqlx::PgPool) {

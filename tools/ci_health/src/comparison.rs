@@ -5,15 +5,29 @@
 use crate::config::PrThresholds;
 use crate::metrics::RunMetrics;
 use anyhow::{Context, Result};
+use std::collections::BTreeMap;
 use std::path::Path;
+
+/// Median seconds for a single `tools/check.sh` gate across the
+/// baseline window. Populated by `Baseline::from_runs` from each
+/// baseline run's `gate_timings`; failed-gate runs (rc != 0) are
+/// excluded so they don't skew the median.
+#[derive(Debug, Clone, PartialEq)]
+pub struct BaselineGate {
+    pub gate: String,
+    pub sample_count: usize,
+    pub median_seconds: f64,
+}
 
 /// The aggregate of a baseline window: medians of the metrics we use to
 /// trip the regression detector. Computed from N successful master runs.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Baseline {
     pub sample_count: usize,
     pub median_job_wall_seconds: f64,
     pub median_cache_hit_rate: f64,
+    /// Per-gate median seconds, sorted alphabetically by gate name.
+    pub gate_medians: Vec<BaselineGate>,
 }
 
 impl Baseline {
@@ -23,11 +37,36 @@ impl Baseline {
             .iter()
             .filter_map(|r| r.bazel.cache_hit_rate())
             .collect();
+        let mut per_gate: BTreeMap<&str, Vec<f64>> = BTreeMap::new();
+        for run in runs {
+            for gt in &run.gate_timings {
+                if gt.rc != 0 {
+                    continue;
+                }
+                per_gate
+                    .entry(gt.gate.as_str())
+                    .or_default()
+                    .push(gt.seconds);
+            }
+        }
+        let gate_medians = per_gate
+            .into_iter()
+            .map(|(gate, mut samples)| BaselineGate {
+                gate: gate.to_string(),
+                sample_count: samples.len(),
+                median_seconds: median(&mut samples).unwrap_or(0.0),
+            })
+            .collect();
         Self {
             sample_count: runs.len(),
             median_job_wall_seconds: median(&mut walls).unwrap_or(0.0),
             median_cache_hit_rate: median(&mut hit_rates).unwrap_or(0.0),
+            gate_medians,
         }
+    }
+
+    pub fn gate(&self, name: &str) -> Option<&BaselineGate> {
+        self.gate_medians.iter().find(|g| g.gate == name)
     }
 }
 
@@ -67,6 +106,33 @@ pub fn classify(current: &RunMetrics, baseline: &Baseline, thresholds: PrThresho
                 cur_rate * 100.0,
                 drop_pp,
                 baseline.median_cache_hit_rate * 100.0,
+            ));
+        }
+    }
+
+    // Per-gate regression: trip if a successful gate in the current run
+    // took more than baseline.median × ratio, when the baseline has at
+    // least 3 samples for that gate. Catches single-gate slowdowns the
+    // aggregate `job_wall_seconds` check misses.
+    for cur_gate in &current.gate_timings {
+        if cur_gate.rc != 0 {
+            continue;
+        }
+        let Some(baseline_gate) = baseline.gate(&cur_gate.gate) else {
+            continue;
+        };
+        if baseline_gate.sample_count < 3 || baseline_gate.median_seconds <= 0.0 {
+            continue;
+        }
+        let cap = baseline_gate.median_seconds * thresholds.job_wall_seconds_ratio;
+        if cur_gate.seconds > cap {
+            reasons.push(format!(
+                "gate `{}` took {:.1}s, above {:.1}s ({}× baseline median {:.1}s)",
+                cur_gate.gate,
+                cur_gate.seconds,
+                cap,
+                thresholds.job_wall_seconds_ratio,
+                baseline_gate.median_seconds,
             ));
         }
     }
@@ -131,6 +197,31 @@ pub fn render_pr_comment(current: &RunMetrics, baseline: &Baseline, verdict: &Ve
         "| remote bytes downloaded | {} | — |\n",
         current.bazel.remote_bytes_downloaded
     ));
+    if !current.gate_timings.is_empty() || !baseline.gate_medians.is_empty() {
+        out.push_str("\n**Per-gate timings:**\n\n");
+        out.push_str("| gate | this run | baseline median (n) |\n");
+        out.push_str("|---|---|---|\n");
+        let mut names: std::collections::BTreeSet<&str> = std::collections::BTreeSet::new();
+        for g in &current.gate_timings {
+            names.insert(&g.gate);
+        }
+        for g in &baseline.gate_medians {
+            names.insert(&g.gate);
+        }
+        for name in names {
+            let cur = current
+                .gate_timings
+                .iter()
+                .find(|g| g.gate == name)
+                .map(|g| format!("{:.1}s", g.seconds))
+                .unwrap_or_else(|| "—".to_string());
+            let base = baseline
+                .gate(name)
+                .map(|g| format!("{:.1}s ({})", g.median_seconds, g.sample_count))
+                .unwrap_or_else(|| "—".to_string());
+            out.push_str(&format!("| {name} | {cur} | {base} |\n"));
+        }
+    }
     out.push_str("\n</details>\n");
     out
 }
@@ -169,7 +260,21 @@ fn median(xs: &mut [f64]) -> Option<f64> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::metrics::{BazelStats, CommitSha, RunId, StepTimings};
+    use crate::metrics::{BazelStats, CommitSha, GateTiming, RunId, StepTimings};
+
+    fn gate(name: &str, seconds: f64) -> GateTiming {
+        GateTiming {
+            gate: name.into(),
+            rc: 0,
+            seconds,
+        }
+    }
+
+    fn run_with_gates(wall: f64, hits: u64, total: u64, gates: Vec<GateTiming>) -> RunMetrics {
+        let mut m = run(wall, hits, total);
+        m.gate_timings = gates;
+        m
+    }
 
     fn run(wall: f64, hits: u64, total: u64) -> RunMetrics {
         RunMetrics {
@@ -265,5 +370,61 @@ mod tests {
         let current = run(190.0, 920, 1000);
         let v = classify(&current, &baseline, pr_thresholds());
         assert_eq!(render_pr_comment(&current, &baseline, &v), "");
+    }
+
+    #[test]
+    fn baseline_aggregates_per_gate_medians() {
+        let baseline = Baseline::from_runs(&[
+            run_with_gates(180.0, 900, 1000, vec![gate("format_check", 4.0)]),
+            run_with_gates(180.0, 900, 1000, vec![gate("format_check", 5.0)]),
+            run_with_gates(180.0, 900, 1000, vec![gate("format_check", 6.0)]),
+        ]);
+        let g = baseline.gate("format_check").unwrap();
+        assert_eq!(g.sample_count, 3);
+        assert_eq!(g.median_seconds, 5.0);
+    }
+
+    #[test]
+    fn flags_per_gate_regression_when_aggregate_is_flat() {
+        // Same job wall (180s) as baseline → no wall regression.
+        // But format_check tripled from 4s to 14s → per-gate regression.
+        let baseline = Baseline::from_runs(&[
+            run_with_gates(180.0, 900, 1000, vec![gate("format_check", 4.0)]),
+            run_with_gates(180.0, 900, 1000, vec![gate("format_check", 4.0)]),
+            run_with_gates(180.0, 900, 1000, vec![gate("format_check", 4.0)]),
+        ]);
+        let current = run_with_gates(180.0, 900, 1000, vec![gate("format_check", 14.0)]);
+        let v = classify(&current, &baseline, pr_thresholds());
+        let Verdict::Regressed { reasons } = v else {
+            panic!("expected regression, got {v:?}");
+        };
+        assert!(reasons.iter().any(|r| r.contains("gate `format_check`")));
+        assert!(!reasons.iter().any(|r| r.contains("wall time")));
+    }
+
+    #[test]
+    fn per_gate_ignored_when_baseline_lacks_samples() {
+        // Baseline has 2 samples for format_check (need 3). Skipped.
+        let baseline = Baseline::from_runs(&[
+            run_with_gates(180.0, 900, 1000, vec![gate("format_check", 4.0)]),
+            run_with_gates(180.0, 900, 1000, vec![gate("format_check", 4.0)]),
+            run_with_gates(180.0, 900, 1000, vec![]),
+        ]);
+        let current = run_with_gates(180.0, 900, 1000, vec![gate("format_check", 99.0)]);
+        assert_eq!(classify(&current, &baseline, pr_thresholds()), Verdict::Ok);
+    }
+
+    #[test]
+    fn rendered_comment_includes_per_gate_table() {
+        let baseline = Baseline::from_runs(&[
+            run_with_gates(180.0, 900, 1000, vec![gate("format_check", 4.0)]),
+            run_with_gates(180.0, 900, 1000, vec![gate("format_check", 4.0)]),
+            run_with_gates(180.0, 900, 1000, vec![gate("format_check", 4.0)]),
+        ]);
+        let current = run_with_gates(180.0, 900, 1000, vec![gate("format_check", 14.0)]);
+        let v = classify(&current, &baseline, pr_thresholds());
+        let md = render_pr_comment(&current, &baseline, &v);
+        assert!(md.contains("Per-gate timings"));
+        assert!(md.contains("| format_check | 14.0s | 4.0s (3) |"));
     }
 }

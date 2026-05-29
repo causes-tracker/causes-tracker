@@ -89,21 +89,26 @@ enum Command {
         window_days: u32,
     },
     /// Developer-facing inspection of CI health from a local terminal.
-    /// Pick exactly one of --pr / --branch / --run-id / --baseline / --trend.
+    /// Pick exactly one of --pr / --branch / --run-id / --baseline / --trend / --gates.
     /// `--trend` reports the same trailing-vs-prior comparison the
     /// scheduled `trend` subcommand uses, but read-only (no issue write).
+    /// `--gates` shows per-gate trailing-vs-prior medians for every
+    /// gate seen in the window, regardless of whether any crossed the
+    /// regression threshold.
     Query {
-        #[arg(long, conflicts_with_all = ["branch", "run_id", "baseline", "trend"])]
+        #[arg(long, conflicts_with_all = ["branch", "run_id", "baseline", "trend", "gates"])]
         pr: Option<u64>,
-        #[arg(long, conflicts_with_all = ["pr", "run_id", "baseline", "trend"])]
+        #[arg(long, conflicts_with_all = ["pr", "run_id", "baseline", "trend", "gates"])]
         branch: Option<String>,
-        #[arg(long, conflicts_with_all = ["pr", "branch", "baseline", "trend"])]
+        #[arg(long, conflicts_with_all = ["pr", "branch", "baseline", "trend", "gates"])]
         run_id: Option<u64>,
-        #[arg(long, conflicts_with_all = ["pr", "branch", "run_id", "trend"])]
+        #[arg(long, conflicts_with_all = ["pr", "branch", "run_id", "trend", "gates"])]
         baseline: bool,
-        #[arg(long, conflicts_with_all = ["pr", "branch", "run_id", "baseline"])]
+        #[arg(long, conflicts_with_all = ["pr", "branch", "run_id", "baseline", "gates"])]
         trend: bool,
-        /// Window size in days for `--trend`; trailing N days vs prior N days.
+        #[arg(long, conflicts_with_all = ["pr", "branch", "run_id", "baseline", "trend"])]
+        gates: bool,
+        /// Window size in days for `--trend` and `--gates`; trailing N days vs prior N days.
         #[arg(long, default_value_t = 7)]
         window_days: u32,
         #[arg(long, default_value_t = 1)]
@@ -160,6 +165,7 @@ async fn main() -> Result<()> {
             run_id,
             baseline,
             trend,
+            gates,
             window_days,
             last,
             verbose: _,
@@ -171,6 +177,7 @@ async fn main() -> Result<()> {
                 run_id,
                 baseline,
                 trend,
+                gates,
                 window_days,
                 last,
                 json,
@@ -401,6 +408,7 @@ struct QueryArgs {
     run_id: Option<u64>,
     baseline: bool,
     trend: bool,
+    gates: bool,
     window_days: u32,
     last: usize,
     json: bool,
@@ -446,6 +454,25 @@ async fn query(args: QueryArgs) -> Result<()> {
             );
         } else {
             print_trend_report(args.window_days, &trailing_stats, &prior_stats, &verdict);
+        }
+        return Ok(());
+    }
+
+    if args.gates {
+        let (trailing_stats, prior_stats, _verdict) =
+            compute_windowed_trend(&artifacts, args.window_days).await?;
+        let rows = gate_comparison_rows(&trailing_stats, &prior_stats);
+        if args.json {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&GatesReport {
+                    window_days: args.window_days,
+                    threshold_ratio: config::TREND.median_wall_seconds_ratio,
+                    rows,
+                })?
+            );
+        } else {
+            print_gates_report(args.window_days, &rows);
         }
         return Ok(());
     }
@@ -580,6 +607,86 @@ struct TrendReport {
     trailing: WindowStatsJson,
     prior: WindowStatsJson,
     verdict: String,
+}
+
+#[derive(serde::Serialize)]
+struct GateComparisonRow {
+    gate: String,
+    trailing_median_seconds: Option<f64>,
+    trailing_sample_count: usize,
+    prior_median_seconds: Option<f64>,
+    prior_sample_count: usize,
+    /// Ratio of trailing median to prior median, when both windows have
+    /// at least one sample with a positive prior median; absent otherwise.
+    ratio: Option<f64>,
+}
+
+#[derive(serde::Serialize)]
+struct GatesReport {
+    window_days: u32,
+    threshold_ratio: f64,
+    rows: Vec<GateComparisonRow>,
+}
+
+fn gate_comparison_rows(trailing: &WindowStats, prior: &WindowStats) -> Vec<GateComparisonRow> {
+    let mut names: std::collections::BTreeSet<&str> = std::collections::BTreeSet::new();
+    for g in &trailing.gate_medians {
+        names.insert(&g.gate);
+    }
+    for g in &prior.gate_medians {
+        names.insert(&g.gate);
+    }
+    names
+        .into_iter()
+        .map(|name| {
+            let t = trailing.gate(name);
+            let p = prior.gate(name);
+            let ratio = match (t, p) {
+                (Some(t), Some(p)) if p.median_seconds > 0.0 => {
+                    Some(t.median_seconds / p.median_seconds)
+                }
+                _ => None,
+            };
+            GateComparisonRow {
+                gate: name.to_string(),
+                trailing_median_seconds: t.map(|g| g.median_seconds),
+                trailing_sample_count: t.map(|g| g.sample_count).unwrap_or(0),
+                prior_median_seconds: p.map(|g| g.median_seconds),
+                prior_sample_count: p.map(|g| g.sample_count).unwrap_or(0),
+                ratio,
+            }
+        })
+        .collect()
+}
+
+fn print_gates_report(window_days: u32, rows: &[GateComparisonRow]) {
+    let threshold = config::TREND.median_wall_seconds_ratio;
+    println!(
+        "gates: trailing {window_days}d vs prior {window_days}d (regression threshold {threshold}×)"
+    );
+    println!(
+        "  {:<24} {:>14} {:>14} {:>8}",
+        "gate", "trailing (n)", "prior (n)", "ratio"
+    );
+    for row in rows {
+        let trailing_cell = match row.trailing_median_seconds {
+            Some(s) => format!("{:.1}s ({})", s, row.trailing_sample_count),
+            None => "—".to_string(),
+        };
+        let prior_cell = match row.prior_median_seconds {
+            Some(s) => format!("{:.1}s ({})", s, row.prior_sample_count),
+            None => "—".to_string(),
+        };
+        let (ratio_cell, marker) = match row.ratio {
+            Some(r) if r > threshold => (format!("{r:.2}"), "  ⚠ regression"),
+            Some(r) => (format!("{r:.2}"), ""),
+            None => ("—".to_string(), ""),
+        };
+        println!(
+            "  {:<24} {:>14} {:>14} {:>8}{}",
+            row.gate, trailing_cell, prior_cell, ratio_cell, marker
+        );
+    }
 }
 
 fn print_trend_report(
@@ -764,6 +871,69 @@ mod tests {
             err.kind(),
             clap::error::ErrorKind::ArgumentConflict
         ));
+    }
+
+    #[test]
+    fn query_gates_conflicts_with_trend() {
+        let err = Cli::try_parse_from(["ci_health", "query", "--gates", "--trend"])
+            .expect_err("--gates and --trend are mutually exclusive");
+        assert!(matches!(
+            err.kind(),
+            clap::error::ErrorKind::ArgumentConflict
+        ));
+    }
+
+    #[test]
+    fn gate_comparison_rows_merges_both_windows() {
+        use crate::trend::{GateMedian, WindowStats};
+        let trailing = WindowStats {
+            sample_count: 5,
+            median_wall_seconds: 0.0,
+            p95_wall_seconds: 0.0,
+            median_cache_hit_rate: 0.0,
+            median_remote_bytes_downloaded: 0.0,
+            gate_medians: vec![
+                GateMedian {
+                    gate: "bazel_coverage".into(),
+                    sample_count: 5,
+                    median_seconds: 42.0,
+                },
+                GateMedian {
+                    gate: "format_check".into(),
+                    sample_count: 5,
+                    median_seconds: 12.0,
+                },
+            ],
+        };
+        let prior = WindowStats {
+            sample_count: 5,
+            median_wall_seconds: 0.0,
+            p95_wall_seconds: 0.0,
+            median_cache_hit_rate: 0.0,
+            median_remote_bytes_downloaded: 0.0,
+            gate_medians: vec![
+                GateMedian {
+                    gate: "bazel_coverage".into(),
+                    sample_count: 5,
+                    median_seconds: 40.0,
+                },
+                GateMedian {
+                    gate: "package_readmes".into(),
+                    sample_count: 5,
+                    median_seconds: 0.3,
+                },
+            ],
+        };
+        let rows = gate_comparison_rows(&trailing, &prior);
+        assert_eq!(rows.len(), 3);
+        assert_eq!(rows[0].gate, "bazel_coverage");
+        assert!((rows[0].ratio.unwrap() - 1.05).abs() < 1e-9);
+        // format_check has trailing but no prior → no ratio
+        assert_eq!(rows[1].gate, "format_check");
+        assert!(rows[1].ratio.is_none());
+        // package_readmes has prior but no trailing → no ratio
+        assert_eq!(rows[2].gate, "package_readmes");
+        assert!(rows[2].ratio.is_none());
     }
 
     /// End-to-end test of the BB-extended `record`: both GH and BB clients pointed at wiremock servers produce a metrics JSON with populated bazel stats.

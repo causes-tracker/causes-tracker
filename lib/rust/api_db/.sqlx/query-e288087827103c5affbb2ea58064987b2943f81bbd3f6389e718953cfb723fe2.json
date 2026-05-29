@@ -6,7 +6,8 @@
       {
         "ordinal": 0,
         "name": "QUERY PLAN",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": "Expression"
       }
     ],
     "parameters": {

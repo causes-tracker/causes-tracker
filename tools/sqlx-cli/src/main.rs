@@ -8,6 +8,7 @@ use sqlx_cli::Opt;
 #[tokio::main]
 async fn main() {
     sqlx_cli::maybe_apply_dotenv();
+    sqlx::any::install_default_drivers();
     let opt = Opt::parse();
     if let Err(error) = sqlx_cli::run(opt).await {
         println!("{} {}", style("error:").bold().red(), error);

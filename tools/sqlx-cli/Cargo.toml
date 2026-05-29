@@ -15,7 +15,7 @@ path = "src/main.rs"
 [dependencies]
 clap = { workspace = true }
 console = "0.16"
-sqlx-cli = { version = "0.8", default-features = false, features = [
+sqlx-cli = { version = "0.9", default-features = false, features = [
   "rustls",
   "postgres",
 ] }

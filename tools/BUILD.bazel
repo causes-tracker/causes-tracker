@@ -1,4 +1,4 @@
-load("@rules_python//python:defs.bzl", "py_binary")
+load("@rules_python//python:defs.bzl", "py_binary", "py_library", "py_test")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//build:rust.bzl", "rust_binary")
@@ -146,6 +146,33 @@ sh_test(
         "check.sh",
         "@bazel_tools//tools/bash/runfiles",
     ],
+)
+
+# PreToolUse action guard, wired into .claude/settings.json.  Denies forbidden
+# agent actions at the moment of action: native tooling instead of the Bazel
+# wrappers, lockfile destruction, and mod.rs creation.  Decision logic lives in
+# decide() so it is unit-testable without spawning a subprocess.
+py_library(
+    name = "agent_action_guard",
+    srcs = ["agent_action_guard.py"],
+    imports = ["."],
+)
+
+py_test(
+    name = "agent_action_guard_test",
+    size = "small",
+    srcs = ["agent_action_guard_test.py"],
+    data = [
+        "cargo.sh",
+        "proto_gen_impl.sh",
+        "rustc.sh",
+        "rustfmt.sh",
+        "sqlx.sh",
+        "sqlx_prepare_impl.sh",
+        "toolchain_versions_test.sh",
+    ],
+    main = "agent_action_guard_test.py",
+    deps = [":agent_action_guard"],
 )
 
 format_srcs()

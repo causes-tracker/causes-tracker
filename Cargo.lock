@@ -4224,6 +4224,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "console 0.16.3",
+ "sqlx",
  "sqlx-cli",
  "tokio",
 ]

@@ -15,6 +15,9 @@ path = "src/main.rs"
 [dependencies]
 clap = { workspace = true }
 console = "0.16"
+# Needed for `sqlx::any::install_default_drivers()`: sqlx 0.9 no longer
+# auto-registers Any drivers, so the CLI must install them before use.
+sqlx = { workspace = true }
 sqlx-cli = { version = "0.9", default-features = false, features = [
   "rustls",
   "postgres",

@@ -6,17 +6,35 @@
       {
         "ordinal": 0,
         "name": "column_name",
-        "type_info": "Name"
+        "type_info": "Name",
+        "origin": {
+          "Table": {
+            "table": "information_schema.columns",
+            "name": "column_name"
+          }
+        }
       },
       {
         "ordinal": 1,
         "name": "data_type",
-        "type_info": "Varchar"
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "information_schema.columns",
+            "name": "data_type"
+          }
+        }
       },
       {
         "ordinal": 2,
         "name": "is_nullable",
-        "type_info": "Varchar"
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "information_schema.columns",
+            "name": "is_nullable"
+          }
+        }
       }
     ],
     "parameters": {

@@ -51,3 +51,8 @@ cabal-dev
 
 # VS Code settings for the project — never commit; otherwise contributors cannot customise work.
 .vscode
+
+# Python bytecode cache — running a tools/*.py test directly (outside the Bazel
+# sandbox) writes these into the source tree.
+__pycache__/
+*.pyc

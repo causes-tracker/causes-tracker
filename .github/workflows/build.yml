@@ -26,7 +26,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
       # The base image ships the deprecated gold linker, which causes warnings
       # when detected by build tools.  Remove the binaries; ld already points
       # to ld.bfd.
@@ -62,7 +62,7 @@ jobs:
     needs: build
     if: always()
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
       - name: Remove deprecated gold linker
         run: sudo rm -f /usr/bin/x86_64-linux-gnu-ld.gold /usr/bin/ld.gold
       - name: Install Bazelisk
@@ -121,7 +121,7 @@ jobs:
     needs: build
     if: github.event_name == 'push'
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
       # The base image ships the deprecated gold linker, which causes warnings
       # when detected by build tools.  Remove the binaries; ld already points
       # to ld.bfd.

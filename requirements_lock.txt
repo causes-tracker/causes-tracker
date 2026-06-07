@@ -8,9 +8,9 @@ application-file-scanner==0.6.4 \
     --hash=sha256:49c211c60f1932812477facc38701d58037b07b031fdb6a6061fdee3fd53e35f \
     --hash=sha256:581c48c5017345747be7f49507da84fec36d1f7b4f67003e9fbaf2f0bc6a3f66
     # via pymarkdownlnt
-application-properties==0.9.2 \
-    --hash=sha256:503388017a8d12436ba0914c8d24820adf658f765f9ac7dc9dc77a4733115238 \
-    --hash=sha256:d8e7858bbf72c9d834117d74f561efb65d31e5193f1a5e803d6adc2d556c8465
+application-properties==0.9.3 \
+    --hash=sha256:32dbd62b3fb657ec1c7fdc352590463c2ffd14950ffd258a5c091e8798d8aec0 \
+    --hash=sha256:7dc7d8f23d11e539427e7b8e3afa70353e159c16f703bad6dd082cc6cdfeeaa8
     # via pymarkdownlnt
 click==8.4.1 \
     --hash=sha256:482be17c6991b8c19c5429a1e995d9b0efdbb63172824c41f99965dc0ade8ec2 \

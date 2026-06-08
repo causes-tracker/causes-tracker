@@ -91,7 +91,7 @@ chrono = { version = "0.4", default-features = false, features = [
   "serde",
   "clock",
 ] }
-octocrab = "0.52"
+octocrab = "0.53"
 zip = { version = "8", default-features = false, features = ["deflate"] }
 # AWS SDK crates: default features enable BOTH `default-https-client` (which selects aws-smithy-http-client/rustls-aws-lc — aws-lc-rs) AND `rustls` (which selects aws-smithy-http-client/legacy-rustls-ring — old rustls 0.21).
 # Both are disabled here so the workspace stays on a single rustls 0.23 + ring stack matching tonic, sqlx-cli, octocrab, causes_mcp, and rustls-acme (overridden to ring below).

@@ -281,8 +281,13 @@ run_agent_scan() {
 # ── individual gates ──────────────────────────────────────────────────────
 
 check_rules_rs_macros() {
-	if grep -rn 'load("@rules_rs//rs:rust_\(binary\|library\|test\)\.bzl"' \
-		--include='BUILD.bazel' . 2>/dev/null; then
+	local files
+	files="$(jj file list -r @ 2>/dev/null | grep '\(^\|/\)BUILD\.bazel$')"
+	if [[ -z "$files" ]]; then
+		return 0
+	fi
+	if echo "$files" | xargs grep -n \
+		'load("@rules_rs//rs:rust_\(binary\|library\|test\)\.bzl"' 2>/dev/null; then
 		echo "ERROR: Use //build:rust.bzl macros instead of @rules_rs directly." >&2
 		return 1
 	fi
@@ -297,7 +302,17 @@ check_bazel_quiet() {
 }
 
 run_format_check() {
-	bazel run "${BAZEL_FLAGS[@]}" //:format.check
+	# Match the analysis-config hash used by run_bazel_coverage so the analysis
+	# cache survives between gates instead of being discarded each turn (the
+	# "Build options ... have changed, discarding analysis cache" warning).
+	# These flags are no-ops for a `bazel run` of a sh_binary but they're part
+	# of the analysis key.
+	bazel run \
+		--collect_code_coverage \
+		--instrumentation_filter='^//' \
+		--action_env=GENERATE_LLVM_LCOV=1 \
+		--action_env=COVERAGE_GCOV_PATH=/usr/bin/gcov \
+		"${BAZEL_FLAGS[@]}" //:format.check
 }
 
 run_bazel_coverage() {

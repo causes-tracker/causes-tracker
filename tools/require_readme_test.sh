@@ -15,7 +15,10 @@ while IFS= read -r build_file; do
 	if [[ ! -f "$pkg_dir/README.md" ]]; then
 		missing+=("$pkg_dir")
 	fi
-done < <(find . -name BUILD.bazel -o -name BUILD | sort)
+done < <(jj file list -r @ 2>/dev/null |
+	grep -E '(^|/)(BUILD\.bazel|BUILD)$' |
+	sed 's|^|./|' |
+	sort)
 
 if ((${#missing[@]} > 0)); then
 	echo "FAIL: the following Bazel packages are missing a README.md:" >&2

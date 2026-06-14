@@ -19,10 +19,8 @@ while IFS= read -r file; do
 			print "    " $0
 		}
 	' "$file"
-done < <(find . -type f \( -name '*.sh' -o -name '*.md' \) \
-	-not -path './bazel-*' \
-	-not -path './.git/*' \
-	-not -path './node_modules/*' |
+done < <(jj file list -r @ 2>/dev/null |
+	grep -E '\.(sh|md)$' |
 	sort) >"$violations_file"
 
 if [[ -s "$violations_file" ]]; then

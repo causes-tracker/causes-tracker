@@ -22,12 +22,18 @@ build --remote_cache_compression
 # Workspace status: populates COMMIT_SHA and REPO_URL for BuildBuddy flake detection.
 build --workspace_status_command="bash workspace_status.sh"
 
+# Don't block the client on the BES upload handshake; the daemon finalizes it.
+build --bes_upload_mode=fully_async
+
 # CI config — activated with --config=ci in GitHub Actions.
 # The API key is passed separately via --remote_header in the workflow.
 build:ci --build_metadata=ROLE=CI
 build:ci --remote_cache=grpcs://remote.buildbuddy.io
 build:ci --bes_backend=grpcs://remote.buildbuddy.io
 build:ci --bes_results_url=https://app.buildbuddy.io/invocation/
+# Bounded wait so a stuck BuildBuddy connection can't stall `bazel shutdown`
+# in the workflow's end-of-job drain step.
+build:ci --bes_timeout=120s
 # Fail CI if MODULE.bazel.lock would be updated — every dep change must be
 # committed alongside the lockfile. The renovate-lockfile workflow handles
 # Renovate PRs; for human PRs that add deps, run

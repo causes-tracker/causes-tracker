@@ -15,8 +15,7 @@ while IFS= read -r build_file; do
 	if [[ ! -f "$pkg_dir/README.md" ]]; then
 		missing+=("$pkg_dir")
 	fi
-done < <(jj file list -r @ 2>/dev/null |
-	grep -E '(^|/)(BUILD\.bazel|BUILD)$' |
+done < <(jj file list --ignore-working-copy 'glob:**/BUILD.bazel' 'glob:**/BUILD' 2>/dev/null |
 	sed 's|^|./|' |
 	sort)
 

@@ -19,8 +19,7 @@ while IFS= read -r file; do
 			print "    " $0
 		}
 	' "$file"
-done < <(jj file list -r @ 2>/dev/null |
-	grep -E '\.(sh|md)$' |
+done < <(jj file list --ignore-working-copy 'glob:**/*.sh' 'glob:**/*.md' 2>/dev/null |
 	sort) >"$violations_file"
 
 if [[ -s "$violations_file" ]]; then

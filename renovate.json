@@ -3,7 +3,13 @@
   "extends": [
     "config:recommended"
   ],
-  "minimumReleaseAge": "5 days",
+  "minimumReleaseAge": "7 days",
+  "internalChecksFilter": "strict",
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 4am on monday"],
+    "minimumReleaseAge": "7 days"
+  },
   "automerge": true,
   "platformAutomerge": true,
   "automergeStrategy": "merge",

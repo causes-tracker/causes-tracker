@@ -1,6 +1,5 @@
 load("@aspect_rules_lint//format:defs.bzl", "format_multirun")
 load("@gazelle//:def.bzl", "gazelle")
-load("@rules_python//python:pip.bzl", "compile_pip_requirements")
 load(
     "//tools/lint:format_check.bzl",
     "buildifier_check",
@@ -29,12 +28,9 @@ exports_files([
 # Generates and updates BUILD files for Go targets.
 gazelle(name = "gazelle")
 
-# Regenerate requirements_lock.txt with: bazel run //:requirements.update
-compile_pip_requirements(
-    name = "requirements",
-    src = "requirements.in",
-    python_version = "3.12",
-    requirements_txt = "requirements_lock.txt",
+alias(
+    name = "requirements.update",
+    actual = "//tools:pip_compile",
 )
 
 # Exposes all design docs as a Bazel target so //docs:docs_site can depend on them.

@@ -105,6 +105,17 @@ filegroup(
     url = "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.34.14.zip",
 )
 
+# uv: Python resolver for //:requirements.update.  Used for --exclude-newer,
+# which enforces the same 7-day cooldown on transitives that Renovate applies
+# to direct deps.
+http_archive(
+    name = "uv_linux_amd64",
+    build_file_content = """exports_files(["uv"])""",
+    sha256 = "8c88519b0ef0af9801fcdee419bbb12116bd9e6b18e162ae093c932d8b264050",
+    strip_prefix = "uv-x86_64-unknown-linux-gnu",
+    url = "https://github.com/astral-sh/uv/releases/download/0.11.21/uv-x86_64-unknown-linux-gnu.tar.gz",
+)
+
 # OpenTofu 1.11.5 Linux amd64 binary, used by //infra:tofu.
 # Update by downloading the new SHA256SUMS from the GitHub release page.
 http_archive(

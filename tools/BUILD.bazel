@@ -9,6 +9,17 @@ exports_files([
     "sqlx_prepare_impl.sh",
 ])
 
+# Regenerates //:requirements_lock.txt.  --exclude-newer in pip_compile.sh
+# enforces the same 7-day cooldown on transitives that Renovate applies to
+# direct deps (see renovate.json).
+sh_binary(
+    name = "pip_compile",
+    srcs = ["pip_compile.sh"],
+    args = ["$(rootpath @uv_linux_amd64//:uv)"],
+    data = ["@uv_linux_amd64//:uv"],
+    visibility = ["//:__pkg__"],
+)
+
 # Render the most recent bazel coverage report as HTML and serve it.
 # Usage: bazel coverage //... && bazel run //tools:show_coverage
 py_binary(

@@ -46,7 +46,7 @@ genrule(
         sed -e '/^docs_dir:/d' -e '/^site_dir:/d' docs/mkdocs.yml > $$OUTDIR/mkdocs.yml
         echo "docs_dir: designdocs" >> $$OUTDIR/mkdocs.yml
         cd $$OUTDIR
-        $$EXECROOT/$(location :zensical) build --clean
+        $$EXECROOT/$(location :zensical) build --clean --strict
         # Zensical locates its theme assets via __file__ at runtime, but the Bazel
         # runfiles layout differs from a regular pip install, so it silently skips
         # the copy. Copy them manually from the tool's runfiles.

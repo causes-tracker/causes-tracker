@@ -102,7 +102,7 @@ pub struct ReplicationPath {
     /// path lists instance_ids in delivery order.  The first element is the
     /// writing instance; the last element is the local instance that stored
     /// this entry.  Locally-authored entries have a single-element path of
-    /// \[self\].  The receiver appends its own instance_id on ingest.
+    /// `\[self\]`.  The receiver appends its own instance_id on ingest.
     #[prost(message, repeated, tag = "1")]
     pub path: ::prost::alloc::vec::Vec<InstanceId>,
 }

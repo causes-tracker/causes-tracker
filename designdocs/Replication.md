@@ -4,7 +4,7 @@ This document specifies the Causes replication protocol.
 It is the specification for implementors building a Causes-compatible instance or alternative storage backend.
 
 For the design rationale behind these decisions, see [ADR-013](Decisions.md#adr-013-replication-protocol) in Decisions.md.
-For the broader federation strategy, see [ADR-006](Decisions.md#adr-006-federation-strategy--distribute-dont-federate-by-default).
+For the broader federation strategy, see [ADR-006](Decisions.md#adr-006-federation-strategy-distribute-dont-federate-by-default).
 For a machine-checked TLA+ model of the protocol's safety properties, see [../tla/Replication.tla](../tla/Replication.tla).
 
 ## Overview

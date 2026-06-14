@@ -78,14 +78,14 @@ Users are interested in:
 
 Tracking symptoms and signs separately from proposed changes provides dedicated interfaces that meet users' needs, developers' needs, and the needs of folk that do planning.
 The interfaces should be fluid, not rigidly partitioned — people wear multiple hats, especially on small projects.
-[not validated — experience with Bazaar, Ubuntu etc was a strong indicator]
+\[not validated — experience with Bazaar, Ubuntu etc was a strong indicator\]
 
 ### Sensible assumptions
 
 In the absence of explicit decisions, Causes makes sensible assumptions — and updates those as the facts change.
 For instance, a symptom many users are experiencing is assumed to be more important to the project than one that only a single user has reported.
 If a developer overrides that, the override sticks until removed.
-[Importance: not validated]
+\[Importance: not validated\]
 
 ### Does one thing well
 
@@ -130,14 +130,14 @@ The same core logic that drives offline access and behind-the-firewall replicati
 While Causes is not a Kanban system, it does know about work in progress: plans that have been made but not actioned, plans that are pending review, symptoms where reproduction discussion has stalled, and so on.
 Causes shows you a clear list of things you have started but not finished, including things where other people are waiting on you, or you are waiting on other people.
 Similarly it can show a project-wide view of in-progress work.
-[unvalidated, but a direct application of the automate-tedious-stuff principle]
+\[unvalidated, but a direct application of the automate-tedious-stuff principle\]
 
 ### Clearly shows what you and your collaborators have done
 
 The flip side of knowing what you are doing is knowing what you have done.
 Causes can summarise this for you, making it easy to talk about what you have done for a project.
 Similarly, see what has happened in the whole project recently, over the last month or year.
-[not validated; keep-aware-of-things is fairly obvious; the advertise-myself aspect less so]
+\[not validated; keep-aware-of-things is fairly obvious; the advertise-myself aspect less so\]
 
 ---
 
@@ -385,8 +385,8 @@ Operations:
 The following were not addressed in the original 2013 design and need decisions before implementation:
 
 - **Language and stack** — see [ADR-008](Decisions.md#adr-008-language-stack-open)
-- **Security model** (authentication, authorisation, private disclosure workflow) — see [ADR-010](Decisions.md#adr-010-security-model-open)
-- **API specification format** (recommend OpenAPI 3.x) — see [ADR-009](Decisions.md#adr-009-api-specification-format-open)
+- **Security model** (authentication, authorisation, private disclosure workflow) — see [ADR-010](Decisions.md#adr-010-security-model)
+- **API specification format** (recommend OpenAPI 3.x) — see [ADR-009](Decisions.md#adr-009-api-specification-format-protobuf)
 - **Deployment** (Docker Compose for local dev; OCI containers for production) — see [Design-Choices.md](Design-Choices.md#deployment)
 - **CI/CD pipeline** (GitHub Actions: lint, test, build, publish container image)
 - **Data schema** — the four entity types are described in prose; a concrete schema definition is needed

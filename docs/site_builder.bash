@@ -33,7 +33,7 @@ build_docs_site() {
 	echo "docs_dir: designdocs" >>"$build_root/mkdocs.yml"
 
 	# Build in a subshell to avoid changing the caller's working directory.
-	(cd "$build_root" && "$ZENSICAL" build)
+	(cd "$build_root" && "$ZENSICAL" build --strict)
 
 	# Zensical locates its theme assets via __file__ at runtime, but the Bazel
 	# runfiles layout differs from a regular pip install, so it silently skips

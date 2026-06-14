@@ -146,9 +146,9 @@ Interesting actors in a bug report
 
 Consider a project member. The project likely has some a priori agenda (whether commercial like LP itself, or opinionated, like testtools)  A project member may well want to track both personal interests and project interests. (NB: I'm not strictly talking priorities here.)
 
-Consider a user.  They probably don't want to track anything, but they want to know if *anyone* has decided they will do this thing so they want [queue depth in days for this bug to be what someone is hacking on].
+Consider a user.  They probably don't want to track anything, but they want to know if *anyone* has decided they will do this thing so they want \[queue depth in days for this bug to be what someone is hacking on\].
 
-Consider the project again.  Beyond or complementary to its a priori agenda, it may well want to know what things are most frustrating to its user base.  Which is where tracking incident rates [for crashes] and reporting rates [for frequently requested dups], and 'me wants it too' etc data.
+Consider the project again.  Beyond or complementary to its a priori agenda, it may well want to know what things are most frustrating to its user base.  Which is where tracking incident rates \[for crashes\] and reporting rates \[for frequently requested dups\], and 'me wants it too' etc data.
 
 Do I want to track every users priority on every bug in every project? Probably.
 Do I want to show it as that? Hell no.
@@ -441,7 +441,7 @@ A user says 'this is fix released' but you treat that as input to 'what users th
 Some of the Launchpad bug tracker and the Ubuntu crash tracker help of this, but I would like to see much more done in open source bug trackers towards this:
 
 * default towards doing nothing.
-* don't encourage developers to triage everything[b]
+* don't encourage developers to triage everything\[b\]
 * bugs should decay from view
 * still make it possible to dig out old bugs
 * good automatic dupe-finding, including retrospectively or interactively hunting for dupes
@@ -500,8 +500,8 @@ I think that's useful, but would like to avoid the complication of having to sup
 
 Martin Pool adds, "from andyfitz's talk, a hierarchy of needs for design: function> reliability > usability > pleasure"
 
-[b]robertc:
-I think triage as Launchpad does it now is useful, not as Ubuntu does it. [which is to say, encourage devs to look briefly at all reports to identify zomg things].
+\[b\]robertc:
+I think triage as Launchpad does it now is useful, not as Ubuntu does it. \[which is to say, encourage devs to look briefly at all reports to identify zomg things\].
 
 ---
 

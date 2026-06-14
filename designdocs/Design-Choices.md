@@ -64,7 +64,7 @@ SSE does not appear anywhere else in the system.
 
 Webhooks are not part of the core model; they may be offered as an optional outbound integration for external tools that cannot speak gRPC.
 
-See [ADR-007](Decisions.md#adr-007-push-notifications--grpc-streaming).
+See [ADR-007](Decisions.md#adr-007-push-notifications-grpc-streaming).
 
 ## API specification
 
@@ -73,7 +73,7 @@ An OpenAPI spec is generated from the proto definitions and published for third-
 Proto service definitions are the contract at component boundaries, making the backend language an implementation detail per component.
 The choice of RPC framework (Connect, grpc-gateway, tonic, etc.) follows the language decision in ADR-008.
 Real-time browser updates use Server-Sent Events (SSE), which is browser-native and requires no client library.
-See [ADR-009](Decisions.md#adr-009-api-specification-format--protobuf).
+See [ADR-009](Decisions.md#adr-009-api-specification-format-protobuf).
 
 ## Security
 

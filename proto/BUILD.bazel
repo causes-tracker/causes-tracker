@@ -64,6 +64,13 @@ genrule(
             --proto_path=$$EXECROOT/proto \
             --proto_path=$$EXECROOT/$$WKT_ROOT \
             $$PROTO_FILES
+        # protoc-gen-doc emits links to well-known type anchors that do not
+        # exist in our output (Timestamp et al). Rewrite them to point at the
+        # upstream Protobuf reference instead, so the docs build can run
+        # under zensical's --strict mode.
+        sed -i \
+            -e 's|\\[google\\.protobuf\\.Timestamp\\](#google-protobuf-Timestamp)|[google.protobuf.Timestamp](https://protobuf.dev/reference/protobuf/google.protobuf/#timestamp)|g' \
+            $$EXECROOT/$(@D)/proto_docs.md
     """,
     tools = [
         "@protobuf//:protoc",

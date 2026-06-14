@@ -270,7 +270,7 @@ run_agent_scan() {
 	# new-language detector. Computed once per agent run; cheap (a single
 	# jj invocation listing tracked paths).
 	local master_exts
-	master_exts="$(jj file list -r master 2>/dev/null |
+	master_exts="$(jj file list --ignore-working-copy -r master 2>/dev/null |
 		awk -F/ '{print $NF}' |
 		awk -F. 'NF > 1 { print $NF }' |
 		sort -u | tr '\n' ',')"
@@ -282,7 +282,7 @@ run_agent_scan() {
 
 check_rules_rs_macros() {
 	local files
-	files="$(jj file list -r @ 2>/dev/null | grep '\(^\|/\)BUILD\.bazel$')"
+	files="$(jj file list --ignore-working-copy 'glob:**/BUILD.bazel' 2>/dev/null)"
 	if [[ -z "$files" ]]; then
 		return 0
 	fi

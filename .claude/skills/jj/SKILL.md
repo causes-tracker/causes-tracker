@@ -70,8 +70,9 @@ Skip this checklist only for routine pushes with no rebase/reorder.
 
 8. **Commit messages: max 50-char subject.** Use `jj describe -m "subject"` for
    simple messages.
-   For longer messages with a body, use `jj describe` (opens editor) or
-   pass a multi-line string.
+   For a subject + body in one shot, pass a `$'…'` string so the newline is
+   real: `jj describe -m $'short subject\n\nLonger explanation here.'`.
+   For longer bodies, use `jj describe` (opens editor).
 
 ## Stacked vs merge-all: choosing the right PR shape
 
@@ -178,6 +179,38 @@ You reorder so B's commit becomes an ancestor of A's, then push both.
 GitHub sees B's head reachable from A and concludes B was merged into A.
 
 **Follow the pre-push checklist at the top of this document.**
+
+### When CI fails on a stacked PR
+
+Each PR in a stack is a different commit with different deps, lockfile state,
+and build graph.
+"Tip passes locally" is irrelevant evidence about whether PR #N (several
+commits down) passes — a lockfile change in commit 1 can produce a state
+mismatch CI sees on PR #N but the tip doesn't expose.
+
+First move: `jj edit <commit-of-failing-PR>`.
+Then `rm -rf .coverage-green` to bypass the patch-diff cache (the cache is
+keyed on patch-diff hash, correct for fast turns but invalid for a state
+investigation).
+Then reproduce.
+
+State the commit being verified out loud before claiming a result:
+"Verifying commit `<changeid> "<subject>"` for PR #<n>."
+The end-of-turn summary should name the verified commit, not just
+"all green".
+
+**The asymmetry — never confuse these directions:**
+
+- CI passes + local fails ⇒ probably stale local state; ignore until
+  reproduced.
+- CI fails + local passes ⇒ **always** local that's wrong (wrong commit,
+  stale cache, different bazel state). CI runs against committed state from
+  a cold cache; local is the side with hidden state. Never argue with CI in
+  this direction.
+
+When CI reports `extension X has changed its facts: {dump}`, ask "what makes
+extension X produce different output on my machine vs CI?" — don't guess at
+fixes. The error names both the artifact and the producer.
 
 ### Resolving conflicts
 

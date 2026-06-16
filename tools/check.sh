@@ -196,6 +196,11 @@ BEGIN {
 			have_master_exts = 1
 		}
 	}
+	# Buck2 root-config files (.buckversion/.buckroot/.buckconfig) use
+	# extensions absent from master but are legitimate, not a new language.
+	master_ext_set["buckversion"] = 1
+	master_ext_set["buckroot"] = 1
+	master_ext_set["buckconfig"] = 1
 	n_violations = 0
 	file = ""
 	is_bazelrc = 0
@@ -212,11 +217,14 @@ BEGIN {
 	sub(/.*\//, "", base)
 	is_bazelrc = (file == ".bazelrc" || file == ".bazelrc.user")
 	is_buildbazel = (base == "BUILD.bazel")
+	# The vendored Buck2 prelude is third-party code, not agent-authored;
+	# its many fixture extensions are not a new-language bypass signal.
+	is_vendored = (file ~ /^prelude\//)
 	# New-language detection: extension not seen in master is a likely
 	# bypass via the simple "switch language to dodge the existing gates"
 	# route. Only runs when the harness supplied master_exts (i.e. agent
 	# mode against a real jj tree, not synthetic test diffs).
-	if (have_master_exts && index(base, ".") > 0) {
+	if (have_master_exts && !is_vendored && index(base, ".") > 0) {
 		ext = base
 		sub(/^.*\./, "", ext)
 		if (!(ext in master_ext_set)) {

@@ -4,6 +4,18 @@ command_alias(
     visibility = ["PUBLIC"],
 )
 
+export_file(
+    name = "agent_action_guard_src",
+    src = "agent_action_guard.py",
+)
+
+command_alias(
+    name = "agent_action_guard",
+    exe = ":py",
+    args = ["$(location :agent_action_guard_src)"],
+    visibility = ["PUBLIC"],
+)
+
 genrule(
     name = "py_version_check",
     out = "ok.txt",

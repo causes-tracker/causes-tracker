@@ -1,0 +1,11 @@
+command_alias(
+    name = "py",
+    exe = "//third_party/python:cpython[bin/python3]",
+    visibility = ["PUBLIC"],
+)
+
+genrule(
+    name = "py_version_check",
+    out = "ok.txt",
+    cmd = '$(exe :py) -c "import sys; assert sys.version_info[:3] == (3, 12, 13), sys.version" && echo ok > $OUT',
+)

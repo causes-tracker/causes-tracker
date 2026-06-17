@@ -23,6 +23,9 @@ infra/github/terraform.tfvars
 /bazel-*
 .bazelrc.user
 
+# Buck2 — build output tree
+/buck-out
+
 # Node / pnpm
 node_modules/
 .pnpm-store/

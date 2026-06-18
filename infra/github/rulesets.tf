@@ -29,6 +29,10 @@ resource "github_repository_ruleset" "master" {
       required_check {
         context = "build"
       }
+
+      required_check {
+        context = "buck2"
+      }
     }
 
     merge_queue {

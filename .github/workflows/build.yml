@@ -54,6 +54,20 @@ jobs:
           path: check-timings.jsonl
           retention-days: 90
           if-no-files-found: warn
+  # Runs on a checkout where Bazel never runs: buck2's file watcher follows the
+  # bazel-* convenience symlinks into the output tree and hangs, so buck2 builds
+  # cannot share a checkout with Bazel.
+  buck2:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+      - name: Install buckle
+        run: sudo bash tools/buckle/install.sh /usr/local/bin
+      - name: Build buck2 targets
+        run: buck2 build //...
+      - name: Shut down buck2 daemon
+        if: always()
+        run: buck2 kill || true
   # Metrics collection runs as a separate job depending on `build` so
   # that the job's step logs are finalized by the time `record` reads
   # them. Inside the build job, the GH logs endpoint 404s on the

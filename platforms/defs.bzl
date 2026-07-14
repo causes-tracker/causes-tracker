@@ -19,6 +19,7 @@ def _impl(ctx: AnalysisContext) -> list[Provider]:
             local_enabled = True,
             remote_enabled = False,
             remote_cache_enabled = _REMOTE_CACHE,
+            allow_cache_uploads = _REMOTE_CACHE,
             remote_execution_use_case = "buck2-default",
             use_windows_path_separators = False,
         ),

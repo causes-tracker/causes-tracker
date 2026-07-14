@@ -1,3 +1,5 @@
+load(":defs.bzl", "cached_check")
+
 command_alias(
     name = "py",
     exe = "//third_party/python:cpython[bin/python3]",
@@ -16,8 +18,11 @@ command_alias(
     visibility = ["PUBLIC"],
 )
 
-genrule(
+cached_check(
     name = "py_version_check",
-    out = "ok.txt",
-    cmd = '$(exe :py) -c "import sys; assert sys.version_info[:3] == (3, 12, 13), sys.version" && echo ok > $OUT',
+    args = [
+        "-c",
+        "import sys; assert sys.version_info[:3] == (3, 12, 13), sys.version; open(sys.argv[1], 'w').write('ok')",
+    ],
+    exe = ":py",
 )

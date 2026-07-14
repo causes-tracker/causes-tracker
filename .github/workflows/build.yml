@@ -73,6 +73,17 @@ jobs:
             .buckconfig.local.template > .buckconfig.local
       - name: Build buck2 targets
         run: buck2 build //...
+      # A green cached build cannot distinguish "cache works" from
+      # "permanently missing"; only a demonstrated hit proves the read path.
+      # Killing the daemon after clean destroys all local state (buck-out and
+      # the in-memory graph), so the required hits can only come from
+      # BuildBuddy.
+      - name: Verify remote cache round-trip
+        run: |
+          buck2 clean
+          buck2 kill
+          buck2 build //... 2>&1 | tee rebuild.log
+          grep -q 'Cache hits: 100%' rebuild.log
       - name: Shut down buck2 daemon
         if: always()
         run: buck2 kill || true

@@ -1,0 +1,7 @@
+load(":defs.bzl", "remote_cache_platform")
+
+remote_cache_platform(
+    name = "default",
+    cpu_configuration = "prelude//cpu:x86_64",
+    os_configuration = "prelude//os:linux",
+)

@@ -80,8 +80,7 @@ impl GithubClient {
         run_id: RunId,
         job_name: &str,
     ) -> Result<Vec<InvocationId>> {
-        let job_id = self.find_job_id(run_id, job_name).await?;
-        let log = self.fetch_job_log(job_id).await?;
+        let log = self.job_log(run_id, job_name).await?;
         Ok(extract_invocation_ids(&log))
     }
 
@@ -121,7 +120,15 @@ impl GithubClient {
         resp.text().await.context("read job log body")
     }
 
-    pub async fn step_timings(&self, run_id: RunId, job_name: &str) -> Result<StepTimings> {
+    /// The GH-captured stdout log of the named job.
+    pub async fn job_log(&self, run_id: RunId, job_name: &str) -> Result<String> {
+        let job_id = self.find_job_id(run_id, job_name).await?;
+        self.fetch_job_log(job_id).await
+    }
+
+    /// Wall-clock duration of the named job plus each of its steps,
+    /// in workflow order.
+    pub async fn job_steps(&self, run_id: RunId, job_name: &str) -> Result<JobSteps> {
         let page = self
             .octo
             .workflows(OWNER, REPO)
@@ -135,17 +142,30 @@ impl GithubClient {
             .into_iter()
             .find(|j| j.name == job_name)
             .with_context(|| format!("job '{job_name}' not found in run {}", run_id.0))?;
-        let job_wall = duration(Some(job.started_at), job.completed_at);
+        Ok(JobSteps {
+            job_wall_seconds: duration(Some(job.started_at), job.completed_at),
+            steps: job
+                .steps
+                .into_iter()
+                .map(|s| {
+                    let d = duration(s.started_at, s.completed_at);
+                    (s.name, d)
+                })
+                .collect(),
+        })
+    }
+
+    pub async fn step_timings(&self, run_id: RunId, job_name: &str) -> Result<StepTimings> {
+        let js = self.job_steps(run_id, job_name).await?;
         let mut t = StepTimings {
-            job_wall_seconds: job_wall,
+            job_wall_seconds: js.job_wall_seconds,
             cache_restore_seconds: 0.0,
             cache_save_seconds: 0.0,
             bazel_invocation_seconds: 0.0,
             other_seconds: 0.0,
         };
-        for s in job.steps {
-            let d = duration(s.started_at, s.completed_at);
-            match classify_step(&s.name) {
+        for (name, d) in js.steps {
+            match classify_step(&name) {
                 StepKind::CacheRestore => t.cache_restore_seconds += d,
                 StepKind::CacheSave => t.cache_save_seconds += d,
                 StepKind::Bazel => t.bazel_invocation_seconds += d,
@@ -154,6 +174,12 @@ impl GithubClient {
         }
         Ok(t)
     }
+}
+
+/// Wall-clock duration of one job and its steps, by step name.
+pub struct JobSteps {
+    pub job_wall_seconds: f64,
+    pub steps: Vec<(String, f64)>,
 }
 
 fn duration(start: Option<DateTime<Utc>>, end: Option<DateTime<Utc>>) -> f64 {
@@ -365,6 +391,79 @@ mod tests {
         assert_eq!(t.cache_save_seconds, 10.0);
         assert_eq!(t.bazel_invocation_seconds, 156.0);
         assert_eq!(t.other_seconds, 2.0);
+        let js = client.job_steps(RunId(run_id), "build").await.unwrap();
+        assert_eq!(js.job_wall_seconds, 180.0);
+        assert_eq!(
+            js.steps,
+            vec![
+                ("Set up job".to_string(), 2.0),
+                ("Install Bazelisk".to_string(), 12.0),
+                ("Test, build docs, and check coverage".to_string(), 156.0),
+                ("Post Install Bazelisk".to_string(), 10.0),
+            ]
+        );
+        assert!(
+            client
+                .job_steps(RunId(run_id), "no-such-job")
+                .await
+                .is_err(),
+            "unknown job name must error"
+        );
+    }
+
+    /// `job_log` resolves the job by name and returns the raw GH log body.
+    #[tokio::test]
+    async fn job_log_fetches_named_jobs_log() {
+        let mock = wiremock::MockServer::start().await;
+        let run_id = 998;
+        let jobs_body = serde_json::json!({
+            "total_count": 1,
+            "jobs": [{
+                "id": 42,
+                "run_id": run_id,
+                "workflow_name": "build",
+                "head_branch": "feature-x",
+                "run_url": "https://api.github.com/r/x",
+                "run_attempt": 1,
+                "node_id": "j",
+                "head_sha": "deadbeef",
+                "url": "https://api.github.com/j/42",
+                "html_url": "https://github.com/j/42",
+                "status": "completed",
+                "conclusion": "success",
+                "created_at": "2026-05-16T11:59:30Z",
+                "started_at": "2026-05-16T12:00:00Z",
+                "completed_at": "2026-05-16T12:03:00Z",
+                "name": "buck2",
+                "steps": [],
+                "check_run_url": "https://api.github.com/c/42",
+                "labels": ["ubuntu-latest"],
+                "runner_id": 1,
+                "runner_name": "r",
+                "runner_group_id": 1,
+                "runner_group_name": "g",
+            }]
+        });
+        wiremock::Mock::given(wiremock::matchers::method("GET"))
+            .and(wiremock::matchers::path(format!(
+                "/repos/{OWNER}/{REPO}/actions/runs/{run_id}/jobs"
+            )))
+            .respond_with(wiremock::ResponseTemplate::new(200).set_body_json(&jobs_body))
+            .mount(&mock)
+            .await;
+        wiremock::Mock::given(wiremock::matchers::method("GET"))
+            .and(wiremock::matchers::path(format!(
+                "/repos/{OWNER}/{REPO}/actions/jobs/42/logs"
+            )))
+            .respond_with(
+                wiremock::ResponseTemplate::new(200).set_body_string("first line\nsecond line\n"),
+            )
+            .mount(&mock)
+            .await;
+
+        let client = GithubClient::with_base_uri("test-token".into(), mock.uri()).unwrap();
+        let log = client.job_log(RunId(run_id), "buck2").await.unwrap();
+        assert_eq!(log, "first line\nsecond line\n");
     }
 
     /// Minimal `Repository` payload sufficient for octocrab's deserialize.

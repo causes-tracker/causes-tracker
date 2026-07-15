@@ -1,8 +1,10 @@
-http_archive(
+load("//tools:defs.bzl", "cached_http_archive")
+
+cached_http_archive(
     name = "cpython",
-    urls = ["https://github.com/astral-sh/python-build-standalone/releases/download/20260610/cpython-3.12.13+20260610-x86_64-unknown-linux-gnu-install_only.tar.gz"],
     sha256 = "c218f50baeb2c06a30c2f03db5986b2bad6ab7c8a52faad2d5a59bda0677b93a",
-    strip_prefix = "python",
+    strip_components = 1,
     sub_targets = ["bin/python3"],
+    urls = ["https://github.com/astral-sh/python-build-standalone/releases/download/20260610/cpython-3.12.13+20260610-x86_64-unknown-linux-gnu-install_only.tar.gz"],
     visibility = ["PUBLIC"],
 )

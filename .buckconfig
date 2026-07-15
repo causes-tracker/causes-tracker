@@ -15,13 +15,18 @@
 [external_cells]
   prelude = bundled
 
+# SHA256 keeps local digests interchangeable with the BuildBuddy CAS
+# regardless of whether the remote cache (.buckconfig.local) is enabled.
+[buck2]
+  digest_algorithms = SHA256
+
 [parser]
-  target_platform_detector_spec = target:root//...->prelude//platforms:default \
-    target:prelude//...->prelude//platforms:default \
-    target:toolchains//...->prelude//platforms:default
+  target_platform_detector_spec = target:root//...->root//platforms:default \
+    target:prelude//...->root//platforms:default \
+    target:toolchains//...->root//platforms:default
 
 [build]
-  execution_platforms = prelude//platforms:default
+  execution_platforms = root//platforms:default
 
 [project]
   ignore = .git,.jj,buck-out,node_modules,target

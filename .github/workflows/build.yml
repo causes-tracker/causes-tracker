@@ -63,8 +63,27 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
       - name: Install buckle
         run: sudo bash tools/buckle/install.sh /usr/local/bin
+      # Same opt-in mechanism as local dev (.buckconfig.local.template):
+      # enables the BuildBuddy remote cache for the build below.
+      - name: Enable BuildBuddy remote cache
+        env:
+          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_ORG_API_KEY }}
+        run: |
+          sed "s/YOUR_KEY_HERE/${BUILDBUDDY_API_KEY}/" \
+            .buckconfig.local.template > .buckconfig.local
       - name: Build buck2 targets
         run: buck2 build //...
+      # A green cached build cannot distinguish "cache works" from
+      # "permanently missing"; only a demonstrated hit proves the read path.
+      # Killing the daemon after clean destroys all local state (buck-out and
+      # the in-memory graph), so the required hits can only come from
+      # BuildBuddy.
+      - name: Verify remote cache round-trip
+        run: |
+          buck2 clean
+          buck2 kill
+          buck2 build //... 2>&1 | tee rebuild.log
+          grep -q 'Cache hits: 100%' rebuild.log
       - name: Shut down buck2 daemon
         if: always()
         run: buck2 kill || true

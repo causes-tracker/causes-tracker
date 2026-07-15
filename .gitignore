@@ -23,8 +23,9 @@ infra/github/terraform.tfvars
 /bazel-*
 .bazelrc.user
 
-# Buck2 — build output tree
+# Buck2 — build output tree and per-dev remote-cache credentials
 /buck-out
+.buckconfig.local
 
 # Node / pnpm
 node_modules/

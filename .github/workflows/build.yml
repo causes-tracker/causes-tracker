@@ -87,16 +87,16 @@ jobs:
       - name: Shut down buck2 daemon
         if: always()
         run: buck2 kill || true
-  # Metrics collection runs as a separate job depending on `build` so
-  # that the job's step logs are finalized by the time `record` reads
-  # them. Inside the build job, the GH logs endpoint 404s on the
+  # Metrics collection runs as a separate job depending on `build` and
+  # `buck2` so that their step logs are finalized by the time `record`
+  # reads them. Inside a job, the GH logs endpoint 404s on the
   # presigned Azure blob until the job ends. The whole job is best-effort
   # (`if: always()` + `continue-on-error` per step) so a metrics failure
   # never turns a green build red, and metrics still get collected when
   # the build itself failed.
   ci-metrics:
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, buck2]
     if: always()
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
@@ -131,6 +131,7 @@ jobs:
             --job build \
             --out "${{ github.workspace }}/ci-metrics.json" \
             --check-timings "${{ github.workspace }}/check-timings.jsonl" \
+            --buck2-job buck2 \
             ${{ github.event.pull_request.number && format('--pr {0}', github.event.pull_request.number) || '' }}
       - name: Upload CI metrics artifact
         continue-on-error: true

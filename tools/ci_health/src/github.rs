@@ -144,6 +144,10 @@ impl GithubClient {
             .with_context(|| format!("job '{job_name}' not found in run {}", run_id.0))?;
         Ok(JobSteps {
             job_wall_seconds: duration(Some(job.started_at), job.completed_at),
+            succeeded: matches!(
+                job.conclusion,
+                Some(octocrab::models::workflows::Conclusion::Success)
+            ),
             steps: job
                 .steps
                 .into_iter()
@@ -179,6 +183,8 @@ impl GithubClient {
 /// Wall-clock duration of one job and its steps, by step name.
 pub struct JobSteps {
     pub job_wall_seconds: f64,
+    /// Whether the job's conclusion is `success`.
+    pub succeeded: bool,
     pub steps: Vec<(String, f64)>,
 }
 
@@ -393,6 +399,7 @@ mod tests {
         assert_eq!(t.other_seconds, 2.0);
         let js = client.job_steps(RunId(run_id), "build").await.unwrap();
         assert_eq!(js.job_wall_seconds, 180.0);
+        assert!(js.succeeded);
         assert_eq!(
             js.steps,
             vec![

@@ -3,6 +3,11 @@
 # gitignored .buckconfig.local — see .buckconfig.local.template), so a
 # checkout without credentials builds purely locally with the same platform
 # and the whole graph keeps a single configuration in both modes.
+#
+# Invariant: everything in `//...` is a cacheable pure function of its
+# declared inputs, so caching is platform-wide with no per-target opt-out.
+# A target that cannot satisfy this must be redesigned or become a `run`
+# target.
 _REMOTE_CACHE = read_root_config("buck2_re_client", "engine_address") != None
 
 def _impl(ctx: AnalysisContext) -> list[Provider]:

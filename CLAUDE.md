@@ -90,6 +90,7 @@ Each commit must do exactly one thing.
 Commits must pass all linting and tests before being made.
 Commits are kept strictly small: **400–500 lines maximum** (diff lines added, ignoring generated files, ignoring removed lines).
 If a change is larger, split it into a sequence of focused commits.
+Each PR carries exactly one commit; a multi-commit change ships as a stack of PRs, each based on its predecessor's branch and retargeted to master as predecessors merge, so every commit is approved and integrated separately.
 
 Toolchain ergonomics ship with the toolchain.
 When a commit adds a build-system feature (e.g. `rules_rs`), it also adds the wrapper aliases (`//tools:cargo`, `//tools:rustc`, `//tools:rustfmt`) and the minimum scaffolding (an empty `Cargo.toml` workspace) that proves the toolchain works.

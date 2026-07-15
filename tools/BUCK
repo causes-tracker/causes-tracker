@@ -1,8 +1,9 @@
-load(":defs.bzl", "cached_check")
+load(":defs.bzl", "cached_check", "tree_tool")
 
-command_alias(
+tree_tool(
     name = "py",
-    exe = "//third_party/python:cpython[bin/python3]",
+    path = "bin/python3",
+    tree = "//third_party/python:cpython",
     visibility = ["PUBLIC"],
 )
 

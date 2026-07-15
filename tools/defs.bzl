@@ -21,6 +21,24 @@ cached_check = rule(
     },
 )
 
+# Tool at a path inside a directory artifact.
+# Projecting a path declares only that subtree as an action input, so a
+# tool that reads sibling files at runtime (python3 finds its stdlib
+# relative to the binary) breaks under input staging; the whole tree
+# rides along as a hidden input instead.
+def _tree_tool_impl(ctx: AnalysisContext) -> list[Provider]:
+    tree = ctx.attrs.tree[DefaultInfo].default_outputs[0]
+    exe = tree.project(ctx.attrs.path)
+    return [DefaultInfo(), RunInfo(args = cmd_args(exe, hidden = tree))]
+
+tree_tool = rule(
+    impl = _tree_tool_impl,
+    attrs = {
+        "path": attrs.string(),
+        "tree": attrs.dep(providers = [DefaultInfo]),
+    },
+)
+
 # http_archive whose unpacked tree is remotely cached.
 # The prelude's http_archive never sets `allow_cache_upload` on its unpack
 # action, so its output can be read from the cache but never repopulates it.

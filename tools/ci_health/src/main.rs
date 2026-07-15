@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 
 mod artifacts;
+mod buck2;
 mod buildbuddy;
 mod comparison;
 mod config;
@@ -15,7 +16,7 @@ use crate::comparison::{
     Baseline, COMMENT_MARKER, Verdict, classify, load_baseline_dir, render_pr_comment,
 };
 use crate::github::{GithubClient, OWNER, REPO, token_from_env};
-use crate::metrics::{GateTiming, RunId, RunMetrics};
+use crate::metrics::{Buck2Stats, GateTiming, RunId, RunMetrics};
 use crate::trend::{
     ISSUE_MARKER, ISSUE_TITLE, TrendVerdict, WindowStats, render_issue_body,
     render_recovery_comment,
@@ -57,6 +58,11 @@ enum Command {
         /// folded into the emitted `RunMetrics.gate_timings`.
         #[arg(long)]
         check_timings: Option<std::path::PathBuf>,
+        /// Name of the CI buck2 job to ingest telemetry from: its step
+        /// timings plus the invocation summaries buck2 printed into the
+        /// job log. Omitted → `RunMetrics.buck2` is null.
+        #[arg(long)]
+        buck2_job: Option<String>,
     },
     /// Classify a run's metrics against a baseline directory of recent
     /// successful master runs. Exit code reflects the verdict (0 = ok,
@@ -131,6 +137,7 @@ async fn main() -> Result<()> {
             job,
             pr,
             check_timings,
+            buck2_job,
         } => {
             let token = token_from_env("record")?;
             let bb_key = safelog::Sensitive::new(
@@ -146,6 +153,7 @@ async fn main() -> Result<()> {
                 &job,
                 pr,
                 check_timings.as_deref(),
+                buck2_job.as_deref(),
                 &out,
             )
             .await
@@ -735,6 +743,7 @@ async fn record(
     job: &str,
     pr: Option<u64>,
     check_timings_path: Option<&std::path::Path>,
+    buck2_job: Option<&str>,
     out: &std::path::Path,
 ) -> Result<()> {
     let started = std::time::Instant::now();
@@ -749,6 +758,10 @@ async fn record(
         Some(p) => parse_gate_timings(p)?,
         None => Vec::new(),
     };
+    let buck2 = match buck2_job {
+        Some(j) => Some(collect_buck2(gh, run_id, j).await?),
+        None => None,
+    };
     let metrics = RunMetrics {
         run_id,
         sha: meta.head_sha,
@@ -760,10 +773,58 @@ async fn record(
         bb_invocation_ids: invocation_ids,
         metrics_collection_seconds: started.elapsed().as_secs_f64(),
         gate_timings,
+        buck2,
     };
     let json = serde_json::to_string_pretty(&metrics).context("serialize metrics")?;
     write_atomic(out, json.as_bytes()).with_context(|| format!("write {}", out.display()))?;
     Ok(())
+}
+
+/// Step names in the CI buck2 job, mirroring `github::classify_step`'s
+/// coupling to the names in build.yml.
+const BUCK2_BUILD_STEP: &str = "Build buck2 targets";
+const BUCK2_ROUND_TRIP_STEP: &str = "Verify remote cache round-trip";
+
+/// Ingest the buck2 job's step timings and the invocation summaries buck2
+/// printed into its log.
+/// A failed job records whatever is present — zero step times, possibly
+/// no invocations — matching how bazel stats degrade on failed runs.
+/// A successful job always ran two builds, so missing summaries or a
+/// missing step name there means the parser or build.yml drifted and
+/// fails loudly.
+async fn collect_buck2(gh: &GithubClient, run_id: RunId, job: &str) -> Result<Buck2Stats> {
+    let log = gh.job_log(run_id, job).await?;
+    let invocations = buck2::extract_invocations(&log)?;
+    let steps = gh.job_steps(run_id, job).await?;
+    let step = |name: &str| -> f64 {
+        steps
+            .steps
+            .iter()
+            .filter(|(n, _)| n == name)
+            .map(|(_, d)| d)
+            .sum()
+    };
+    let build_seconds = step(BUCK2_BUILD_STEP);
+    let round_trip_seconds = step(BUCK2_ROUND_TRIP_STEP);
+    if steps.succeeded {
+        if invocations.is_empty() {
+            anyhow::bail!("no buck2 invocation summaries in job '{job}' log");
+        }
+        for (name, seconds) in [
+            (BUCK2_BUILD_STEP, build_seconds),
+            (BUCK2_ROUND_TRIP_STEP, round_trip_seconds),
+        ] {
+            if seconds == 0.0 {
+                anyhow::bail!("step '{name}' not found in job '{job}' (renamed in build.yml?)");
+            }
+        }
+    }
+    Ok(Buck2Stats {
+        job_wall_seconds: steps.job_wall_seconds,
+        build_seconds,
+        round_trip_seconds,
+        invocations,
+    })
 }
 
 /// Read the JSONL emitted by `tools/check.sh` with `CHECK_TIMING_JSONL=<path>`.
@@ -957,6 +1018,43 @@ mod tests {
         assert!(rows[2].ratio.is_none());
     }
 
+    /// Mount the `runs/{id}` and `runs/{id}/jobs` fixtures every `record`
+    /// test needs.
+    async fn mount_run_and_jobs(gh_mock: &wiremock::MockServer, run_id: u64) {
+        mount_run_with_jobs(gh_mock, run_id, jobs_body(run_id)).await;
+    }
+
+    async fn mount_run_with_jobs(
+        gh_mock: &wiremock::MockServer,
+        run_id: u64,
+        jobs: serde_json::Value,
+    ) {
+        wiremock::Mock::given(wiremock::matchers::method("GET"))
+            .and(wiremock::matchers::path(format!(
+                "/repos/causes-tracker/causes-tracker/actions/runs/{run_id}"
+            )))
+            .respond_with(wiremock::ResponseTemplate::new(200).set_body_json(run_body(run_id)))
+            .mount(gh_mock)
+            .await;
+        wiremock::Mock::given(wiremock::matchers::method("GET"))
+            .and(wiremock::matchers::path(format!(
+                "/repos/causes-tracker/causes-tracker/actions/runs/{run_id}/jobs"
+            )))
+            .respond_with(wiremock::ResponseTemplate::new(200).set_body_json(jobs))
+            .mount(gh_mock)
+            .await;
+    }
+
+    async fn mount_job_log(gh_mock: &wiremock::MockServer, job_id: u64, body: &str) {
+        wiremock::Mock::given(wiremock::matchers::method("GET"))
+            .and(wiremock::matchers::path(format!(
+                "/repos/causes-tracker/causes-tracker/actions/jobs/{job_id}/logs"
+            )))
+            .respond_with(wiremock::ResponseTemplate::new(200).set_body_string(body))
+            .mount(gh_mock)
+            .await;
+    }
+
     /// End-to-end test of the BB-extended `record`: both GH and BB clients pointed at wiremock servers produce a metrics JSON with populated bazel stats.
     #[tokio::test]
     async fn record_writes_metrics_with_bazel_stats() {
@@ -964,31 +1062,15 @@ mod tests {
         let gh_mock = wiremock::MockServer::start().await;
         let bb_mock = wiremock::MockServer::start().await;
         let run_id = 7777u64;
-        wiremock::Mock::given(wiremock::matchers::method("GET"))
-            .and(wiremock::matchers::path(format!(
-                "/repos/causes-tracker/causes-tracker/actions/runs/{run_id}"
-            )))
-            .respond_with(wiremock::ResponseTemplate::new(200).set_body_json(run_body(run_id)))
-            .mount(&gh_mock)
-            .await;
-        wiremock::Mock::given(wiremock::matchers::method("GET"))
-            .and(wiremock::matchers::path(format!(
-                "/repos/causes-tracker/causes-tracker/actions/runs/{run_id}/jobs"
-            )))
-            .respond_with(wiremock::ResponseTemplate::new(200).set_body_json(jobs_body(run_id)))
-            .mount(&gh_mock)
-            .await;
+        mount_run_and_jobs(&gh_mock, run_id).await;
         // GH job log: bazel prints one BB URL per `--bes_results_url`
         // invocation; `bazel_invocation_ids` regexes them out.
-        wiremock::Mock::given(wiremock::matchers::method("GET"))
-            .and(wiremock::matchers::path(
-                "/repos/causes-tracker/causes-tracker/actions/jobs/1/logs",
-            ))
-            .respond_with(wiremock::ResponseTemplate::new(200).set_body_string(
-                "INFO: Streaming build results to: https://app.buildbuddy.io/invocation/1234aaaa-bbbb-cccc-dddd-eeeeeeeeeeee\n",
-            ))
-            .mount(&gh_mock)
-            .await;
+        mount_job_log(
+            &gh_mock,
+            1,
+            "INFO: Streaming build results to: https://app.buildbuddy.io/invocation/1234aaaa-bbbb-cccc-dddd-eeeeeeeeeeee\n",
+        )
+        .await;
         wiremock::Mock::given(wiremock::matchers::method("POST"))
             .and(wiremock::matchers::path(
                 "/rpc/BuildBuddyService/GetInvocation",
@@ -1038,6 +1120,7 @@ mod tests {
             "build",
             Some(99),
             Some(timings.path()),
+            None,
             out.path(),
         )
         .await
@@ -1056,6 +1139,106 @@ mod tests {
         assert_eq!(parsed.gate_timings.len(), 2);
         assert_eq!(parsed.gate_timings[0].gate, "format_check");
         assert_eq!(parsed.gate_timings[1].seconds, 42.106);
+        assert!(parsed.buck2.is_none());
+    }
+
+    /// Summary lines as buck2 prints them into the CI job log, wrapped in
+    /// the GH timestamp prefix.
+    const BUCK2_JOB_LOG: &str = "\
+2026-07-15T10:30:00.6284552Z [2026-07-15T10:30:00.625+00:00] Build ID: ac446c1c-5913-44d6-bd0e-0c1a47d36f26
+2026-07-15T10:30:04.1556498Z [2026-07-15T10:30:04.155+00:00] Commands: 2 (cached: 0, remote: 0, local: 2)
+2026-07-15T10:30:04.1557879Z [2026-07-15T10:30:04.155+00:00] Network: Up: 270KiB  Down: 0B  (GRPC-SESSION-ID)
+2026-07-15T10:30:04.7498178Z [2026-07-15T10:30:04.746+00:00] Build ID: 40e60d62-f0c7-4990-9649-9320026c1626
+2026-07-15T10:30:08.0739025Z [2026-07-15T10:30:08.073+00:00] Commands: 2 (cached: 2, remote: 0, local: 0)
+2026-07-15T10:30:08.0740052Z [2026-07-15T10:30:08.073+00:00] Network: Up: 271KiB  Down: 95MiB  (GRPC-SESSION-ID)
+";
+
+    /// `record --buck2-job` fills `RunMetrics.buck2` from the buck2 job's
+    /// step timings and log summaries, alongside the bazel stats.
+    #[tokio::test]
+    async fn record_with_buck2_job_ingests_summaries() {
+        causes_crypto::install_default_provider();
+        let gh_mock = wiremock::MockServer::start().await;
+        let bb_mock = wiremock::MockServer::start().await;
+        let run_id = 8888u64;
+        mount_run_and_jobs(&gh_mock, run_id).await;
+        mount_job_log(&gh_mock, 1, "").await;
+        mount_job_log(&gh_mock, 2, BUCK2_JOB_LOG).await;
+
+        let gh = GithubClient::with_base_uri("tk".into(), gh_mock.uri()).unwrap();
+        let bb =
+            BuildBuddyClient::with_base_url(safelog::Sensitive::new("k".into()), bb_mock.uri())
+                .unwrap();
+        let out = tempfile::NamedTempFile::new().unwrap();
+        record(
+            &gh,
+            &bb,
+            RunId(run_id),
+            "build",
+            None,
+            None,
+            Some("buck2"),
+            out.path(),
+        )
+        .await
+        .unwrap();
+
+        let parsed: RunMetrics =
+            serde_json::from_str(&std::fs::read_to_string(out.path()).unwrap()).unwrap();
+        let b = parsed.buck2.expect("buck2 stats recorded");
+        assert_eq!(b.job_wall_seconds, 24.0);
+        assert_eq!(b.build_seconds, 6.0);
+        assert_eq!(b.round_trip_seconds, 4.0);
+        assert_eq!(b.invocations.len(), 2);
+        assert_eq!(b.invocations[0].commands_local, 2);
+        assert_eq!(b.invocations[1].commands_cached, 2);
+        assert_eq!(b.invocations[1].bytes_downloaded, 95 * 1024 * 1024);
+        assert_eq!(b.invocations[1].commands_total, 2);
+    }
+
+    /// The buck2 job entry from `jobs_body`, rewritten as an early failure:
+    /// non-success conclusion, no steps ran.
+    fn jobs_body_failed_buck2(run_id: u64) -> serde_json::Value {
+        let mut jobs = jobs_body(run_id);
+        jobs["jobs"][1]["conclusion"] = "failure".into();
+        jobs["jobs"][1]["steps"] = serde_json::json!([]);
+        jobs
+    }
+
+    /// A failed buck2 job still records — zero step times, whatever
+    /// summaries parsed — matching how bazel stats degrade to zeros on
+    /// failed runs so failed runs keep getting metrics.
+    #[tokio::test]
+    async fn collect_buck2_degrades_when_job_failed() {
+        let gh_mock = wiremock::MockServer::start().await;
+        let run_id = 9998u64;
+        mount_run_with_jobs(&gh_mock, run_id, jobs_body_failed_buck2(run_id)).await;
+        mount_job_log(&gh_mock, 2, "checkout failed before buck2 ran\n").await;
+        let gh = GithubClient::with_base_uri("tk".into(), gh_mock.uri()).unwrap();
+        let b = collect_buck2(&gh, RunId(run_id), "buck2").await.unwrap();
+        assert!(b.invocations.is_empty());
+        assert_eq!(b.job_wall_seconds, 24.0);
+        assert_eq!(b.build_seconds, 0.0);
+        assert_eq!(b.round_trip_seconds, 0.0);
+    }
+
+    /// A *successful* buck2 job always ran two builds, so a log without
+    /// invocation summaries means the parser or build.yml drifted;
+    /// recording must fail loudly rather than silently going hollow.
+    #[tokio::test]
+    async fn collect_buck2_fails_without_summaries() {
+        let gh_mock = wiremock::MockServer::start().await;
+        let run_id = 9999u64;
+        mount_run_and_jobs(&gh_mock, run_id).await;
+        mount_job_log(&gh_mock, 2, "no summaries here\n").await;
+        let gh = GithubClient::with_base_uri("tk".into(), gh_mock.uri()).unwrap();
+        let err = collect_buck2(&gh, RunId(run_id), "buck2")
+            .await
+            .unwrap_err();
+        assert!(
+            err.to_string().contains("no buck2 invocation summaries"),
+            "unexpected error: {err:#}"
+        );
     }
 
     fn run_body(run_id: u64) -> serde_json::Value {
@@ -1095,7 +1278,7 @@ mod tests {
 
     fn jobs_body(run_id: u64) -> serde_json::Value {
         serde_json::json!({
-            "total_count": 1,
+            "total_count": 2,
             "jobs": [{
                 "id": 1,
                 "run_id": run_id,
@@ -1115,6 +1298,39 @@ mod tests {
                 "name": "build",
                 "steps": [],
                 "check_run_url": "https://api.github.com/c/1",
+                "labels": ["ubuntu-latest"],
+                "runner_id": 1,
+                "runner_name": "r",
+                "runner_group_id": 1,
+                "runner_group_name": "g",
+            }, {
+                "id": 2,
+                "run_id": run_id,
+                "workflow_name": "build",
+                "head_branch": "feature/x",
+                "run_url": "https://api.github.com/r/x",
+                "run_attempt": 1,
+                "node_id": "j2",
+                "head_sha": "feedface",
+                "url": "https://api.github.com/j/2",
+                "html_url": "https://github.com/j/2",
+                "status": "completed",
+                "conclusion": "success",
+                "created_at": "2026-05-16T23:59:30Z",
+                "started_at": "2026-05-17T00:00:00Z",
+                "completed_at": "2026-05-17T00:00:24Z",
+                "name": "buck2",
+                "steps": [
+                    {"name": "Build buck2 targets",
+                     "status": "completed", "conclusion": "success", "number": 1,
+                     "started_at": "2026-05-17T00:00:05Z",
+                     "completed_at": "2026-05-17T00:00:11Z"},
+                    {"name": "Verify remote cache round-trip",
+                     "status": "completed", "conclusion": "success", "number": 2,
+                     "started_at": "2026-05-17T00:00:11Z",
+                     "completed_at": "2026-05-17T00:00:15Z"},
+                ],
+                "check_run_url": "https://api.github.com/c/2",
                 "labels": ["ubuntu-latest"],
                 "runner_id": 1,
                 "runner_name": "r",

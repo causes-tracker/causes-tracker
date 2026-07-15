@@ -42,6 +42,34 @@ impl BazelStats {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct Buck2BuildId(pub String);
+
+/// One buck2 invocation's action counts and cache traffic, parsed from the
+/// summary lines buck2 prints at the end of every build.
+/// `bytes_*` come from buck2's humanized `Network:` line (absent in
+/// local-only mode), so they carry display rounding, not exact counts.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Buck2Invocation {
+    pub build_id: Buck2BuildId,
+    pub commands_total: u64,
+    pub commands_cached: u64,
+    pub commands_remote: u64,
+    pub commands_local: u64,
+    pub bytes_uploaded: u64,
+    pub bytes_downloaded: u64,
+}
+
+/// Timings and per-invocation stats for the CI `buck2` job.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Buck2Stats {
+    pub job_wall_seconds: f64,
+    pub build_seconds: f64,
+    pub round_trip_seconds: f64,
+    pub invocations: Vec<Buck2Invocation>,
+}
+
 /// One entry from the JSONL file `tools/check.sh` writes when
 /// `CHECK_TIMING_JSONL` is set.
 /// `gate` is the gate name passed to `run_gate` (e.g. `format_check`),
@@ -71,6 +99,10 @@ pub struct RunMetrics {
     /// Empty when `record` was invoked without `--check-timings`.
     #[serde(default)]
     pub gate_timings: Vec<GateTiming>,
+    /// Stats for the CI `buck2` job.
+    /// `None` in artifacts recorded without buck2 job data.
+    #[serde(default)]
+    pub buck2: Option<Buck2Stats>,
 }
 
 #[cfg(test)]
@@ -108,6 +140,20 @@ mod tests {
                 rc: 0,
                 seconds: 4.221,
             }],
+            buck2: Some(Buck2Stats {
+                job_wall_seconds: 24.0,
+                build_seconds: 6.0,
+                round_trip_seconds: 4.0,
+                invocations: vec![Buck2Invocation {
+                    build_id: Buck2BuildId("ac446c1c".into()),
+                    commands_total: 2,
+                    commands_cached: 2,
+                    commands_remote: 0,
+                    commands_local: 0,
+                    bytes_uploaded: 276480,
+                    bytes_downloaded: 94371840,
+                }],
+            }),
         };
         let s = serde_json::to_string(&m).unwrap();
         let back: RunMetrics = serde_json::from_str(&s).unwrap();
@@ -129,5 +175,6 @@ mod tests {
         }"#;
         let m: RunMetrics = serde_json::from_str(legacy).unwrap();
         assert!(m.gate_timings.is_empty());
+        assert!(m.buck2.is_none());
     }
 }

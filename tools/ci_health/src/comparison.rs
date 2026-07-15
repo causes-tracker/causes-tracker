@@ -300,6 +300,7 @@ mod tests {
             bb_invocation_ids: vec![],
             metrics_collection_seconds: 0.0,
             gate_timings: vec![],
+            buck2: None,
         }
     }
 

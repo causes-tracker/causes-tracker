@@ -1,0 +1,50 @@
+name: renovate-sha
+# Renovate regex managers cannot update checksums
+# (renovatebot/renovate#22183), so its installer version bumps arrive
+# with a stale sha256 pin. Recompute it and push the fix back to the
+# Renovate branch before CI runs, like renovate-lockfile does for
+# lockfiles.
+#
+# The push uses AUTO_QUEUE_TOKEN (not the default GITHUB_TOKEN) because
+# pushes performed with GITHUB_TOKEN do not create new workflow runs,
+# which would leave the PR's checks stuck on the pre-fix commit.
+# Our own fix push retriggers this workflow; the script is idempotent,
+# so that run finds nothing to change and stops.
+on:
+  push:
+    branches: ["renovate/**"]
+    paths:
+      - tools/buckle/install.sh
+      - tools/nativelink/install.sh
+permissions:
+  contents: write
+# Shared with renovate-lockfile: fixers on the same branch run one at a
+# time, and the waiter checks out by branch name, so it sees the winner's
+# push instead of racing it.
+concurrency:
+  group: renovate-fix-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  fix-sha:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+        with:
+          ref: ${{ github.ref_name }}
+          token: ${{ secrets.AUTO_QUEUE_TOKEN }}
+      # Both installers, unconditionally: an untouched pin is a no-op, so
+      # diff-detection logic is unnecessary.
+      - name: Recompute installer sha256 pins
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          bash tools/renovate/update_sha.sh tools/buckle/install.sh
+          bash tools/renovate/update_sha.sh tools/nativelink/install.sh
+      - name: Push fix if the pins changed
+        run: |
+          git diff --quiet && exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "chore: recompute installer sha256 pins"
+          git push

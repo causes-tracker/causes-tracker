@@ -1,0 +1,94 @@
+// NativeLink on localhost: CAS, action cache, scheduler, and a sandboxed
+// worker in one process, serving the remote-execution API on
+// 127.0.0.1:50051. Actions executed here see exactly their declared
+// inputs, staged from the CAS, instead of the whole checkout.
+//
+// This config is self-contained: local stores only, no credentials.
+// To also share the BuildBuddy cache with CI and other devs, generate the
+// overlay from config-bb.json5.template and run NativeLink with that
+// instead.
+//
+//   nativelink tools/nativelink/config.json5 &
+{
+  stores: [
+    {
+      name: "CAS_MAIN_STORE",
+      filesystem: {
+        content_path: "${HOME}/.cache/causes-nativelink/data/content_path-cas",
+        temp_path: "${HOME}/.cache/causes-nativelink/data/tmp_path-cas",
+        eviction_policy: { max_bytes: 2000000000 },
+      },
+    },
+    {
+      name: "AC_MAIN_STORE",
+      filesystem: {
+        content_path: "${HOME}/.cache/causes-nativelink/data/content_path-ac",
+        temp_path: "${HOME}/.cache/causes-nativelink/data/tmp_path-ac",
+        eviction_policy: { max_bytes: 200000000 },
+      },
+    },
+    {
+      // The worker hardlinks each action's sandbox out of its fast store.
+      name: "WORKER_FAST_SLOW_STORE",
+      fast_slow: {
+        fast: {
+          filesystem: {
+            content_path: "${HOME}/.cache/causes-nativelink/data/content_path-worker",
+            temp_path: "${HOME}/.cache/causes-nativelink/data/tmp_path-worker",
+            eviction_policy: { max_bytes: 2000000000 },
+          },
+        },
+        slow: { ref_store: { name: "CAS_MAIN_STORE" } },
+      },
+    },
+  ],
+  schedulers: [
+    {
+      name: "MAIN_SCHEDULER",
+      simple: {
+        supported_platform_properties: {
+          cpu_count: "minimum",
+          OSFamily: "priority",
+          "container-image": "priority",
+        },
+      },
+    },
+  ],
+  workers: [
+    {
+      local: {
+        worker_api_endpoint: { uri: "grpc://127.0.0.1:50061" },
+        cas_fast_slow_store: "WORKER_FAST_SLOW_STORE",
+        upload_action_result: { ac_store: "AC_MAIN_STORE" },
+        work_directory: "${HOME}/.cache/causes-nativelink/work",
+        platform_properties: {
+          cpu_count: { query_cmd: "nproc" },
+          OSFamily: { query_cmd: "uname -s" },
+          "container-image": { values: [""] },
+        },
+      },
+    },
+  ],
+  servers: [
+    {
+      name: "local",
+      listener: { http: { socket_address: "127.0.0.1:50051" } },
+      services: {
+        cas: [{ cas_store: "CAS_MAIN_STORE" }],
+        ac: [{ ac_store: "AC_MAIN_STORE" }],
+        bytestream: [{ cas_store: "CAS_MAIN_STORE" }],
+        execution: [
+          { cas_store: "CAS_MAIN_STORE", scheduler: "MAIN_SCHEDULER" },
+        ],
+        capabilities: [{ remote_execution: { scheduler: "MAIN_SCHEDULER" } }],
+      },
+    },
+    {
+      // Worker-to-scheduler port; buck2 never talks to this one.
+      name: "worker_api",
+      listener: { http: { socket_address: "127.0.0.1:50061" } },
+      services: { worker_api: { scheduler: "MAIN_SCHEDULER" }, health: {} },
+    },
+  ],
+  global: { max_open_files: 24576 },
+}

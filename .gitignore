@@ -26,6 +26,7 @@ infra/github/terraform.tfvars
 # Buck2 — build output tree and per-dev remote-cache credentials
 /buck-out
 .buckconfig.local
+.nativelink.json5
 
 # Node / pnpm
 node_modules/

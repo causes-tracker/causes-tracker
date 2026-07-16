@@ -15,4 +15,4 @@ curl -fsSL \
 echo "${BUCKLE_SHA256}  $tmp/buckle.tar.xz" | sha256sum -c -
 tar xf "$tmp/buckle.tar.xz" -C "$tmp"
 install -m 0755 "$tmp/buckle-x86_64-unknown-linux-gnu/buckle" "$BINDIR/buckle"
-ln -sf buckle "$BINDIR/buck2"
+install -m 0755 "$(dirname "$0")/buck2.sh" "$BINDIR/buck2"

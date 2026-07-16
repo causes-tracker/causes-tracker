@@ -1,0 +1,130 @@
+// config.json5 plus the BuildBuddy cache composition: the fast/slow
+// stores write through to BuildBuddy, so this machine, other devs, and CI
+// share one cache truth. NativeLink holds the BuildBuddy API key; buck2
+// never sees it.
+//
+// Set up (the buck2 launcher auto-starts NativeLink with the gitignored
+// .nativelink.json5 when present, else the committed local-only config):
+//   sed "s/YOUR_KEY_HERE/<api key>/" tools/nativelink/config-bb.json5.template \
+//     > .nativelink.json5
+{
+  stores: [
+    {
+      name: "BB_CAS",
+      grpc: {
+        instance_name: "",
+        endpoints: [
+          {
+            address: "grpcs://remote.buildbuddy.io",
+            tls_config: { use_native_roots: true },
+          },
+        ],
+        store_type: "cas",
+        headers: { "x-buildbuddy-api-key": "YOUR_KEY_HERE" },
+      },
+    },
+    {
+      name: "BB_AC",
+      grpc: {
+        instance_name: "",
+        endpoints: [
+          {
+            address: "grpcs://remote.buildbuddy.io",
+            tls_config: { use_native_roots: true },
+          },
+        ],
+        store_type: "ac",
+        headers: { "x-buildbuddy-api-key": "YOUR_KEY_HERE" },
+      },
+    },
+    {
+      name: "CAS_MAIN_STORE",
+      fast_slow: {
+        fast: {
+          filesystem: {
+            content_path: "${HOME}/.cache/causes-nativelink/data/content_path-cas",
+            temp_path: "${HOME}/.cache/causes-nativelink/data/tmp_path-cas",
+            eviction_policy: { max_bytes: 2000000000 },
+          },
+        },
+        slow: { ref_store: { name: "BB_CAS" } },
+      },
+    },
+    {
+      name: "AC_MAIN_STORE",
+      fast_slow: {
+        fast: {
+          filesystem: {
+            content_path: "${HOME}/.cache/causes-nativelink/data/content_path-ac",
+            temp_path: "${HOME}/.cache/causes-nativelink/data/tmp_path-ac",
+            eviction_policy: { max_bytes: 200000000 },
+          },
+        },
+        slow: { ref_store: { name: "BB_AC" } },
+      },
+    },
+    {
+      // The worker hardlinks each action's sandbox out of its fast store.
+      name: "WORKER_FAST_SLOW_STORE",
+      fast_slow: {
+        fast: {
+          filesystem: {
+            content_path: "${HOME}/.cache/causes-nativelink/data/content_path-worker",
+            temp_path: "${HOME}/.cache/causes-nativelink/data/tmp_path-worker",
+            eviction_policy: { max_bytes: 2000000000 },
+          },
+        },
+        slow: { ref_store: { name: "CAS_MAIN_STORE" } },
+      },
+    },
+  ],
+  schedulers: [
+    {
+      name: "MAIN_SCHEDULER",
+      simple: {
+        supported_platform_properties: {
+          cpu_count: "minimum",
+          OSFamily: "priority",
+          "container-image": "priority",
+        },
+      },
+    },
+  ],
+  workers: [
+    {
+      local: {
+        worker_api_endpoint: { uri: "grpc://127.0.0.1:50061" },
+        cas_fast_slow_store: "WORKER_FAST_SLOW_STORE",
+        upload_action_result: { ac_store: "AC_MAIN_STORE" },
+        work_directory: "${HOME}/.cache/causes-nativelink/work",
+        platform_properties: {
+          cpu_count: { query_cmd: "nproc" },
+          OSFamily: { query_cmd: "uname -s" },
+          "container-image": { values: [""] },
+        },
+      },
+    },
+  ],
+  servers: [
+    {
+      name: "local",
+      listener: { http: { socket_address: "127.0.0.1:50051" } },
+      services: {
+        cas: [{ cas_store: "CAS_MAIN_STORE" }],
+        ac: [{ ac_store: "AC_MAIN_STORE" }],
+        bytestream: [{ cas_store: "CAS_MAIN_STORE" }],
+        execution: [
+          { cas_store: "CAS_MAIN_STORE", scheduler: "MAIN_SCHEDULER" },
+        ],
+        capabilities: [{ remote_execution: { scheduler: "MAIN_SCHEDULER" } }],
+      },
+    },
+    {
+      // Worker-to-scheduler port; buck2 never talks to this one.
+      name: "worker_api",
+      listener: { http: { socket_address: "127.0.0.1:50061" } },
+      services: { worker_api: { scheduler: "MAIN_SCHEDULER" }, health: {} },
+    },
+  ],
+  global: { max_open_files: 24576 },
+}

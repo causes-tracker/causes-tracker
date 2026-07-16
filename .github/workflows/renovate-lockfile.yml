@@ -24,6 +24,12 @@ on:
       - "requirements_lock.txt"
 permissions:
   contents: write
+# Shared with renovate-sha: fixers on the same branch run one at a time,
+# and the waiter checks out by branch name, so it sees the winner's push
+# instead of racing it.
+concurrency:
+  group: renovate-fix-${{ github.ref }}
+  cancel-in-progress: false
 jobs:
   update-lockfile:
     runs-on: ubuntu-latest

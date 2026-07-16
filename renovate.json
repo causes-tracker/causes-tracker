@@ -75,6 +75,19 @@
       "depNameTemplate": "jj-vcs/jj",
       "datasourceTemplate": "github-releases",
       "extractVersionTemplate": "^v(?<version>.*)$"
+    },
+    {
+      "description": "Bump PRs fail the installer's sha256 check until the pinned checksum is updated by hand.",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^tools/nativelink/install\\.sh$/"
+      ],
+      "matchStrings": [
+        "NATIVELINK_VERSION=(?<currentValue>\\S+)"
+      ],
+      "depNameTemplate": "TraceMachina/nativelink",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v(?<version>.*)$"
     }
   ]
 }

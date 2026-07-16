@@ -24,17 +24,9 @@ RUN curl -fsSL \
       -o /usr/local/bin/buildifier \
     && chmod +x /usr/local/bin/buildifier
 
-# Install Buckle as `buck2` — reads .buckversion to pick the right Buck2 release.
-ARG BUCKLE_VERSION=1.1.0
-ARG BUCKLE_SHA256=dad88b264b1139ff12c30b81c5a71b9ddee54b4148e0f45a2708f7d809bd151d
-RUN curl -fsSL \
-      "https://github.com/benbrittain/buckle/releases/download/v${BUCKLE_VERSION}/buckle-x86_64-unknown-linux-gnu.tar.xz" \
-      -o /tmp/buckle.tar.xz \
-    && echo "${BUCKLE_SHA256}  /tmp/buckle.tar.xz" | sha256sum -c - \
-    && tar xf /tmp/buckle.tar.xz -C /tmp \
-    && install -m 0755 /tmp/buckle-x86_64-unknown-linux-gnu/buckle /usr/local/bin/buckle \
-    && ln -sf buckle /usr/local/bin/buck2 \
-    && rm -rf /tmp/buckle.tar.xz /tmp/buckle-x86_64-unknown-linux-gnu
+# buckle (and the buck2 launcher) are installed from the checkout by
+# postCreateCommand via tools/buckle/install.sh, so the pinned version
+# tracks the checkout rather than the image.
 
 # Install Jujutsu (jj) — version control layered over Git.
 ARG JJ_VERSION=0.41.0

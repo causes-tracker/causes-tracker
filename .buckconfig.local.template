@@ -1,9 +1,0 @@
-# BuildBuddy remote cache for local buck2 builds.
-# Copy this file to .buckconfig.local and replace YOUR_KEY_HERE with your API
-# key from https://app.buildbuddy.io/settings/org/api-keys
-# Without this file buck2 builds purely locally.
-[buck2_re_client]
-  engine_address = remote.buildbuddy.io
-  action_cache_address = remote.buildbuddy.io
-  cas_address = remote.buildbuddy.io
-  http_headers = x-buildbuddy-api-key:YOUR_KEY_HERE

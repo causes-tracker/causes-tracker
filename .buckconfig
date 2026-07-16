@@ -1,7 +1,10 @@
+# `probes` is a separate cell so `buck2 build //...` (the root cell) never
+# includes its deliberately-failing targets.
 [cells]
   root = .
   prelude = prelude
   toolchains = toolchains
+  probes = probes
   none = none
 
 [cell_aliases]
@@ -15,15 +18,24 @@
 [external_cells]
   prelude = bundled
 
-# SHA256 keeps local digests interchangeable with the BuildBuddy CAS
-# regardless of whether the remote cache (.buckconfig.local) is enabled.
+# SHA256 keeps local digests interchangeable with the BuildBuddy CAS.
 [buck2]
   digest_algorithms = SHA256
+
+# Every action executes on the local NativeLink worker — see
+# tools/nativelink/. Building without it running fails immediately with a
+# connection error; there is no unsandboxed fallback.
+[buck2_re_client]
+  engine_address = 127.0.0.1:50051
+  action_cache_address = 127.0.0.1:50051
+  cas_address = 127.0.0.1:50051
+  tls = false
 
 [parser]
   target_platform_detector_spec = target:root//...->root//platforms:default \
     target:prelude//...->root//platforms:default \
-    target:toolchains//...->root//platforms:default
+    target:toolchains//...->root//platforms:default \
+    target:probes//...->root//platforms:default
 
 [build]
   execution_platforms = root//platforms:default

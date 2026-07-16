@@ -63,6 +63,8 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
       - name: Install buckle
         run: sudo bash tools/buckle/install.sh /usr/local/bin
+      - name: Install NativeLink
+        run: sudo bash tools/nativelink/install.sh /usr/local/bin
       # Same opt-in mechanism as local dev (.buckconfig.local.template):
       # enables the BuildBuddy remote cache for the build below.
       - name: Enable BuildBuddy remote cache

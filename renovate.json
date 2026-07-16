@@ -88,6 +88,19 @@
       "depNameTemplate": "TraceMachina/nativelink",
       "datasourceTemplate": "github-releases",
       "extractVersionTemplate": "^v(?<version>.*)$"
+    },
+    {
+      "description": "Bump PRs fail the installer's sha256 check until the pinned checksum is updated by hand.",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^tools/buckle/install\\.sh$/"
+      ],
+      "matchStrings": [
+        "BUCKLE_VERSION=(?<currentValue>\\S+)"
+      ],
+      "depNameTemplate": "benbrittain/buckle",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v(?<version>.*)$"
     }
   ]
 }

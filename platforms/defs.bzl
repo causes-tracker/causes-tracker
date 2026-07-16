@@ -1,14 +1,14 @@
-# The one platform every target and action uses. The BuildBuddy remote cache
-# is enabled iff `[buck2_re_client] engine_address` is configured (via the
-# gitignored .buckconfig.local — see .buckconfig.local.template), so a
-# checkout without credentials builds purely locally with the same platform
-# and the whole graph keeps a single configuration in both modes.
+# The one platform every target and action uses. Every action executes on
+# the local NativeLink worker ([buck2_re_client] in .buckconfig): inputs
+# are staged from the CAS, so an action sees exactly its declared inputs.
+# Unsandboxed local execution is not a path — a cached result carries no
+# record of how it was produced, so allowing both would launder impure
+# results into the shared cache.
 #
 # Invariant: everything in `//...` is a cacheable pure function of its
 # declared inputs, so caching is platform-wide with no per-target opt-out.
 # A target that cannot satisfy this must be redesigned or become a `run`
 # target.
-_REMOTE_CACHE = read_root_config("buck2_re_client", "engine_address") != None
 
 def _impl(ctx: AnalysisContext) -> list[Provider]:
     constraints = dict()
@@ -21,10 +21,11 @@ def _impl(ctx: AnalysisContext) -> list[Provider]:
         label = name,
         configuration = cfg,
         executor_config = CommandExecutorConfig(
-            local_enabled = True,
-            remote_enabled = False,
-            remote_cache_enabled = _REMOTE_CACHE,
-            allow_cache_uploads = _REMOTE_CACHE,
+            local_enabled = False,
+            remote_enabled = True,
+            remote_cache_enabled = True,
+            allow_cache_uploads = True,
+            remote_execution_properties = {},
             remote_execution_use_case = "buck2-default",
             use_windows_path_separators = False,
         ),

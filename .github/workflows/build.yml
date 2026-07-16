@@ -67,12 +67,18 @@ jobs:
         run: sudo bash tools/nativelink/install.sh /usr/local/bin
       # The buck2 launcher auto-starts NativeLink with this overlay, whose
       # stores write through to BuildBuddy (NativeLink holds the key).
+      # Worker namespace isolation is injected here rather than committed:
+      # unprivileged Docker (the devcontainer) cannot unshare, so the
+      # committed configs must run without it; runner VMs can.
       - name: Configure NativeLink BuildBuddy overlay
         env:
           BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_ORG_API_KEY }}
         run: |
-          sed "s/YOUR_KEY_HERE/${BUILDBUDDY_API_KEY}/" \
+          sed -e "s/YOUR_KEY_HERE/${BUILDBUDDY_API_KEY}/" \
+            -e '/work_directory:/a\        use_namespaces: true,' \
+            -e '/work_directory:/a\        use_mount_namespace: true,' \
             tools/nativelink/config-bb.json5.template > .nativelink.json5
+          grep -q use_mount_namespace .nativelink.json5
       - name: Build buck2 targets
         run: buck2 build //...
       # A green cached build cannot distinguish "cache works" from

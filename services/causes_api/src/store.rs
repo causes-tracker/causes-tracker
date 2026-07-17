@@ -103,7 +103,7 @@ pub trait Store: Send + Sync + 'static {
 }
 
 #[tonic::async_trait]
-impl Store for db_connect::DbPool {
+impl Store for api_db::Pool {
     async fn migrate(&self) -> anyhow::Result<()> {
         api_db::migrate(self).await
     }

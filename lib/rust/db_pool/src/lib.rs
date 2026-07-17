@@ -37,56 +37,70 @@ pub type PoolRefresher = Arc<
         + Sync,
 >;
 
-/// Opaque pool handle.
+/// Opaque pool handle carrying a consumer-provided value `E` — a place
+/// for a query crate to attach its own per-pool state, set at
+/// construction and read via [`Self::state`]. Cloning the pool clones
+/// `E`, so an `Arc`-backed `E` is shared across clones.
 ///
 /// Static mode: a fixed pool, [`Self::start_background_refresh`] returns `None`.
 ///
 /// Refreshing mode: a refresher closure is attached; the background
 /// task periodically calls it to rotate the pool's credentials.
 #[derive(Clone)]
-pub struct DbPool {
+pub struct DbPool<E> {
     inner: sqlx::PgPool,
     refresher: Option<PoolRefresher>,
     refresh_interval: Duration,
+    state: E,
 }
 
-impl sealed::Sealed for DbPool {}
+impl<E> sealed::Sealed for DbPool<E> {}
 
-impl DbPool {
-    /// Create a connection pool from a static database URL.
-    #[tracing::instrument(skip(database_url), fields(db.system = "postgresql"))]
-    pub async fn connect(database_url: &str) -> anyhow::Result<Self> {
+impl<E> DbPool<E> {
+    /// Create a connection pool from a static database URL, attaching `state`.
+    #[tracing::instrument(skip(database_url, state), fields(db.system = "postgresql"))]
+    pub async fn connect(database_url: &str, state: E) -> anyhow::Result<Self> {
         let pool = PgPoolOptions::new()
             .max_connections(5)
             .connect(database_url)
             .await
             .context("connecting to PostgreSQL")?;
-        Ok(Self::from_pool(pool))
+        Ok(Self::from_pool(pool, state))
     }
 
-    /// Wrap an existing pool with a refresher closure. Provider crates use
-    /// this to attach token-rotation logic (e.g. `db_aws::connect_iam`).
+    /// Wrap an existing pool with a refresher closure, attaching `state`.
+    /// Provider crates use this to attach token-rotation logic (e.g.
+    /// `db_aws::connect_iam`).
     pub fn from_pool_with_refresher(
         pool: sqlx::PgPool,
         refresh_interval: Duration,
         refresher: PoolRefresher,
+        state: E,
     ) -> Self {
         Self {
             inner: pool,
             refresher: Some(refresher),
             refresh_interval,
+            state,
         }
     }
 
-    /// Wrap an existing pool with no refresher. Use [`Self::connect`] for
-    /// the static URL path; this is mainly for `#[sqlx::test]` fixtures
-    /// and other scenarios where the pool already exists.
-    pub fn from_pool(pool: sqlx::PgPool) -> Self {
+    /// Wrap an existing pool with no refresher, attaching `state`. Use
+    /// [`Self::connect`] for the static URL path; this is mainly for
+    /// `#[sqlx::test]` fixtures and other scenarios where the pool already
+    /// exists.
+    pub fn from_pool(pool: sqlx::PgPool, state: E) -> Self {
         Self {
             inner: pool,
             refresher: None,
             refresh_interval: Duration::from_secs(6 * 3600),
+            state,
         }
+    }
+
+    /// The attached state.
+    pub fn state(&self) -> &E {
+        &self.state
     }
 
     /// Spawn a background task that periodically rebuilds the pool via
@@ -125,7 +139,7 @@ pub trait QueryAccess: sealed::Sealed {
     fn pool(&self) -> sqlx::PgPool;
 }
 
-impl QueryAccess for DbPool {
+impl<E> QueryAccess for DbPool<E> {
     fn pool(&self) -> sqlx::PgPool {
         self.inner.clone()
     }
@@ -136,13 +150,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn from_pool_has_no_refresher() {
-        // Construct a sentinel pool via PgPoolOptions::new() — never connected,
-        // but proves the type construction path. start_background_refresh
-        // should be None when no refresher is attached.
+    fn from_pool_attaches_state_without_refresher() {
+        // Sentinel pool — never connected — proves the construction path.
         let pool = sqlx::postgres::PgPool::connect_lazy("postgresql://invalid")
             .expect("lazy connect builds options");
-        let db = DbPool::from_pool(pool);
+        let db = DbPool::from_pool(pool, 7u32);
+
+        assert_eq!(*db.state(), 7);
+        // Cloning clones the state.
+        assert_eq!(*db.clone().state(), 7);
+        // No refresher was attached.
         assert!(db.start_background_refresh().is_none());
     }
 }

@@ -12,6 +12,7 @@ If a managed policy has gaps, add scoped inline statements — do not escalate t
 All `.md` files use **sentence-per-line** formatting:
 one sentence per line, blank lines between paragraphs.
 This keeps diffs small and reviewable.
+A single sentence may wrap across multiple lines; what is disallowed is more than one sentence on a line.
 List item continuation sentences are indented to align with the list marker.
 
 The same convention applies to Rust doc comments (`///`, `//!`, prose `//`) and to PR and issue descriptions, for the same rebase-conflict-reduction reason.

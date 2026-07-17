@@ -258,7 +258,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn get_user_roles_empty_for_new_user(pool: sqlx::PgPool) {
-        let pool = Pool::from_pool(pool, crate::PoolState);
+        let pool = Pool::from_pool(pool, crate::PoolState::default());
         let user_id = crate::admin::create_user(
             &pool,
             &DisplayName::new("Nobody").unwrap(),
@@ -275,7 +275,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn get_user_roles_returns_admin_role(pool: sqlx::PgPool) {
-        let pool = Pool::from_pool(pool, crate::PoolState);
+        let pool = Pool::from_pool(pool, crate::PoolState::default());
         let user_id = seed_admin(&pool).await;
 
         let roles = get_user_roles(&pool, &user_id).await.unwrap();
@@ -286,7 +286,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn assign_and_get_role(pool: sqlx::PgPool) {
-        let pool = Pool::from_pool(pool, crate::PoolState);
+        let pool = Pool::from_pool(pool, crate::PoolState::default());
         let user_id = seed_admin(&pool).await;
 
         assign_role(&pool, &user_id, &None, Role::Developer)
@@ -302,7 +302,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn assign_role_is_idempotent(pool: sqlx::PgPool) {
-        let pool = Pool::from_pool(pool, crate::PoolState);
+        let pool = Pool::from_pool(pool, crate::PoolState::default());
         let user_id = seed_admin(&pool).await;
 
         assign_role(&pool, &user_id, &None, Role::Developer)
@@ -318,7 +318,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn get_user_project_roles_includes_instance_level(pool: sqlx::PgPool) {
-        let pool = Pool::from_pool(pool, crate::PoolState);
+        let pool = Pool::from_pool(pool, crate::PoolState::default());
         let user_id = seed_admin(&pool).await;
 
         // create_project assigns project-maintainer to the creator
@@ -343,7 +343,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn get_user_project_roles_excludes_other_projects(pool: sqlx::PgPool) {
-        let pool = Pool::from_pool(pool, crate::PoolState);
+        let pool = Pool::from_pool(pool, crate::PoolState::default());
         let user_id = seed_admin(&pool).await;
 
         let project_a = crate::project::create_project(
@@ -382,7 +382,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn assign_role_rejects_missing_project(pool: sqlx::PgPool) {
-        let pool = Pool::from_pool(pool, crate::PoolState);
+        let pool = Pool::from_pool(pool, crate::PoolState::default());
         let user_id = seed_admin(&pool).await;
         let bogus_project = ProjectId::new(uuid::Uuid::new_v4().to_string()).unwrap();
 

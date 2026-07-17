@@ -56,6 +56,8 @@ pub async fn create_pending_login(
     .await
     .context("inserting pending login")?;
 
+    pool.state().mark_pending_logins();
+
     Ok(nonce)
 }
 
@@ -91,16 +93,24 @@ pub async fn delete_pending_login(pool: &Pool, nonce: &LoginNonce) -> anyhow::Re
     Ok(())
 }
 
-/// Delete pending logins older than the given age.
+/// Delete pending logins older than `max_age`, if there was a login since the last sweep.
 /// Called periodically to garbage-collect abandoned login attempts.
-pub async fn gc_pending_logins(pool: &Pool, max_age: std::time::Duration) -> anyhow::Result<u64> {
+/// Returns `None` when the sweep is skipped (no activity), or `Some(n)` with the rows deleted when it runs.
+pub async fn gc_pending_logins(
+    pool: &Pool,
+    max_age: std::time::Duration,
+) -> anyhow::Result<Option<u64>> {
+    if !pool.state().take_pending_logins_dirty() {
+        return Ok(None);
+    }
+
     let cutoff = sqlx::types::chrono::Utc::now() - max_age;
     let result = sqlx::query!("DELETE FROM pending_logins WHERE created_at < $1", cutoff,)
         .execute(&pool.pool())
         .await
         .context("garbage-collecting pending logins")?;
 
-    Ok(result.rows_affected())
+    Ok(Some(result.rows_affected()))
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────
@@ -147,7 +157,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn create_and_lookup_pending_login(pool: sqlx::PgPool) {
-        let pool = Pool::from_pool(pool, crate::PoolState);
+        let pool = Pool::from_pool(pool, crate::PoolState::default());
 
         let nonce = create_pending_login(&pool, "dev-code-xyz", 5)
             .await
@@ -164,7 +174,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn lookup_missing_nonce_returns_none(pool: sqlx::PgPool) {
-        let pool = Pool::from_pool(pool, crate::PoolState);
+        let pool = Pool::from_pool(pool, crate::PoolState::default());
         let bogus = LoginNonce::from_raw("a".repeat(64)).unwrap();
 
         let row = lookup_pending_login(&pool, &bogus)
@@ -176,7 +186,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn delete_removes_pending_login(pool: sqlx::PgPool) {
-        let pool = Pool::from_pool(pool, crate::PoolState);
+        let pool = Pool::from_pool(pool, crate::PoolState::default());
 
         let nonce = create_pending_login(&pool, "dev-code", 5)
             .await
@@ -195,7 +205,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn gc_removes_old_pending_logins(pool: sqlx::PgPool) {
-        let pool = Pool::from_pool(pool, crate::PoolState);
+        let pool = Pool::from_pool(pool, crate::PoolState::default());
 
         // Create a login, then GC with zero max age (everything is "old").
         create_pending_login(&pool, "dev-code", 5)
@@ -206,6 +216,37 @@ mod tests {
             .await
             .expect("gc_pending_logins failed");
 
-        assert_eq!(deleted, 1);
+        assert_eq!(deleted, Some(1));
+    }
+
+    #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
+    async fn gc_pending_logins_runs_only_after_activity(pool: sqlx::PgPool) {
+        let pool = Pool::from_pool(pool, crate::PoolState::default());
+
+        create_pending_login(&pool, "dev-code", 5).await.unwrap();
+        // Clear the flag: the pool starts dirty and the create above marks.
+        pool.state().take_pending_logins_dirty();
+
+        assert_eq!(
+            gc_pending_logins(&pool, std::time::Duration::ZERO)
+                .await
+                .unwrap(),
+            None
+        );
+
+        create_pending_login(&pool, "dev-code-2", 5).await.unwrap();
+
+        assert_eq!(
+            gc_pending_logins(&pool, std::time::Duration::ZERO)
+                .await
+                .unwrap(),
+            Some(2)
+        );
+        assert_eq!(
+            gc_pending_logins(&pool, std::time::Duration::ZERO)
+                .await
+                .unwrap(),
+            None
+        );
     }
 }

@@ -417,7 +417,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn create_admin_inserts_rows(pool: sqlx::PgPool) {
-        let pool = Pool::from_pool(pool, crate::PoolState);
+        let pool = Pool::from_pool(pool, crate::PoolState::default());
 
         let user_id = create_admin(
             &pool,
@@ -451,7 +451,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn create_user_inserts_rows_without_role(pool: sqlx::PgPool) {
-        let pool = Pool::from_pool(pool, crate::PoolState);
+        let pool = Pool::from_pool(pool, crate::PoolState::default());
 
         let user_id = create_user(
             &pool,
@@ -484,7 +484,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn user_count_returns_nonnegative(pool: sqlx::PgPool) {
-        let pool = Pool::from_pool(pool, crate::PoolState);
+        let pool = Pool::from_pool(pool, crate::PoolState::default());
 
         let count = user_count(&pool).await.expect("user_count failed");
         assert!(count >= 0);

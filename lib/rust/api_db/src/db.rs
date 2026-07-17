@@ -68,7 +68,7 @@ mod tests {
             .expect("database was null");
         let url = format!("postgresql://localhost:{port}/{db}");
 
-        let pool = Pool::connect(&url, crate::PoolState)
+        let pool = Pool::connect(&url, crate::PoolState::default())
             .await
             .expect("Pool::connect failed");
         migrate(&pool).await.expect("migrate failed");
@@ -104,7 +104,7 @@ mod tests {
     /// Verify that instance_id is generated during migration and is a valid UUID.
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn instance_id_is_generated(pool: sqlx::PgPool) {
-        let db = Pool::from_pool(pool, crate::PoolState);
+        let db = Pool::from_pool(pool, crate::PoolState::default());
         let id = instance_id(&db).await.expect("instance_id failed");
         id.parse::<uuid::Uuid>()
             .expect("instance_id is not a valid UUID");
@@ -113,7 +113,7 @@ mod tests {
     /// Verify that running migrations twice preserves the existing instance_id.
     #[sqlx::test(migrator = "crate::db::tests::EMPTY")]
     async fn instance_id_survives_migration_rerun(pool: sqlx::PgPool) {
-        let db = Pool::from_pool(pool, crate::PoolState);
+        let db = Pool::from_pool(pool, crate::PoolState::default());
 
         MIGRATIONS.run(&db.pool()).await.expect("first run failed");
         let original = instance_id(&db).await.expect("instance_id failed");
@@ -127,7 +127,7 @@ mod tests {
     /// Verify that `begin_txn` opens a transaction at REPEATABLE READ.
     #[sqlx::test(migrator = "crate::db::tests::EMPTY")]
     async fn begin_txn_sets_repeatable_read(pool: sqlx::PgPool) {
-        let db = Pool::from_pool(pool, crate::PoolState);
+        let db = Pool::from_pool(pool, crate::PoolState::default());
         let mut tx = begin_txn(&db).await.expect("begin_txn failed");
         let level: String =
             sqlx::query_scalar!("SELECT current_setting('transaction_isolation') AS \"v!\"")
@@ -262,7 +262,7 @@ mod tests {
             .await
             .expect("journal_create_table call failed");
 
-        let db = Pool::from_pool(pool, crate::PoolState);
+        let db = Pool::from_pool(pool, crate::PoolState::default());
         let project_id = seed_project_row(&db.pool()).await;
         let oi = uuid::Uuid::new_v4().to_string();
 
@@ -364,7 +364,7 @@ mod tests {
         .await
         .expect("partial index creation failed");
 
-        let db = Pool::from_pool(pool, crate::PoolState);
+        let db = Pool::from_pool(pool, crate::PoolState::default());
         let project_id = seed_project_row(&db.pool()).await;
         let oi = uuid::Uuid::new_v4().to_string();
 

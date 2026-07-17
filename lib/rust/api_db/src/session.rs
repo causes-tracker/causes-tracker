@@ -89,6 +89,11 @@ pub async fn lookup_session(
     .await
     .context("looking up session")?;
 
+    // A present row is session activity; a miss (unknown token) is not.
+    if row.is_some() {
+        pool.state().mark_sessions();
+    }
+
     row.map(RawSessionRow::try_into).transpose()
 }
 
@@ -143,15 +148,20 @@ pub async fn find_user_by_email(pool: &Pool, email: &str) -> anyhow::Result<Opti
     }
 }
 
-/// Delete expired sessions.
+/// Delete expired sessions, if there was session activity since the last sweep.
 /// Called periodically to garbage-collect sessions past their `expires_at`.
-pub async fn gc_expired_sessions(pool: &Pool) -> anyhow::Result<u64> {
+/// Returns `None` when the sweep is skipped (no activity), or `Some(n)` with the rows deleted when it runs.
+pub async fn gc_expired_sessions(pool: &Pool) -> anyhow::Result<Option<u64>> {
+    if !pool.state().take_sessions_dirty() {
+        return Ok(None);
+    }
+
     let result = sqlx::query!("DELETE FROM sessions WHERE expires_at < now()")
         .execute(&pool.pool())
         .await
         .context("garbage-collecting expired sessions")?;
 
-    Ok(result.rows_affected())
+    Ok(Some(result.rows_affected()))
 }
 
 // ── Internal types ────────────────────────────────────────────────────────
@@ -258,7 +268,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn create_and_lookup_session(pool: sqlx::PgPool) {
-        let pool = Pool::from_pool(pool, crate::PoolState);
+        let pool = Pool::from_pool(pool, crate::PoolState::default());
         let user_id = seed_admin(&pool).await;
 
         let token = create_session(&pool, &user_id, std::time::Duration::from_secs(3600), true)
@@ -277,7 +287,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn create_unrestricted_session(pool: sqlx::PgPool) {
-        let pool = Pool::from_pool(pool, crate::PoolState);
+        let pool = Pool::from_pool(pool, crate::PoolState::default());
         let user_id = seed_admin(&pool).await;
 
         let token = create_session(&pool, &user_id, std::time::Duration::from_secs(3600), false)
@@ -295,19 +305,40 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn lookup_missing_token_returns_none(pool: sqlx::PgPool) {
-        let pool = Pool::from_pool(pool, crate::PoolState);
+        let pool = Pool::from_pool(pool, crate::PoolState::default());
         let bogus = SessionToken::from_raw("a".repeat(64)).unwrap();
 
+        // A miss must not mark, so scanners can't drive GC wakeups.
+        pool.state().take_sessions_dirty();
         let row = lookup_session(&pool, &bogus)
             .await
             .expect("lookup_session failed");
 
         assert!(row.is_none());
+        assert!(!pool.state().take_sessions_dirty());
+    }
+
+    #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
+    async fn gc_expired_sessions_runs_only_after_activity(pool: sqlx::PgPool) {
+        let pool = Pool::from_pool(pool, crate::PoolState::default());
+        let user_id = seed_admin(&pool).await;
+        // Zero duration → already expired by the time a sweep runs.
+        let token = create_session(&pool, &user_id, std::time::Duration::from_secs(0), true)
+            .await
+            .unwrap();
+
+        // Clear the flag the pool starts dirty with.
+        pool.state().take_sessions_dirty();
+
+        assert_eq!(gc_expired_sessions(&pool).await.unwrap(), None);
+        assert!(lookup_session(&pool, &token).await.unwrap().is_some());
+        assert_eq!(gc_expired_sessions(&pool).await.unwrap(), Some(1));
+        assert_eq!(gc_expired_sessions(&pool).await.unwrap(), None);
     }
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn find_user_by_identity_returns_match(pool: sqlx::PgPool) {
-        let pool = Pool::from_pool(pool, crate::PoolState);
+        let pool = Pool::from_pool(pool, crate::PoolState::default());
         let user_id = seed_admin(&pool).await;
 
         let found = find_user_by_identity(&pool, "accounts.google.com", "test-sub-42")
@@ -319,7 +350,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn find_user_by_identity_returns_none_for_unknown(pool: sqlx::PgPool) {
-        let pool = Pool::from_pool(pool, crate::PoolState);
+        let pool = Pool::from_pool(pool, crate::PoolState::default());
 
         let found = find_user_by_identity(&pool, "unknown.issuer", "no-such-sub")
             .await
@@ -330,7 +361,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn find_user_by_id_returns_match(pool: sqlx::PgPool) {
-        let pool = Pool::from_pool(pool, crate::PoolState);
+        let pool = Pool::from_pool(pool, crate::PoolState::default());
         let user_id = seed_admin(&pool).await;
 
         let row = find_user_by_id(&pool, &user_id)
@@ -344,7 +375,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn find_user_by_id_returns_none_for_unknown(pool: sqlx::PgPool) {
-        let pool = Pool::from_pool(pool, crate::PoolState);
+        let pool = Pool::from_pool(pool, crate::PoolState::default());
         let bogus = UserId::new();
 
         let row = find_user_by_id(&pool, &bogus)

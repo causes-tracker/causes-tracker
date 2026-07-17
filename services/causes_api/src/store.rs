@@ -51,8 +51,8 @@ pub trait Store: Send + Sync + 'static {
         nonce: &api_db::LoginNonce,
     ) -> anyhow::Result<Option<api_db::PendingLoginRow>>;
     async fn delete_pending_login(&self, nonce: &api_db::LoginNonce) -> anyhow::Result<()>;
-    async fn gc_pending_logins(&self, max_age: std::time::Duration) -> anyhow::Result<u64>;
-    async fn gc_expired_sessions(&self) -> anyhow::Result<u64>;
+    async fn gc_pending_logins(&self, max_age: std::time::Duration) -> anyhow::Result<Option<u64>>;
+    async fn gc_expired_sessions(&self) -> anyhow::Result<Option<u64>>;
     async fn get_user_roles(
         &self,
         user_id: &api_db::UserId,
@@ -186,11 +186,11 @@ impl Store for api_db::Pool {
         api_db::delete_pending_login(self, nonce).await
     }
 
-    async fn gc_pending_logins(&self, max_age: std::time::Duration) -> anyhow::Result<u64> {
+    async fn gc_pending_logins(&self, max_age: std::time::Duration) -> anyhow::Result<Option<u64>> {
         api_db::gc_pending_logins(self, max_age).await
     }
 
-    async fn gc_expired_sessions(&self) -> anyhow::Result<u64> {
+    async fn gc_expired_sessions(&self) -> anyhow::Result<Option<u64>> {
         api_db::gc_expired_sessions(self).await
     }
 

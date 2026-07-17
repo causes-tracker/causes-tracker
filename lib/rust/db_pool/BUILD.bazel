@@ -14,7 +14,6 @@ rust_library(
     visibility = ["//visibility:public"],
     deps = [
         "@crates//:anyhow",
-        "@crates//:arc-swap",
         "@crates//:sqlx",
         "@crates//:tokio",
         "@crates//:tracing",

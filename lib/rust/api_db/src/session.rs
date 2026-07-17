@@ -1,5 +1,6 @@
+use crate::Pool;
 use anyhow::Context;
-use db_pool::{DbPool, QueryAccess};
+use db_pool::QueryAccess;
 use sqlx::types::chrono;
 use uuid::Uuid;
 
@@ -50,7 +51,7 @@ impl std::fmt::Display for SessionToken {
 /// When `restricted` is true, authorization helpers suppress elevated roles
 /// (e.g. instance-admin) for this session.
 pub async fn create_session(
-    pool: &DbPool,
+    pool: &Pool,
     user_id: &UserId,
     duration: std::time::Duration,
     restricted: bool,
@@ -76,7 +77,7 @@ pub async fn create_session(
 /// Look up a session by token. Returns `None` if the token does not exist.
 /// The caller must check `expires_at` to determine if the session is still valid.
 pub async fn lookup_session(
-    pool: &DbPool,
+    pool: &Pool,
     token: &SessionToken,
 ) -> anyhow::Result<Option<SessionRow>> {
     let row = sqlx::query_as!(
@@ -94,7 +95,7 @@ pub async fn lookup_session(
 /// Find a local user by their external identity (issuer + subject).
 /// Returns `None` if the identity is not linked to any user.
 pub async fn find_user_by_identity(
-    pool: &DbPool,
+    pool: &Pool,
     issuer: &str,
     subject: &str,
 ) -> anyhow::Result<Option<UserId>> {
@@ -113,7 +114,7 @@ pub async fn find_user_by_identity(
 
 /// Fetch a user's display name and email by their id.
 /// Returns `None` if the user does not exist.
-pub async fn find_user_by_id(pool: &DbPool, user_id: &UserId) -> anyhow::Result<Option<UserRow>> {
+pub async fn find_user_by_id(pool: &Pool, user_id: &UserId) -> anyhow::Result<Option<UserRow>> {
     let row = sqlx::query_as!(
         RawUserRow,
         "SELECT display_name, email FROM users WHERE id = $1",
@@ -129,7 +130,7 @@ pub async fn find_user_by_id(pool: &DbPool, user_id: &UserId) -> anyhow::Result<
 /// Find a user by email address. Returns the user ID if exactly one user matches.
 /// Returns `None` if no user has this email.
 /// Errors if multiple users share the same email (ambiguous).
-pub async fn find_user_by_email(pool: &DbPool, email: &str) -> anyhow::Result<Option<UserId>> {
+pub async fn find_user_by_email(pool: &Pool, email: &str) -> anyhow::Result<Option<UserId>> {
     let rows = sqlx::query_scalar!("SELECT id FROM users WHERE email = $1", email,)
         .fetch_all(&pool.pool())
         .await
@@ -144,7 +145,7 @@ pub async fn find_user_by_email(pool: &DbPool, email: &str) -> anyhow::Result<Op
 
 /// Delete expired sessions.
 /// Called periodically to garbage-collect sessions past their `expires_at`.
-pub async fn gc_expired_sessions(pool: &DbPool) -> anyhow::Result<u64> {
+pub async fn gc_expired_sessions(pool: &Pool) -> anyhow::Result<u64> {
     let result = sqlx::query!("DELETE FROM sessions WHERE expires_at < now()")
         .execute(&pool.pool())
         .await
@@ -243,7 +244,7 @@ mod tests {
     // ── DB-backed tests ───────────────────────────────────────────────────
 
     /// Helper: create a test admin and return their UserId.
-    async fn seed_admin(pool: &DbPool) -> UserId {
+    async fn seed_admin(pool: &Pool) -> UserId {
         create_admin(
             pool,
             &DisplayName::new("Test Admin").unwrap(),
@@ -257,7 +258,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn create_and_lookup_session(pool: sqlx::PgPool) {
-        let pool = DbPool::from_pool(pool);
+        let pool = Pool::from_pool(pool, crate::PoolState);
         let user_id = seed_admin(&pool).await;
 
         let token = create_session(&pool, &user_id, std::time::Duration::from_secs(3600), true)
@@ -276,7 +277,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn create_unrestricted_session(pool: sqlx::PgPool) {
-        let pool = DbPool::from_pool(pool);
+        let pool = Pool::from_pool(pool, crate::PoolState);
         let user_id = seed_admin(&pool).await;
 
         let token = create_session(&pool, &user_id, std::time::Duration::from_secs(3600), false)
@@ -294,7 +295,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn lookup_missing_token_returns_none(pool: sqlx::PgPool) {
-        let pool = DbPool::from_pool(pool);
+        let pool = Pool::from_pool(pool, crate::PoolState);
         let bogus = SessionToken::from_raw("a".repeat(64)).unwrap();
 
         let row = lookup_session(&pool, &bogus)
@@ -306,7 +307,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn find_user_by_identity_returns_match(pool: sqlx::PgPool) {
-        let pool = DbPool::from_pool(pool);
+        let pool = Pool::from_pool(pool, crate::PoolState);
         let user_id = seed_admin(&pool).await;
 
         let found = find_user_by_identity(&pool, "accounts.google.com", "test-sub-42")
@@ -318,7 +319,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn find_user_by_identity_returns_none_for_unknown(pool: sqlx::PgPool) {
-        let pool = DbPool::from_pool(pool);
+        let pool = Pool::from_pool(pool, crate::PoolState);
 
         let found = find_user_by_identity(&pool, "unknown.issuer", "no-such-sub")
             .await
@@ -329,7 +330,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn find_user_by_id_returns_match(pool: sqlx::PgPool) {
-        let pool = DbPool::from_pool(pool);
+        let pool = Pool::from_pool(pool, crate::PoolState);
         let user_id = seed_admin(&pool).await;
 
         let row = find_user_by_id(&pool, &user_id)
@@ -343,7 +344,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn find_user_by_id_returns_none_for_unknown(pool: sqlx::PgPool) {
-        let pool = DbPool::from_pool(pool);
+        let pool = Pool::from_pool(pool, crate::PoolState);
         let bogus = UserId::new();
 
         let row = find_user_by_id(&pool, &bogus)

@@ -1,5 +1,6 @@
+use crate::Pool;
 use anyhow::Context;
-use db_pool::{DbPool, QueryAccess};
+use db_pool::QueryAccess;
 use uuid::Uuid;
 
 use crate::db::begin_txn;
@@ -188,7 +189,7 @@ impl std::fmt::Display for ServiceAccountId {
 // ── Public API ─────────────────────────────────────────────────────────────
 
 /// Return the number of rows in the `users` table.
-pub async fn user_count(pool: &DbPool) -> anyhow::Result<i64> {
+pub async fn user_count(pool: &Pool) -> anyhow::Result<i64> {
     Ok(sqlx::query_scalar!("SELECT COUNT(*) FROM users")
         .fetch_one(&pool.pool())
         .await
@@ -200,7 +201,7 @@ pub async fn user_count(pool: &DbPool) -> anyhow::Result<i64> {
 ///
 /// `auth_provider` is the issuer URL (e.g. "accounts.google.com").
 pub async fn create_admin(
-    pool: &DbPool,
+    pool: &Pool,
     display_name: &DisplayName,
     email: &Email,
     auth_provider: &AuthProvider,
@@ -247,7 +248,7 @@ pub async fn create_admin(
 /// Unlike [`create_admin`], this does **not** insert any `role_assignments`.
 /// The caller is responsible for granting roles separately.
 pub async fn create_user(
-    pool: &DbPool,
+    pool: &Pool,
     display_name: &DisplayName,
     email: &Email,
     auth_provider: &AuthProvider,
@@ -416,7 +417,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn create_admin_inserts_rows(pool: sqlx::PgPool) {
-        let pool = DbPool::from_pool(pool);
+        let pool = Pool::from_pool(pool, crate::PoolState);
 
         let user_id = create_admin(
             &pool,
@@ -450,7 +451,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn create_user_inserts_rows_without_role(pool: sqlx::PgPool) {
-        let pool = DbPool::from_pool(pool);
+        let pool = Pool::from_pool(pool, crate::PoolState);
 
         let user_id = create_user(
             &pool,
@@ -483,7 +484,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn user_count_returns_nonnegative(pool: sqlx::PgPool) {
-        let pool = DbPool::from_pool(pool);
+        let pool = Pool::from_pool(pool, crate::PoolState);
 
         let count = user_count(&pool).await.expect("user_count failed");
         assert!(count >= 0);

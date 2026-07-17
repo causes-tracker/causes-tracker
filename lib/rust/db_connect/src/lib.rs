@@ -48,20 +48,21 @@ fn connect_mode(
     }
 }
 
-/// Build a [`db_pool::DbPool`] from environment-style configuration.
+/// Build a [`db_pool::DbPool`] from environment-style configuration,
+/// attaching the consumer's default pool state `E`.
 #[tracing::instrument(skip(database_url), fields(db.system = "postgresql"))]
-pub async fn connect(
+pub async fn connect<E: Default>(
     db_host: Option<&str>,
     db_user: Option<&str>,
     db_port: u16,
     database_url: Option<&str>,
-) -> anyhow::Result<db_pool::DbPool> {
+) -> anyhow::Result<db_pool::DbPool<E>> {
     match connect_mode(db_host, db_user, db_port, database_url)? {
         ConnectMode::AwsIam { host, user, port } => {
             tracing::info!("using AWS IAM database authentication");
-            db_aws::connect_iam(&host, port, &user).await
+            db_aws::connect_iam(&host, port, &user, E::default()).await
         }
-        ConnectMode::Static { url } => db_pool::DbPool::connect(&url).await,
+        ConnectMode::Static { url } => db_pool::DbPool::connect(&url, E::default()).await,
     }
 }
 

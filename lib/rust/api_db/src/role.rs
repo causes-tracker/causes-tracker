@@ -1,5 +1,6 @@
+use crate::Pool;
 use anyhow::Context;
-use db_pool::{DbPool, QueryAccess};
+use db_pool::QueryAccess;
 use uuid::Uuid;
 
 use crate::admin::UserId;
@@ -95,10 +96,7 @@ pub struct RoleAssignment {
 }
 
 /// Get all roles for a user (both instance-level and project-level).
-pub async fn get_user_roles(
-    pool: &DbPool,
-    user_id: &UserId,
-) -> anyhow::Result<Vec<RoleAssignment>> {
+pub async fn get_user_roles(pool: &Pool, user_id: &UserId) -> anyhow::Result<Vec<RoleAssignment>> {
     let rows = sqlx::query!(
         "SELECT project_id, role FROM role_assignments WHERE user_id = $1",
         user_id.as_str(),
@@ -118,7 +116,7 @@ pub async fn get_user_roles(
 }
 
 /// Get instance-level roles for a user (project_id IS NULL).
-pub async fn get_user_instance_roles(pool: &DbPool, user_id: &UserId) -> anyhow::Result<Vec<Role>> {
+pub async fn get_user_instance_roles(pool: &Pool, user_id: &UserId) -> anyhow::Result<Vec<Role>> {
     let rows = sqlx::query_scalar!(
         "SELECT role FROM role_assignments WHERE user_id = $1 AND project_id IS NULL",
         user_id.as_str(),
@@ -132,7 +130,7 @@ pub async fn get_user_instance_roles(pool: &DbPool, user_id: &UserId) -> anyhow:
 
 /// Get roles for a user scoped to a specific project, including instance-level roles.
 pub async fn get_user_project_roles(
-    pool: &DbPool,
+    pool: &Pool,
     user_id: &UserId,
     project_id: &ProjectId,
 ) -> anyhow::Result<Vec<Role>> {
@@ -153,7 +151,7 @@ pub async fn get_user_project_roles(
 ///
 /// `project_id` is `None` for instance-level roles.
 pub async fn assign_role(
-    pool: &DbPool,
+    pool: &Pool,
     user_id: &UserId,
     project_id: &Option<ProjectId>,
     role: Role,
@@ -246,7 +244,7 @@ mod tests {
 
     use crate::admin::{AuthProvider, DisplayName, Email, Subject, create_admin};
 
-    async fn seed_admin(pool: &DbPool) -> UserId {
+    async fn seed_admin(pool: &Pool) -> UserId {
         create_admin(
             pool,
             &DisplayName::new("Test Admin").unwrap(),
@@ -260,7 +258,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn get_user_roles_empty_for_new_user(pool: sqlx::PgPool) {
-        let pool = DbPool::from_pool(pool);
+        let pool = Pool::from_pool(pool, crate::PoolState);
         let user_id = crate::admin::create_user(
             &pool,
             &DisplayName::new("Nobody").unwrap(),
@@ -277,7 +275,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn get_user_roles_returns_admin_role(pool: sqlx::PgPool) {
-        let pool = DbPool::from_pool(pool);
+        let pool = Pool::from_pool(pool, crate::PoolState);
         let user_id = seed_admin(&pool).await;
 
         let roles = get_user_roles(&pool, &user_id).await.unwrap();
@@ -288,7 +286,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn assign_and_get_role(pool: sqlx::PgPool) {
-        let pool = DbPool::from_pool(pool);
+        let pool = Pool::from_pool(pool, crate::PoolState);
         let user_id = seed_admin(&pool).await;
 
         assign_role(&pool, &user_id, &None, Role::Developer)
@@ -304,7 +302,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn assign_role_is_idempotent(pool: sqlx::PgPool) {
-        let pool = DbPool::from_pool(pool);
+        let pool = Pool::from_pool(pool, crate::PoolState);
         let user_id = seed_admin(&pool).await;
 
         assign_role(&pool, &user_id, &None, Role::Developer)
@@ -320,7 +318,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn get_user_project_roles_includes_instance_level(pool: sqlx::PgPool) {
-        let pool = DbPool::from_pool(pool);
+        let pool = Pool::from_pool(pool, crate::PoolState);
         let user_id = seed_admin(&pool).await;
 
         // create_project assigns project-maintainer to the creator
@@ -345,7 +343,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn get_user_project_roles_excludes_other_projects(pool: sqlx::PgPool) {
-        let pool = DbPool::from_pool(pool);
+        let pool = Pool::from_pool(pool, crate::PoolState);
         let user_id = seed_admin(&pool).await;
 
         let project_a = crate::project::create_project(
@@ -384,7 +382,7 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn assign_role_rejects_missing_project(pool: sqlx::PgPool) {
-        let pool = DbPool::from_pool(pool);
+        let pool = Pool::from_pool(pool, crate::PoolState);
         let user_id = seed_admin(&pool).await;
         let bogus_project = ProjectId::new(uuid::Uuid::new_v4().to_string()).unwrap();
 

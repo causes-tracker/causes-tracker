@@ -1,12 +1,13 @@
+use crate::Pool;
 use anyhow::Context;
-use db_pool::{DbPool, QueryAccess};
+use db_pool::QueryAccess;
 
 /// Embedded migrations, compiled from `migrations/` at build time.
 pub(crate) static MIGRATIONS: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
 
 /// Run all pending migrations.
 #[tracing::instrument(skip(pool), fields(db.system = "postgresql"))]
-pub async fn migrate(pool: &DbPool) -> anyhow::Result<()> {
+pub async fn migrate(pool: &Pool) -> anyhow::Result<()> {
     MIGRATIONS
         .run(&pool.pool())
         .await
@@ -17,7 +18,7 @@ pub async fn migrate(pool: &DbPool) -> anyhow::Result<()> {
 ///
 /// Generated once during migration 007 and stored in `instance_config`.
 /// This value never changes for the lifetime of the database.
-pub async fn instance_id(pool: &DbPool) -> anyhow::Result<String> {
+pub async fn instance_id(pool: &Pool) -> anyhow::Result<String> {
     let row = sqlx::query_scalar!("SELECT value FROM instance_config WHERE key = 'instance_id'")
         .fetch_one(&pool.pool())
         .await
@@ -32,7 +33,7 @@ pub async fn instance_id(pool: &DbPool) -> anyhow::Result<String> {
 /// direct `.begin()` calls elsewhere.
 #[allow(clippy::disallowed_methods)] // The one legitimate caller of sqlx::Pool::begin.
 pub(crate) async fn begin_txn(
-    pool: &DbPool,
+    pool: &Pool,
 ) -> anyhow::Result<sqlx::Transaction<'_, sqlx::Postgres>> {
     let mut tx = pool.pool().begin().await.context("beginning transaction")?;
     sqlx::query!("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
@@ -47,7 +48,7 @@ mod tests {
     use super::*;
 
     /// An empty migrator — gives us a bare database from `#[sqlx::test]` so we
-    /// can exercise `DbPool::connect` and `migrate` ourselves.
+    /// can exercise `Pool::connect` and `migrate` ourselves.
     /// `Migrator::DEFAULT` already carries empty migrations and the standard
     /// flags, so we reuse it rather than spelling out the struct literal —
     /// that keeps us compiling across sqlx releases that add fields.
@@ -67,7 +68,9 @@ mod tests {
             .expect("database was null");
         let url = format!("postgresql://localhost:{port}/{db}");
 
-        let pool = DbPool::connect(&url).await.expect("DbPool::connect failed");
+        let pool = Pool::connect(&url, crate::PoolState)
+            .await
+            .expect("Pool::connect failed");
         migrate(&pool).await.expect("migrate failed");
     }
 
@@ -101,7 +104,7 @@ mod tests {
     /// Verify that instance_id is generated during migration and is a valid UUID.
     #[sqlx::test(migrator = "crate::db::MIGRATIONS")]
     async fn instance_id_is_generated(pool: sqlx::PgPool) {
-        let db = DbPool::from_pool(pool);
+        let db = Pool::from_pool(pool, crate::PoolState);
         let id = instance_id(&db).await.expect("instance_id failed");
         id.parse::<uuid::Uuid>()
             .expect("instance_id is not a valid UUID");
@@ -110,7 +113,7 @@ mod tests {
     /// Verify that running migrations twice preserves the existing instance_id.
     #[sqlx::test(migrator = "crate::db::tests::EMPTY")]
     async fn instance_id_survives_migration_rerun(pool: sqlx::PgPool) {
-        let db = DbPool::from_pool(pool);
+        let db = Pool::from_pool(pool, crate::PoolState);
 
         MIGRATIONS.run(&db.pool()).await.expect("first run failed");
         let original = instance_id(&db).await.expect("instance_id failed");
@@ -124,7 +127,7 @@ mod tests {
     /// Verify that `begin_txn` opens a transaction at REPEATABLE READ.
     #[sqlx::test(migrator = "crate::db::tests::EMPTY")]
     async fn begin_txn_sets_repeatable_read(pool: sqlx::PgPool) {
-        let db = DbPool::from_pool(pool);
+        let db = Pool::from_pool(pool, crate::PoolState);
         let mut tx = begin_txn(&db).await.expect("begin_txn failed");
         let level: String =
             sqlx::query_scalar!("SELECT current_setting('transaction_isolation') AS \"v!\"")
@@ -259,7 +262,7 @@ mod tests {
             .await
             .expect("journal_create_table call failed");
 
-        let db = DbPool::from_pool(pool);
+        let db = Pool::from_pool(pool, crate::PoolState);
         let project_id = seed_project_row(&db.pool()).await;
         let oi = uuid::Uuid::new_v4().to_string();
 
@@ -361,7 +364,7 @@ mod tests {
         .await
         .expect("partial index creation failed");
 
-        let db = DbPool::from_pool(pool);
+        let db = Pool::from_pool(pool, crate::PoolState);
         let project_id = seed_project_row(&db.pool()).await;
         let oi = uuid::Uuid::new_v4().to_string();
 

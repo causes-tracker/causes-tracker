@@ -6,6 +6,14 @@ mod project;
 mod role;
 mod session;
 
+/// Per-pool state this crate attaches to its connection pool. Empty for
+/// now; grows as the crate needs pool-scoped state.
+#[derive(Clone, Default)]
+pub struct PoolState;
+
+/// The connection pool as this crate uses it.
+pub type Pool = db_pool::DbPool<PoolState>;
+
 /// Re-export chrono types used in public structs (e.g. `SessionRow.expires_at`).
 pub use sqlx::types::chrono;
 

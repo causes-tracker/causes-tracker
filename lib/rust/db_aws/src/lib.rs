@@ -15,8 +15,13 @@ pub use iam::IamParams;
 /// configuration (env vars, instance profile, etc). The returned pool has
 /// a refresher closure attached so [`db_pool::DbPool::start_background_refresh`]
 /// rotates the IAM token on the production schedule.
-#[tracing::instrument(fields(db.system = "postgresql"))]
-pub async fn connect_iam(host: &str, port: u16, user: &str) -> anyhow::Result<db_pool::DbPool> {
+#[tracing::instrument(skip(state), fields(db.system = "postgresql"))]
+pub async fn connect_iam<E>(
+    host: &str,
+    port: u16,
+    user: &str,
+    state: E,
+) -> anyhow::Result<db_pool::DbPool<E>> {
     // `aws-config`'s default-https-client feature is disabled at the workspace level (see Cargo.toml) so that the SDK does not silently pull in `rustls-aws-lc` and double up rustls providers — every other workspace member uses ring. We provide the HttpClient explicitly here with the ring CryptoMode.
     use aws_smithy_http_client::{Builder, tls};
     let http_client = Builder::new()
@@ -29,7 +34,7 @@ pub async fn connect_iam(host: &str, port: u16, user: &str) -> anyhow::Result<db
         .load()
         .await;
     let params = IamParams::new(host.to_owned(), port, user.to_owned());
-    connect_iam_with_sdk(params, sdk_config).await
+    connect_iam_with_sdk(params, sdk_config, state).await
 }
 
 /// How often the background refresher re-signs the IAM token.
@@ -47,11 +52,12 @@ const ACQUIRE_TIMEOUT: Duration = Duration::from_secs(60);
 /// Same as [`connect_iam`] but takes a pre-built [`aws_types::SdkConfig`].
 /// Use this when integrating with code that already has an SDK config
 /// (shared credentials provider, custom region, test overrides).
-#[tracing::instrument(skip(sdk_config), fields(db.system = "postgresql"))]
-pub async fn connect_iam_with_sdk(
+#[tracing::instrument(skip(sdk_config, state), fields(db.system = "postgresql"))]
+pub async fn connect_iam_with_sdk<E>(
     params: IamParams,
     sdk_config: aws_types::SdkConfig,
-) -> anyhow::Result<db_pool::DbPool> {
+    state: E,
+) -> anyhow::Result<db_pool::DbPool<E>> {
     let pool = build_iam_pool::<sqlx::PgPool>(&params, &sdk_config).await?;
     let refresher = iam_refresher(params, sdk_config);
 
@@ -59,6 +65,7 @@ pub async fn connect_iam_with_sdk(
         pool,
         REFRESH_INTERVAL,
         refresher,
+        state,
     ))
 }
 

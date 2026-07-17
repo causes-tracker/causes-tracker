@@ -6,30 +6,46 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Context;
-use arc_swap::ArcSwap;
-use sqlx::postgres::PgPoolOptions;
+use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
 
 mod sealed {
     pub trait Sealed {}
 }
 
-/// Closure that rebuilds the underlying pool. Supplied by provider crates
-/// (e.g. `db_aws`) for IAM auth token rotation; called by
-/// [`DbPool::start_background_refresh`].
+/// Installing connect options on a pool: the only capability the
+/// refresh system grants a [`PoolRefresher`], so refreshers cannot
+/// connect. The verb matches the sqlx method it delegates to.
+pub trait SetConnectOptions {
+    fn set_connect_options(&self, connect_opts: PgConnectOptions);
+}
+
+impl SetConnectOptions for sqlx::PgPool {
+    fn set_connect_options(&self, connect_opts: PgConnectOptions) {
+        sqlx::PgPool::set_connect_options(self, connect_opts);
+    }
+}
+
+/// Closure that refreshes the pool's credentials in place. Supplied by
+/// provider crates (e.g. `db_aws`) for IAM auth token rotation;
+/// [`DbPool::start_background_refresh`] calls it with the pool it
+/// holds.
 pub type PoolRefresher = Arc<
-    dyn Fn() -> Pin<Box<dyn Future<Output = anyhow::Result<sqlx::PgPool>> + Send>> + Send + Sync,
+    dyn for<'a> Fn(
+            &'a (dyn SetConnectOptions + Sync),
+        ) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send + 'a>>
+        + Send
+        + Sync,
 >;
 
 /// Opaque pool handle.
 ///
 /// Static mode: a fixed pool, [`Self::start_background_refresh`] returns `None`.
 ///
-/// Refreshing mode: `ArcSwap`-wrapped pool with a refresher closure attached;
-/// the background task periodically calls the refresher and atomically swaps
-/// in the new pool.
+/// Refreshing mode: a refresher closure is attached; the background
+/// task periodically calls it to rotate the pool's credentials.
 #[derive(Clone)]
 pub struct DbPool {
-    inner: Arc<ArcSwap<sqlx::PgPool>>,
+    inner: sqlx::PgPool,
     refresher: Option<PoolRefresher>,
     refresh_interval: Duration,
 }
@@ -56,7 +72,7 @@ impl DbPool {
         refresher: PoolRefresher,
     ) -> Self {
         Self {
-            inner: Arc::new(ArcSwap::from_pointee(pool)),
+            inner: pool,
             refresher: Some(refresher),
             refresh_interval,
         }
@@ -67,7 +83,7 @@ impl DbPool {
     /// and other scenarios where the pool already exists.
     pub fn from_pool(pool: sqlx::PgPool) -> Self {
         Self {
-            inner: Arc::new(ArcSwap::from_pointee(pool)),
+            inner: pool,
             refresher: None,
             refresh_interval: Duration::from_secs(6 * 3600),
         }
@@ -78,7 +94,7 @@ impl DbPool {
     /// [`Self::connect`] / [`Self::from_pool`] (no refresher attached).
     pub fn start_background_refresh(&self) -> Option<tokio::task::JoinHandle<()>> {
         let refresher = self.refresher.clone()?;
-        let inner = self.inner.clone();
+        let pool = self.inner.clone();
         let interval_dur = self.refresh_interval;
         Some(tokio::spawn(async move {
             let mut interval = tokio::time::interval(interval_dur);
@@ -86,10 +102,9 @@ impl DbPool {
             interval.tick().await;
             loop {
                 interval.tick().await;
-                match refresher().await {
-                    Ok(new_pool) => {
-                        inner.store(Arc::new(new_pool));
-                        tracing::info!("database pool refreshed");
+                match refresher(&pool).await {
+                    Ok(()) => {
+                        tracing::info!("database pool credentials refreshed");
                     }
                     Err(e) => {
                         tracing::warn!("database pool refresh failed: {e}");
@@ -106,15 +121,13 @@ impl DbPool {
 /// `db_connect` (which re-exports `DbPool` but not this trait) cannot
 /// reach the pool.
 pub trait QueryAccess: sealed::Sealed {
-    /// Return a `sqlx::PgPool` snapshot. Cheap (internally Arc-counted).
-    /// In refreshing mode the underlying pool may be swapped at any time;
-    /// callers get a snapshot that remains valid until dropped.
+    /// Return the `sqlx::PgPool`. Cheap (internally Arc-counted).
     fn pool(&self) -> sqlx::PgPool;
 }
 
 impl QueryAccess for DbPool {
     fn pool(&self) -> sqlx::PgPool {
-        (**self.inner.load()).clone()
+        self.inner.clone()
     }
 }
 

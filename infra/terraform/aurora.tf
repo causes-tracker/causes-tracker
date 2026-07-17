@@ -70,7 +70,7 @@ resource "aws_db_subnet_group" "causes" {
 resource "aws_rds_cluster" "causes" {
   cluster_identifier          = "causes"
   engine                      = "aurora-postgresql"
-  engine_version              = "16.6"
+  engine_version              = "16.11"
   database_name               = "causes"
   master_username             = "postgres"
   manage_master_user_password              = true

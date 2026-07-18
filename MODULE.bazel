@@ -210,7 +210,7 @@ bazel_dep(name = "aspect_bazel_lib", version = "2.22.5")
 oci = use_extension("@rules_oci//oci:extensions.bzl", "oci")
 oci.pull(
     name = "distroless_cc_debian13",
-    digest = "sha256:8b5d1db6d2253036a53cb8362d3e3fa82a7caf84c247772c46a023166c64e977",
+    digest = "sha256:ed7c407fd64eb0af9dddb9456b94cee188a40a7f53cf38c9836e1e9ae14fca02",
     image = "gcr.io/distroless/cc-debian13",
     platforms = [
         "linux/amd64",

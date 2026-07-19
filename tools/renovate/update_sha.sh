@@ -20,6 +20,11 @@ tools/nativelink/install.sh)
 	VAR=NATIVELINK
 	ASSET='nativelink-VERSION-x86_64-unknown-linux-musl.tar.gz'
 	;;
+tools/crane/install.sh)
+	REPO=google/go-containerregistry
+	VAR=CRANE
+	ASSET='go-containerregistry_Linux_x86_64.tar.gz'
+	;;
 *)
 	echo "unknown installer: $INSTALLER" >&2
 	exit 1

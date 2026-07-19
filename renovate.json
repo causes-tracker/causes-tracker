@@ -77,7 +77,7 @@
       "extractVersionTemplate": "^v(?<version>.*)$"
     },
     {
-      "description": "Bump PRs fail the installer's sha256 check until the pinned checksum is updated by hand.",
+      "description": "Renovate cannot update the sha256 (renovatebot/renovate#22183); the renovate-sha workflow recomputes it on the bump PR.",
       "customType": "regex",
       "managerFilePatterns": [
         "/^tools/nativelink/install\\.sh$/"
@@ -90,7 +90,7 @@
       "extractVersionTemplate": "^v(?<version>.*)$"
     },
     {
-      "description": "Bump PRs fail the installer's sha256 check until the pinned checksum is updated by hand.",
+      "description": "Renovate cannot update the sha256 (renovatebot/renovate#22183); the renovate-sha workflow recomputes it on the bump PR.",
       "customType": "regex",
       "managerFilePatterns": [
         "/^tools/buckle/install\\.sh$/"
@@ -99,6 +99,19 @@
         "BUCKLE_VERSION=(?<currentValue>\\S+)"
       ],
       "depNameTemplate": "benbrittain/buckle",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v(?<version>.*)$"
+    },
+    {
+      "description": "Renovate cannot update the sha256 (renovatebot/renovate#22183); the renovate-sha workflow recomputes it on the bump PR.",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^tools/crane/install\\.sh$/"
+      ],
+      "matchStrings": [
+        "CRANE_VERSION=(?<currentValue>\\S+)"
+      ],
+      "depNameTemplate": "google/go-containerregistry",
       "datasourceTemplate": "github-releases",
       "extractVersionTemplate": "^v(?<version>.*)$"
     }

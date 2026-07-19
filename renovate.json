@@ -109,6 +109,19 @@
       "extractVersionTemplate": "^v(?<version>.*)$"
     },
     {
+      "description": "crane release pinned in a BUCK file. Renovate cannot recompute the sha256 (renovatebot/renovate#22183); the renovate-sha workflow recomputes it on the bump PR.",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/(^|/)BUCK$/"
+      ],
+      "matchStrings": [
+        "go-containerregistry/releases/download/v(?<currentValue>[0-9][^/]+)/"
+      ],
+      "depNameTemplate": "google/go-containerregistry",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v(?<version>.*)$"
+    },
+    {
       "description": "cpython version pinned in a BUCK file. Renovate cannot recompute the sha256 (renovatebot/renovate#22183), so a bump needs the checksum updated separately.",
       "customType": "regex",
       "managerFilePatterns": [

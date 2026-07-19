@@ -109,4 +109,4 @@ aws-sdk-rds = { version = "1", default-features = false, features = [
 aws-smithy-async = { version = "1", features = ["test-util"] }
 aws-smithy-http-client = { version = "1", features = ["rustls-ring"] }
 aws-types = "1"
-safelog = "0.8"
+safelog = "0.9"

@@ -3,7 +3,7 @@
 set -euo pipefail
 
 BINDIR="${1:-/usr/local/bin}"
-CRANE_VERSION=0.20.2
+CRANE_VERSION=0.21.7
 CRANE_SHA256=c14340087103ba9dadf61d45acd20675490fd0ccbd56ac7901fc1b502137f44b
 
 tmp="$(mktemp -d)"

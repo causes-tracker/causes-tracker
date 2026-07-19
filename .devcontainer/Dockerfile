@@ -29,7 +29,7 @@ RUN curl -fsSL \
 # tracks the checkout rather than the image.
 
 # Install Jujutsu (jj) — version control layered over Git.
-ARG JJ_VERSION=0.41.0
+ARG JJ_VERSION=0.43.0
 RUN curl -fsSL \
       "https://github.com/jj-vcs/jj/releases/download/v${JJ_VERSION}/jj-v${JJ_VERSION}-x86_64-unknown-linux-musl.tar.gz" \
       | tar xz --strip-components=1 -C /usr/local/bin ./jj

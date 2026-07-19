@@ -3,8 +3,8 @@
 set -euo pipefail
 
 BINDIR="${1:-/usr/local/bin}"
-CRANE_VERSION=0.20.2
-CRANE_SHA256=c14340087103ba9dadf61d45acd20675490fd0ccbd56ac7901fc1b502137f44b
+CRANE_VERSION=0.21.7
+CRANE_SHA256=1a57bc98207fa1c0d04bf760699099e26f8383499bfd55b99c1b919a928a7230
 
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT

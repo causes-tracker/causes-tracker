@@ -25,7 +25,7 @@ A still-accurate, non-obvious comment dropped during a rewrite is a regression â
 ## 3. Narrative reads against the base, never prior drafts of this branch
 
 Comments, docs, the commit message, and the PR body describe what the code IS versus the base.
-Flag "no longer", "instead of", "previously", "no default", "avoids X", "rather than", and any reference to a concept not present in the base (see [[feedback_narrative_against_base]]).
+Flag "no longer", "instead of", "previously", "no default", "avoids X", "rather than", and any reference to a concept not present in the base.
 
 ## 4. Comments earn their place
 

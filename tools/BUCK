@@ -21,9 +21,9 @@ command_alias(
 
 cached_check(
     name = "py_version_check",
-    args = [
-        "-c",
-        "import sys; assert sys.version_info[:3] == (3, 12, 13), sys.version; open(sys.argv[1], 'w').write('ok')",
-    ],
     exe = ":py",
+    srcs = [
+        "py_version_check.py",
+        "//third_party/python:pin",
+    ],
 )

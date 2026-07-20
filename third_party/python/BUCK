@@ -1,5 +1,11 @@
 load("//tools:defs.bzl", "cached_http_archive")
 
+export_file(
+    name = "pin",
+    src = "BUCK",
+    visibility = ["PUBLIC"],
+)
+
 cached_http_archive(
     name = "cpython",
     sha256 = "c218f50baeb2c06a30c2f03db5986b2bad6ab7c8a52faad2d5a59bda0677b93a",

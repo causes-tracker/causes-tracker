@@ -159,6 +159,17 @@ sh_test(
     ],
 )
 
+# Exercises the diff-gating in update_buck_shas.sh: only pins whose URL changed
+# vs the base are re-fetched, so an unchanged pin keeps its reviewed sha.
+sh_test(
+    name = "update_buck_shas_test",
+    srcs = ["renovate/update_buck_shas_test.sh"],
+    data = [
+        "renovate/update_buck_shas.sh",
+        "@bazel_tools//tools/bash/runfiles",
+    ],
+)
+
 # PreToolUse action guard, wired into .claude/settings.json.  Denies forbidden
 # agent actions at the moment of action: native tooling instead of the Bazel
 # wrappers, lockfile destruction, and mod.rs creation.  Decision logic lives in

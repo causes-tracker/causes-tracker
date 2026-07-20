@@ -114,6 +114,17 @@
       "depNameTemplate": "google/go-containerregistry",
       "datasourceTemplate": "github-releases",
       "extractVersionTemplate": "^v(?<version>.*)$"
+    },
+    {
+      "description": "Any GitHub-release download pinned in a BUCK file; the renovate-sha workflow recomputes the sha256 on the bump PR (renovatebot/renovate#22183).",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/(^|/)BUCK$/"
+      ],
+      "matchStrings": [
+        "https://github\\.com/(?<depName>[^/\"]+/[^/\"]+)/releases/download/(?<currentValue>[^/\"]+)/"
+      ],
+      "datasourceTemplate": "github-releases"
     }
   ]
 }

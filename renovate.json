@@ -109,6 +109,17 @@
       "extractVersionTemplate": "^v(?<version>.*)$"
     },
     {
+      "description": "busybox worker rootfs pinned as a digest-pinned Docker image in a BUCK file; the digest is content-addressed, so no sha-recompute is needed.",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/(^|/)BUCK$/"
+      ],
+      "matchStrings": [
+        "busybox_image = \"(?<depName>busybox):(?<currentValue>[^\"@]+)@(?<currentDigest>sha256:[0-9a-f]+)\""
+      ],
+      "datasourceTemplate": "docker"
+    },
+    {
       "description": "crane release pinned in a BUCK file. Renovate cannot recompute the sha256 (renovatebot/renovate#22183); the renovate-sha workflow recomputes it on the bump PR.",
       "customType": "regex",
       "managerFilePatterns": [

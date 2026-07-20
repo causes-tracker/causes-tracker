@@ -1,15 +1,15 @@
 # Build the NativeLink worker's from-scratch OCI image as a cacheable action.
-# busybox is downloaded by pinned sha256; crane is a pinned cached_http_archive.
-# The image is a pure function of them, so its output digest is stable.
+# crane is a pinned cached_http_archive; busybox is extracted from the Docker
+# busybox image pinned by digest. The image is a pure function of them, so its
+# output digest is stable.
 def _worker_image_impl(ctx: AnalysisContext) -> list[Provider]:
-    busybox = ctx.actions.declare_output("busybox")
-    ctx.actions.download_file(
-        busybox.as_output(),
-        ctx.attrs.busybox_url,
-        sha256 = ctx.attrs.busybox_sha256,
-        is_executable = True,
-    )
     crane = ctx.attrs.crane[DefaultInfo].default_outputs[0]
+    busybox = ctx.actions.declare_output("busybox")
+    extract = 'set -eu; d="$(mktemp -d)"; "$1" export "$3" - | tar -x -C "$d"; cp "$d/bin/busybox" "$2"; chmod 0755 "$2"'
+    ctx.actions.run(
+        cmd_args("/bin/sh", "-c", extract, "extract", crane, busybox.as_output(), ctx.attrs.busybox_image),
+        category = "busybox_extract",
+    )
     out = ctx.actions.declare_output("worker.tar")
     ctx.actions.run(
         cmd_args("/bin/sh", ctx.attrs.assemble, busybox, crane, out.as_output()),
@@ -22,8 +22,7 @@ worker_image = rule(
     impl = _worker_image_impl,
     attrs = {
         "assemble": attrs.source(),
-        "busybox_sha256": attrs.string(),
-        "busybox_url": attrs.string(),
+        "busybox_image": attrs.string(),
         "crane": attrs.dep(providers = [DefaultInfo]),
     },
 )

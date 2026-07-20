@@ -37,6 +37,12 @@
         "/^sqlx($|-)/"
       ],
       "groupName": "sqlx"
+    },
+    {
+      "description": "cpython version and python-build-standalone date share one URL, grouped into one PR. The two datasources max independently, so a version/date desync yields a URL that 404s until the matching build ships. separateMajorMinor is off because the 8-digit date bumps as a major.",
+      "matchDepNames": ["python/cpython", "astral-sh/python-build-standalone"],
+      "groupName": "cpython",
+      "separateMajorMinor": false
     }
   ],
   "customManagers": [
@@ -114,6 +120,33 @@
       "depNameTemplate": "google/go-containerregistry",
       "datasourceTemplate": "github-releases",
       "extractVersionTemplate": "^v(?<version>.*)$"
+    },
+    {
+      "description": "cpython version pinned in a BUCK file. Renovate cannot recompute the sha256 (renovatebot/renovate#22183), so a bump needs the checksum updated separately.",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/(^|/)BUCK$/"
+      ],
+      "matchStrings": [
+        "cpython-(?<currentValue>\\d+\\.\\d+\\.\\d+)\\+"
+      ],
+      "depNameTemplate": "python/cpython",
+      "datasourceTemplate": "github-tags",
+      "extractVersionTemplate": "^v(?<version>.*)$"
+    },
+    {
+      "description": "python-build-standalone build date pinned in a BUCK file; the date is in both the release tag and the asset filename, so both are captured.",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/(^|/)BUCK$/"
+      ],
+      "matchStrings": [
+        "releases/download/(?<currentValue>\\d{8})/",
+        "\\+(?<currentValue>\\d{8})-"
+      ],
+      "depNameTemplate": "astral-sh/python-build-standalone",
+      "datasourceTemplate": "github-releases",
+      "versioningTemplate": "loose"
     }
   ]
 }

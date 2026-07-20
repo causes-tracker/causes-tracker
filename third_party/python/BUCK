@@ -8,7 +8,7 @@ export_file(
 
 cached_http_archive(
     name = "cpython",
-    sha256 = "c218f50baeb2c06a30c2f03db5986b2bad6ab7c8a52faad2d5a59bda0677b93a",
+    sha256 = "3d943d8b4360823959012d7e9f4c755256ac1e9c04b609c24894a1b480736e36",
     strip_components = 1,
     urls = ["https://github.com/astral-sh/python-build-standalone/releases/download/20260623/cpython-3.14.6+20260623-x86_64-unknown-linux-gnu-install_only.tar.gz"],
     visibility = ["PUBLIC"],

@@ -2,6 +2,7 @@
 
 Before any push — and before asking the user to look — review the entire changeset as a diff against its **base branch**, hunk by hunk, stricter than the user would be.
 Do it as a fresh reader: a subagent that never saw the intermediate drafts is ideal, because anything referencing a concept absent from the base then stands out.
+Give that reader the user's requirements as they stated them, quoted — not your paraphrase — so it can flag anything not asked for or contradicting the goal; a diff-vs-base review alone grades whatever was built as long as it is internally correct.
 This pass runs before the push, never after; a finding surfaced after the push has already cost the user time the pass exists to save.
 
 **Why:** across PR #409 and its successors, every correction the user made was catchable here — residue of intermediate edit states, narrative written against prior drafts, still-accurate comments dropped in a rewrite, and tautological tests.

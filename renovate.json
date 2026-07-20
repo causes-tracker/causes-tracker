@@ -109,19 +109,6 @@
       "extractVersionTemplate": "^v(?<version>.*)$"
     },
     {
-      "description": "Renovate cannot update the sha256 (renovatebot/renovate#22183); the renovate-sha workflow recomputes it on the bump PR.",
-      "customType": "regex",
-      "managerFilePatterns": [
-        "/^tools/crane/install\\.sh$/"
-      ],
-      "matchStrings": [
-        "CRANE_VERSION=(?<currentValue>\\S+)"
-      ],
-      "depNameTemplate": "google/go-containerregistry",
-      "datasourceTemplate": "github-releases",
-      "extractVersionTemplate": "^v(?<version>.*)$"
-    },
-    {
       "description": "cpython version pinned in a BUCK file. Renovate cannot recompute the sha256 (renovatebot/renovate#22183), so a bump needs the checksum updated separately.",
       "customType": "regex",
       "managerFilePatterns": [

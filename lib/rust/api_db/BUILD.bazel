@@ -96,13 +96,8 @@ sh_test(
 # `bazel test //lib/rust/api_db:sqlx_prepare_test` fails if the files are stale.
 sqlx_prepare(
     name = "sqlx_prepare",
-    srcs = glob(["src/**/*.rs"]) + glob(
-        [".sqlx/**"],
-        allow_empty = True,
-    ),
+    crate = ":api_db",
     migrations = glob(["migrations/**"]),
-    path_deps = ["//lib/rust/db_pool"],
-    visibility = ["//visibility:public"],
 )
 
 format_srcs()

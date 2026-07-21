@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 # Bazel test fixture: starts a throwaway PostgreSQL instance.
 # Source this file and call pg_start.
-# Caller must source the Bazel runfiles library before calling pg_start.
+# Caller must source the Bazel runfiles library before calling pg_start,
+# or pre-set PGBIN (build actions have no runfiles; they also pre-set
+# TEST_TMPDIR to a scratch dir).
 # After pg_start exports: PGBIN, PGDATA, PGHOST, PGPORT,
 #                         PGUSER, PGDATABASE, TEST_POSTGRES_URL.
 
 pg_start() {
-	export PGBIN="$(rlocation _main/infra/postgres/postgres_extracted)/bin"
+	export PGBIN="${PGBIN:-$(rlocation _main/infra/postgres/postgres_extracted)/bin}"
 	export PGDATA="${TEST_TMPDIR}/pgdata"
 	export PGUSER="postgres"
 	export PGDATABASE="postgres"

@@ -308,7 +308,8 @@ class HelperScriptsTest(unittest.TestCase):
         "rustfmt.sh",
         "sqlx.sh",
         "proto_gen_impl.sh",
-        "sqlx_prepare_impl.sh",
+        "sqlx_prepare_check.sh",
+        "sqlx_prepare_update.sh",
         "toolchain_versions_test.sh",
     )
 

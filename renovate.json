@@ -43,6 +43,11 @@
       "matchDepNames": ["python/cpython", "astral-sh/python-build-standalone"],
       "groupName": "cpython",
       "separateMajorMinor": false
+    },
+    {
+      "description": "python-build-standalone releases are 8-digit dates, not semver.",
+      "matchDepNames": ["astral-sh/python-build-standalone"],
+      "versioning": "loose"
     }
   ],
   "customManagers": [
@@ -122,18 +127,15 @@
       "extractVersionTemplate": "^v(?<version>.*)$"
     },
     {
-      "description": "python-build-standalone build date pinned in a BUCK file; the date is in both the release tag and the asset filename, so both are captured.",
+      "description": "Any github release download pinned in a BUCK file; owner/repo is the dep, so a new pinned github tool is tracked with no per-tool config. The renovate-sha workflow recomputes the sha256 on the bump PR (renovatebot/renovate#22183). The match runs to the closing quote so the whole URL is the replace target, and autoReplaceGlobalMatch (on by default) rewrites every occurrence of the version within it — needed when a version or date repeats in the asset filename.",
       "customType": "regex",
       "managerFilePatterns": [
         "/(^|/)BUCK$/"
       ],
       "matchStrings": [
-        "releases/download/(?<currentValue>\\d{8})/",
-        "\\+(?<currentValue>\\d{8})-"
+        "https://github\\.com/(?<depName>[^/\"]+/[^/\"]+)/releases/download/(?<currentValue>[^/\"]+)/[^\"]*"
       ],
-      "depNameTemplate": "astral-sh/python-build-standalone",
-      "datasourceTemplate": "github-releases",
-      "versioningTemplate": "loose"
+      "datasourceTemplate": "github-releases"
     }
   ]
 }

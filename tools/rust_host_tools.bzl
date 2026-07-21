@@ -40,15 +40,6 @@ def _rust_host_tools_repo_impl(rctx):
     arch = _normalize_arch(rctx.os.arch)
     triple_suffix = "{}_{}".format(os_name, arch)
 
-    # Map os+arch to the Rust target triple used in stdlib repo names.
-    triple_map = {
-        "linux_x86_64": "x86_64_unknown_linux_gnu",
-        "linux_aarch64": "aarch64_unknown_linux_gnu",
-        "macos_x86_64": "x86_64_apple_darwin",
-        "macos_aarch64": "aarch64_apple_darwin",
-    }
-    target_triple_key = triple_map.get(triple_suffix, "x86_64_unknown_linux_gnu")
-
     # Navigate to the Bazel external directory via a known file inside
     # @bazel_tools//tools/bash/runfiles (always present, no use_repo needed).
     # runfiles.bash lives at:
@@ -79,14 +70,6 @@ def _rust_host_tools_repo_impl(rctx):
     rctx.symlink(rctx.path(cargo_clippy_src), "bin/cargo-clippy")
     rctx.symlink(rctx.path(clippy_driver_src), "bin/clippy-driver")
 
-    # Write the stdlib sysroot path to a text file so that hermetic cargo
-    # invocations (e.g. sqlx prepare) can set RUSTFLAGS=--sysroot correctly.
-    stdlib_dir = "{}/{}/".format(
-        external_dir,
-        ext_prefix + "rust_stdlib_{}_{}".format(target_triple_key, version_key),
-    )
-    rctx.file("sysroot_path.txt", stdlib_dir + "\n")
-
     # llvm-cov and llvm-profdata are aliased from @llvm//tools so consumers
     # don't have to know which repo holds them; the aliases resolve to the
     # per-platform prebuilt toolchain that @llvm picks for the host.
@@ -98,7 +81,6 @@ filegroup(name = "cargo_clippy",  srcs = ["bin/cargo-clippy"],  visibility = ["/
 filegroup(name = "clippy_driver", srcs = ["bin/clippy-driver"], visibility = ["//visibility:public"])
 alias(name = "llvm_cov",      actual = "@llvm//tools:llvm-cov",      visibility = ["//visibility:public"])
 alias(name = "llvm_profdata", actual = "@llvm//tools:llvm-profdata", visibility = ["//visibility:public"])
-exports_files(["sysroot_path.txt"])
 """)
 
 _rust_host_tools_repo = repository_rule(

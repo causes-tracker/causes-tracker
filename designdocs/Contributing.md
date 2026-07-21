@@ -97,6 +97,10 @@ There are two root modules:
 - `infra/github` — GitHub repository settings, branch rulesets, and merge queue.
   See `infra/github/README.md`.
 
+## Third-party dependencies
+
+Every third-party dependency must be wired up for automatic updates via [Renovate](https://docs.renovatebot.com) in the same PR that introduces it.
+
 ## Commit discipline
 
 Each commit must do exactly one thing.

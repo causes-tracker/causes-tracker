@@ -1,0 +1,35 @@
+# install_release.shlib — download and install a pinned github-release binary.
+# Sourced by each tool's install.sh, not executed.
+# tar formats hold the binary at <member> inside the archive (default: <name>
+# at the archive root); raw is a single-file binary payload.
+# Args: repo sha256 tag asset format name bindir [member]
+install_release() {
+	local repo="$1" sha256="$2" tag="$3" asset="$4" format="$5" name="$6" bindir="$7"
+	local member="${8:-$name}"
+	local tmp
+	tmp="$(mktemp -d)"
+	if ! curl -fsSL "https://github.com/${repo}/releases/download/${tag}/${asset}" -o "$tmp/dl"; then
+		echo "install_release: download failed for ${asset}" >&2
+		rm -rf "$tmp"
+		return 1
+	fi
+	if ! echo "${sha256}  $tmp/dl" | sha256sum -c - >/dev/null 2>&1; then
+		echo "install_release: sha256 mismatch for ${asset}" >&2
+		rm -rf "$tmp"
+		return 1
+	fi
+	case "$format" in
+	tgz) tar xzf "$tmp/dl" -C "$tmp" ;;
+	txz) tar xJf "$tmp/dl" -C "$tmp" ;;
+	raw) cp "$tmp/dl" "$tmp/$name" ;;
+	*)
+		echo "install_release: unknown format $format" >&2
+		rm -rf "$tmp"
+		return 1
+		;;
+	esac
+	local rc=0
+	install -m 0755 "$tmp/$member" "$bindir/$name" || rc=$?
+	rm -rf "$tmp"
+	return "$rc"
+}

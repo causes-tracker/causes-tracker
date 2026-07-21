@@ -1,0 +1,17 @@
+load("//tools:defs.bzl", "cached_check")
+load("//tools/nativelink:busybox.bzl", "busybox")
+
+busybox(
+    name = "busybox",
+    crane = "//third_party/crane:crane[crane]",
+    image = "busybox:1.37.0-musl@sha256:222ad6d973c0d198014546a65cd02c5fdedcc172123c5b4c2bf0af636550bd94",
+)
+
+cached_check(
+    name = "busybox_test",
+    exe = "//tools:py",
+    srcs = [
+        "busybox_test.py",
+        ":busybox",
+    ],
+)

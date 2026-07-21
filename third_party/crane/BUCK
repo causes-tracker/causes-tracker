@@ -1,0 +1,9 @@
+load("//tools:defs.bzl", "cached_http_archive")
+
+cached_http_archive(
+    name = "crane",
+    sha256 = "c14340087103ba9dadf61d45acd20675490fd0ccbd56ac7901fc1b502137f44b",
+    sub_targets = ["crane"],
+    urls = ["https://github.com/google/go-containerregistry/releases/download/v0.20.2/go-containerregistry_Linux_x86_64.tar.gz"],
+    visibility = ["//tools/nativelink:"],
+)

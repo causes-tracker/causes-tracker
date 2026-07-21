@@ -136,6 +136,17 @@
         "https://github\\.com/(?<depName>[^/\"]+/[^/\"]+)/releases/download/(?<currentValue>[^/\"]+)/[^\"]*"
       ],
       "datasourceTemplate": "github-releases"
+    },
+    {
+      "description": "A digest-pinned docker image in a BUCK file; the digest is content-addressed, so no sha-recompute is needed.",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/(^|/)BUCK$/"
+      ],
+      "matchStrings": [
+        "\"(?<depName>[^\":@]+):(?<currentValue>[^\"@]+)@(?<currentDigest>sha256:[0-9a-f]+)\""
+      ],
+      "datasourceTemplate": "docker"
     }
   ]
 }

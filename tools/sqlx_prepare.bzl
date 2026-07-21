@@ -68,4 +68,9 @@ def sqlx_prepare(name, migrations, srcs, path_deps = None, visibility = None):
             "//:Cargo.lock",
             ":Cargo.toml",
         ],
+        # This test keeps a persistent cargo cache in the real home directory
+        # (outside the tree) so cargo's path-embedded fingerprints survive
+        # across runs; it is inherently non-hermetic and cannot run under
+        # mount isolation.
+        tags = ["no-sandbox"],
     )

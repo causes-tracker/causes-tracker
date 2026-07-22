@@ -14,11 +14,19 @@ tools/buckle/install.sh)
 	REPO=benbrittain/buckle
 	VAR=BUCKLE
 	ASSET='buckle-x86_64-unknown-linux-gnu.tar.xz'
+	TAG_PREFIX=v
 	;;
 tools/nativelink/install.sh)
 	REPO=TraceMachina/nativelink
 	VAR=NATIVELINK
 	ASSET='nativelink-VERSION-x86_64-unknown-linux-musl.tar.gz'
+	TAG_PREFIX=v
+	;;
+tools/crun/install.sh)
+	REPO=containers/crun
+	VAR=CRUN
+	ASSET='crun-VERSION-linux-amd64'
+	TAG_PREFIX=
 	;;
 *)
 	echo "unknown installer: $INSTALLER" >&2
@@ -33,7 +41,7 @@ if [[ -z "$VERSION" ]]; then
 fi
 ASSET="${ASSET//VERSION/$VERSION}"
 
-DIGEST="$(gh api "repos/${REPO}/releases/tags/v${VERSION}" \
+DIGEST="$(gh api "repos/${REPO}/releases/tags/${TAG_PREFIX}${VERSION}" \
 	--jq ".assets[] | select(.name == \"${ASSET}\") | .digest // empty")"
 if [[ -n "$DIGEST" ]]; then
 	SHA="${DIGEST#sha256:}"
@@ -41,7 +49,7 @@ else
 	tmp="$(mktemp)"
 	trap 'rm -f "$tmp"' EXIT
 	curl -fsSL \
-		"https://github.com/${REPO}/releases/download/v${VERSION}/${ASSET}" \
+		"https://github.com/${REPO}/releases/download/${TAG_PREFIX}${VERSION}/${ASSET}" \
 		-o "$tmp"
 	SHA="$(sha256sum "$tmp" | awk '{print $1}')"
 fi

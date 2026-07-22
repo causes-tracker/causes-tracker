@@ -352,6 +352,14 @@ case_pass_with_master_exts "modify .rs file (existing extension)" 'diff --git a/
 +fn bar() {}
 '
 
+case_pass_with_master_exts "new .shlib file fine (seeded allowlist)" 'diff --git a/tools/x.shlib b/tools/x.shlib
+new file mode 100644
+--- /dev/null
++++ b/tools/x.shlib
+@@ -0,0 +1,1 @@
++foo() { :; }
+'
+
 # Without master_exts set, language detector is a no-op (default fall-back
 # for synthetic-diff tests that don't care about the language gate).
 case_pass "new .go file passes when master_exts unset" 'diff --git a/lib/x/main.go b/lib/x/main.go

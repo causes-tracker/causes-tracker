@@ -203,6 +203,8 @@ BEGIN {
 	master_ext_set["buckconfig"] = 1
 	# json5: the NativeLink config format (JSON with comments), not a language.
 	master_ext_set["json5"] = 1
+	# shlib: sourced shell libraries; shell is already an in-tree language.
+	master_ext_set["shlib"] = 1
 	n_violations = 0
 	file = ""
 	is_bazelrc = 0

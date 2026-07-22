@@ -1,7 +1,11 @@
 {
   "name": "Causes",
   "build": { "dockerfile": "Dockerfile" },
-  "runArgs": ["--cap-add=SYS_ADMIN"],
+  "runArgs": [
+    "--cap-add=SYS_ADMIN",
+    "--security-opt",
+    "seccomp=${localWorkspaceFolder}/.devcontainer/seccomp-pivot-root.json"
+  ],
   "features": {
     "ghcr.io/devcontainers/features/node:1": {},
     "ghcr.io/devcontainers/features/github-cli:1": {},

@@ -114,6 +114,18 @@
       "extractVersionTemplate": "^v(?<version>.*)$"
     },
     {
+      "description": "Renovate cannot update the sha256 (renovatebot/renovate#22183); the renovate-sha workflow recomputes it on the bump PR. crun release tags carry no v prefix.",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^tools/crun/install\\.sh$/"
+      ],
+      "matchStrings": [
+        "CRUN_VERSION=(?<currentValue>\\S+)"
+      ],
+      "depNameTemplate": "containers/crun",
+      "datasourceTemplate": "github-releases"
+    },
+    {
       "description": "cpython version pinned in a BUCK file. Renovate cannot recompute the sha256 (renovatebot/renovate#22183), so a bump needs the checksum updated separately.",
       "customType": "regex",
       "managerFilePatterns": [

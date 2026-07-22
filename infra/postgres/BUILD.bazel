@@ -38,6 +38,33 @@ sh_test(
     ],
 )
 
+# Unit test: exercises pg_start_in's port-retry loop against fake
+# initdb/pg_ctl doubles, deterministically and without a real server.
+# Run with: bazel test //infra/postgres:port_retry_test
+sh_test(
+    name = "port_retry_test",
+    srcs = ["port_retry_test.sh"],
+    data = [
+        "testfixture.sh",
+        "@bazel_tools//tools/bash/runfiles",
+    ] + glob(["testdata/fake_pg/**"]),
+)
+
+# Integration smoke test: starts several real postgres instances concurrently
+# and checks each lands on a distinct port; see port_retry_test.sh for the
+# test that actually proves the retry-on-collision guarantee.
+# Run with: bazel test //infra/postgres:concurrent_start_test
+sh_test(
+    name = "concurrent_start_test",
+    size = "medium",
+    srcs = ["concurrent_start_test.sh"],
+    data = [
+        "testfixture.sh",
+        ":postgres_extracted",
+        "@bazel_tools//tools/bash/runfiles",
+    ],
+)
+
 # Verify the bundled psql binary runs (shared libs must be present alongside it).
 sh_test(
     name = "psql_test",

@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Test double for postgres's initdb, used by port_retry_test.sh.
+# Only implements what pg_start_in depends on: creating the -D directory.
+set -euo pipefail
+
+while [[ $# -gt 0 ]]; do
+	case "$1" in
+	-D)
+		shift
+		mkdir -p "$1"
+		;;
+	esac
+	shift
+done

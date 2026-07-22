@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Test double for postgres's pg_ctl, used by port_retry_test.sh to drive
+# pg_start_in's port-retry loop deterministically without a real server.
+#
+# Each invocation consumes the next line of $FAKE_PG_CTL_OUTCOMES ("ok",
+# "collision", or anything else) and counts itself into
+# $FAKE_PG_CTL_COUNTER, so a test can assert exactly how many attempts a
+# scenario took.
+set -euo pipefail
+
+logfile=""
+args=("$@")
+for ((i = 0; i < ${#args[@]}; i++)); do
+	if [[ "${args[$i]}" == "-l" ]]; then
+		logfile="${args[$((i + 1))]}"
+	fi
+done
+
+count=$(($(cat "$FAKE_PG_CTL_COUNTER" 2>/dev/null || echo 0) + 1))
+echo "$count" >"$FAKE_PG_CTL_COUNTER"
+outcome=$(sed -n "${count}p" "$FAKE_PG_CTL_OUTCOMES" 2>/dev/null || true)
+
+case "$outcome" in
+ok)
+	exit 0
+	;;
+collision)
+	echo "FATAL: could not bind IPv4 socket: Address already in use" >>"$logfile"
+	exit 1
+	;;
+*)
+	echo "FATAL: unrelated startup failure" >>"$logfile"
+	exit 1
+	;;
+esac

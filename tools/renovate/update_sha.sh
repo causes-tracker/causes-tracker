@@ -4,55 +4,71 @@
 # already correct.
 # The digest comes from the GitHub release-asset digest API when present
 # (assets uploaded since 2025-06); older assets are downloaded and hashed.
-# Usage: update_sha.sh <installer-path>
+# Usage: update_sha.sh <installer-path> [installer-file]
 set -euo pipefail
 
-INSTALLER="$1"
+# update_sha <installer-path> [installer-file]
+#
+# installer-path selects the repo/asset-naming case below; installer-file
+# (defaulting to installer-path) is the file read and rewritten — tests point
+# it at a scratch copy so the real installer trees stay untouched.
+update_sha() {
+	local installer="$1" file="${2:-$1}"
+	local repo var asset tag_prefix
 
-case "$INSTALLER" in
-tools/buckle/install.sh)
-	REPO=benbrittain/buckle
-	VAR=BUCKLE
-	ASSET='buckle-x86_64-unknown-linux-gnu.tar.xz'
-	TAG_PREFIX=v
-	;;
-tools/nativelink/install.sh)
-	REPO=TraceMachina/nativelink
-	VAR=NATIVELINK
-	ASSET='nativelink-VERSION-x86_64-unknown-linux-musl.tar.gz'
-	TAG_PREFIX=v
-	;;
-tools/crun/install.sh)
-	REPO=containers/crun
-	VAR=CRUN
-	ASSET='crun-VERSION-linux-amd64'
-	TAG_PREFIX=
-	;;
-*)
-	echo "unknown installer: $INSTALLER" >&2
-	exit 1
-	;;
-esac
+	case "$installer" in
+	tools/buckle/install.sh)
+		repo=benbrittain/buckle
+		var=BUCKLE
+		asset='buckle-x86_64-unknown-linux-gnu.tar.xz'
+		tag_prefix=v
+		;;
+	tools/nativelink/install.sh)
+		repo=TraceMachina/nativelink
+		var=NATIVELINK
+		asset='nativelink-VERSION-x86_64-unknown-linux-musl.tar.gz'
+		tag_prefix=v
+		;;
+	tools/crun/install.sh)
+		repo=containers/crun
+		var=CRUN
+		asset='crun-VERSION-linux-amd64'
+		tag_prefix=
+		;;
+	*)
+		echo "unknown installer: $installer" >&2
+		return 1
+		;;
+	esac
 
-VERSION="$(sed -n "s/^${VAR}_VERSION=//p" "$INSTALLER")"
-if [[ -z "$VERSION" ]]; then
-	echo "no ${VAR}_VERSION in $INSTALLER" >&2
-	exit 1
+	local version
+	version="$(sed -n "s/^${var}_VERSION=//p" "$file")"
+	if [[ -z "$version" ]]; then
+		echo "no ${var}_VERSION in $file" >&2
+		return 1
+	fi
+	asset="${asset//VERSION/$version}"
+	local tag="${tag_prefix}${version}"
+
+	local digest sha
+	digest="$(gh api "repos/${repo}/releases/tags/${tag}" \
+		--jq ".assets[] | select(.name == \"${asset}\") | .digest // empty")"
+	if [[ -n "$digest" ]]; then
+		sha="${digest#sha256:}"
+	else
+		local tmp
+		tmp="$(mktemp)"
+		trap 'rm -f "$tmp"' RETURN
+		curl -fsSL \
+			"https://github.com/${repo}/releases/download/${tag}/${asset}" \
+			-o "$tmp"
+		sha="$(sha256sum "$tmp" | awk '{print $1}')"
+	fi
+
+	sed -i "s/^${var}_SHA256=.*/${var}_SHA256=${sha}/" "$file"
+	grep -q "^${var}_SHA256=${sha}\$" "$file"
+}
+
+if [[ -z "${_UPDATE_SHA_SOURCED:-}" ]]; then
+	update_sha "$1"
 fi
-ASSET="${ASSET//VERSION/$VERSION}"
-
-DIGEST="$(gh api "repos/${REPO}/releases/tags/${TAG_PREFIX}${VERSION}" \
-	--jq ".assets[] | select(.name == \"${ASSET}\") | .digest // empty")"
-if [[ -n "$DIGEST" ]]; then
-	SHA="${DIGEST#sha256:}"
-else
-	tmp="$(mktemp)"
-	trap 'rm -f "$tmp"' EXIT
-	curl -fsSL \
-		"https://github.com/${REPO}/releases/download/${TAG_PREFIX}${VERSION}/${ASSET}" \
-		-o "$tmp"
-	SHA="$(sha256sum "$tmp" | awk '{print $1}')"
-fi
-
-sed -i "s/^${VAR}_SHA256=.*/${VAR}_SHA256=${SHA}/" "$INSTALLER"
-grep -q "^${VAR}_SHA256=${SHA}\$" "$INSTALLER"

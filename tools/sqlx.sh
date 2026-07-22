@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Runs the hermetic sqlx binary built by //tools:sqlx_bin.
 # Usage: bazel run //tools:sqlx -- <sqlx args>
-#   e.g. bazel run //tools:sqlx -- prepare --workspace-root services/causes_api
-#        bazel run //tools:sqlx -- migrate run
+#   e.g. bazel run //tools:sqlx -- migrate run
 set -euo pipefail
 
 # Standard Bazel 3-way runfiles init.

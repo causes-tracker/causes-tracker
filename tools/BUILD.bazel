@@ -6,7 +6,8 @@ load("//tools/lint:format_check.bzl", "format_srcs")
 
 exports_files([
     "proto_gen_impl.sh",
-    "sqlx_prepare_impl.sh",
+    "sqlx_prepare_check.sh",
+    "sqlx_prepare_update.sh",
 ])
 
 # Regenerates //:requirements_lock.txt.  --exclude-newer in pip_compile.sh
@@ -45,8 +46,7 @@ rust_binary(
 )
 
 # Run the hermetic sqlx binary.
-# DATABASE_URL must be set (or present in .env) for prepare / migrate.
-#   bazel run //tools:sqlx -- prepare --workspace-root services/causes_api
+# DATABASE_URL must be set (or present in .env) for migrate.
 #   bazel run //tools:sqlx -- migrate run
 sh_binary(
     name = "sqlx",
@@ -188,7 +188,8 @@ py_test(
         "rustc.sh",
         "rustfmt.sh",
         "sqlx.sh",
-        "sqlx_prepare_impl.sh",
+        "sqlx_prepare_check.sh",
+        "sqlx_prepare_update.sh",
         "toolchain_versions_test.sh",
     ],
     main = "agent_action_guard_test.py",

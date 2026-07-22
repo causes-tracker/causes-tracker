@@ -1,5 +1,6 @@
 load("//tools:defs.bzl", "cached_check")
 load("//tools/nativelink:busybox.bzl", "busybox")
+load("//tools/nativelink:rootfs.bzl", "busybox_rootfs")
 
 busybox(
     name = "busybox",
@@ -13,5 +14,19 @@ cached_check(
     srcs = [
         "busybox_test.py",
         ":busybox",
+    ],
+)
+
+busybox_rootfs(
+    name = "rootfs",
+    busybox = ":busybox",
+)
+
+cached_check(
+    name = "rootfs_test",
+    exe = "//tools:py",
+    srcs = [
+        "busybox_rootfs_test.py",
+        ":rootfs",
     ],
 )

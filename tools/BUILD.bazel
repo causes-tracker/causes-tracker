@@ -168,6 +168,17 @@ sh_test(
     ],
 )
 
+# Stubs curl to check install_release.shlib installs a payload only on a
+# matching sha256 and lands the tar member as the named executable.
+sh_test(
+    name = "install_release_test",
+    srcs = ["install_release_test.sh"],
+    data = [
+        "install_release.shlib",
+        "@bazel_tools//tools/bash/runfiles",
+    ],
+)
+
 # PreToolUse action guard, wired into .claude/settings.json.  Denies forbidden
 # agent actions at the moment of action: native tooling instead of the Bazel
 # wrappers, lockfile destruction, and mod.rs creation.  Decision logic lives in

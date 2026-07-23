@@ -1,5 +1,6 @@
 load("//tools:defs.bzl", "cached_check")
 load("//tools/nativelink:busybox.bzl", "busybox")
+load("//tools/nativelink:image.bzl", "worker_image")
 load("//tools/nativelink:layer.bzl", "worker_layer")
 load("//tools/nativelink:rootfs.bzl", "busybox_rootfs")
 
@@ -47,5 +48,25 @@ cached_check(
         ":layer",
         ":rootfs",
         "make_layer.py",
+    ],
+)
+
+worker_image(
+    name = "worker_image",
+    crane = "//third_party/crane:crane[crane]",
+    layer = ":layer",
+    py = "//tools:py",
+    script = "make_image.py",
+)
+
+cached_check(
+    name = "image_test",
+    exe = "//tools:py",
+    srcs = [
+        "image_test.py",
+        ":worker_image",
+        ":layer",
+        "//third_party/crane:crane[crane]",
+        "make_image.py",
     ],
 )

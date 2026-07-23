@@ -36,11 +36,17 @@ with tarfile.open(image) as t:
 
 assert gzip.decompress(embedded) == layer_bytes, "embedded layer differs from :layer"
 
-# Reproducibility: rebuilding from the same layer yields identical bytes.
+# Reproducibility: rebuilding from the same layer yields identical bytes,
+# and the digest output matches them.
 with tempfile.TemporaryDirectory() as td:
     again = os.path.join(td, "again.tar")
-    make_image.make_image(crane, layer, again)
-    with open(image, "rb") as a, open(again, "rb") as b:
-        assert a.read() == b.read(), "image bytes are not reproducible"
+    digest = os.path.join(td, "again.digest")
+    make_image.build_image(crane, layer, again, digest)
+    with open(again, "rb") as f:
+        again_bytes = f.read()
+    with open(image, "rb") as f:
+        assert f.read() == again_bytes, "image bytes are not reproducible"
+    with open(digest, encoding="utf-8") as f:
+        assert f.read().strip() == hashlib.sha256(again_bytes).hexdigest(), "digest output wrong"
 
 open(sys.argv[5], "w", encoding="utf-8").write("ok")

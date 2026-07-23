@@ -55,8 +55,8 @@ worker_image(
     name = "worker_image",
     crane = "//third_party/crane:crane[crane]",
     layer = ":layer",
+    digest = "af18e99e3ecc14f51f78e8d5def7391d02dcdaea5d762d7cf179c5def7831a89",
     py = "//tools:py",
-    script = "make_image.py",
 )
 
 cached_check(

@@ -70,6 +70,40 @@ expect "archives_of finds both pins, skips the non-archive rule" \
 	"$(archives_of "$tmp/BUCK")"
 expect "archives_of on absent file -> empty" "" "$(archives_of "$tmp/nope")"
 
+# MODULE.bazel http_archive blocks use a singular `url = "..."`.
+cat >"$tmp/MODULE.bazel" <<'EOF'
+http_archive(
+    name = "crane_linux_amd64",
+    build_file_content = """exports_files(["crane"])""",
+    sha256 = "cccc",
+    url = "https://example/cr/v2/crane.tar.gz",
+)
+EOF
+
+expect "archives_of reads MODULE.bazel singular url" \
+	$'crane_linux_amd64\tcccc\thttps://example/cr/v2/crane.tar.gz' \
+	"$(archives_of "$tmp/MODULE.bazel")"
+
+# A multiline build_file_content closes a nested call on its own line; that
+# bare ")" must not end the block.
+cat >"$tmp/MODULE2.bazel" <<'EOF'
+http_archive(
+    name = "jre",
+    build_file_content = """
+filegroup(
+    name = "files",
+    srcs = glob(["**"]),
+)
+""",
+    sha256 = "dddd",
+    url = "https://example/jre/v3/jre.tar.gz",
+)
+EOF
+
+expect "archives_of survives multiline build_file_content" \
+	$'jre\tdddd\thttps://example/jre/v3/jre.tar.gz' \
+	"$(archives_of "$tmp/MODULE2.bazel")"
+
 # rewrite_sha replaces one archive's pin by value, leaving the other alone.
 new="deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
 rewrite_sha "$tmp/BUCK" "aaaa" "$new"

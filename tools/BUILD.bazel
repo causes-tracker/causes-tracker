@@ -3,6 +3,7 @@ load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//build:rust.bzl", "rust_binary")
 load("//tools/lint:format_check.bzl", "format_srcs")
+load("//tools/lint:linters.bzl", "markdown_lint_test")
 
 exports_files([
     "proto_gen_impl.sh",
@@ -212,6 +213,11 @@ py_test(
     ],
     main = "agent_action_guard_test.py",
     deps = [":agent_action_guard"],
+)
+
+markdown_lint_test(
+    name = "pymarkdown_nativelink",
+    srcs = ["nativelink/README.md"],
 )
 
 format_srcs()

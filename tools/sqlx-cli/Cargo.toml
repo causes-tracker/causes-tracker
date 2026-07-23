@@ -14,7 +14,7 @@ path = "src/main.rs"
 
 [dependencies]
 clap = { workspace = true }
-console = "0.16"
+console = { workspace = true }
 sqlx = { workspace = true }
 sqlx-cli = { workspace = true }
 tokio = { workspace = true }

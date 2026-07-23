@@ -1,5 +1,6 @@
 load("//tools:defs.bzl", "cached_check")
 load("//tools/nativelink:busybox.bzl", "busybox")
+load("//tools/nativelink:layer.bzl", "worker_layer")
 load("//tools/nativelink:rootfs.bzl", "busybox_rootfs")
 
 busybox(
@@ -28,5 +29,23 @@ cached_check(
     srcs = [
         "busybox_rootfs_test.py",
         ":rootfs",
+    ],
+)
+
+worker_layer(
+    name = "layer",
+    py = "//tools:py",
+    rootfs = ":rootfs",
+    script = "make_layer.py",
+)
+
+cached_check(
+    name = "layer_test",
+    exe = "//tools:py",
+    srcs = [
+        "layer_test.py",
+        ":layer",
+        ":rootfs",
+        "make_layer.py",
     ],
 )

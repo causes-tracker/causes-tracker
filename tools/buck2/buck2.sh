@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # buck2 launcher: ensure the local NativeLink executor is up, then hand
-# over to buckle (which selects the pinned buck2 from .buckversion).
+# over to the pinned buck2 binary.
 # Config selection: the gitignored `.nativelink.json5` at the repo root
 # (the BuildBuddy overlay, see tools/nativelink/config-bb.json5.template)
 # when present, else the committed local-only tools/nativelink/config.json5.
@@ -36,4 +36,4 @@ if [[ -e "$root/.buckroot" ]] && ! port_open; then
 	fi
 fi
 
-exec buckle "$@"
+exec buck2-bin "$@"

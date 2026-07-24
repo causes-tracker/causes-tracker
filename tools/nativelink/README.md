@@ -2,7 +2,7 @@
 
 The local remote-execution executor for buck2.
 NativeLink runs one process combining CAS, action cache, scheduler, and a sandboxed worker, and serves the remote-execution API on `127.0.0.1:50051`.
-buck2's launcher (`tools/buckle/buck2.sh`) starts it on demand.
+buck2's launcher (`tools/buck2/buck2.sh`) starts it on demand.
 
 This directory holds the pinned installer, the two server configs, and the buck2 targets that build the worker-image pieces (busybox and a minimal rootfs) used inside the sandbox.
 

@@ -4,9 +4,10 @@ FROM mcr.microsoft.com/devcontainers/base:ubuntu-24.04
 # detected by build tools.  Remove the binaries; ld already points to ld.bfd.
 RUN rm -f /usr/bin/x86_64-linux-gnu-ld.gold /usr/bin/ld.gold
 
-# Install Python 3.12 (needed to bootstrap rules_python targets locally)
+# Install Python 3.12 (needed to bootstrap rules_python targets locally) and
+# zstd (needed to unpack the pinned buck2 release asset).
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends python3.12 python3-pip python3-venv git-delta \
+    && apt-get install -y --no-install-recommends python3.12 python3-pip python3-venv git-delta zstd \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Bazelisk as `bazel` — reads .bazelversion to pick the right Bazel version.
@@ -24,8 +25,8 @@ RUN curl -fsSL \
       -o /usr/local/bin/buildifier \
     && chmod +x /usr/local/bin/buildifier
 
-# buckle (and the buck2 launcher) are installed from the checkout by
-# postCreateCommand via tools/buckle/install.sh, so the pinned version
+# buck2 (and its launcher) is installed from the checkout by
+# postCreateCommand via tools/buck2/install.sh, so the pinned version
 # tracks the checkout rather than the image.
 
 # Install Jujutsu (jj) — version control layered over Git.

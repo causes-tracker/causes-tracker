@@ -14,7 +14,7 @@ on:
   push:
     branches: ["renovate/**"]
     paths:
-      - tools/buckle/install.sh
+      - tools/buck2/install.sh
       - tools/crun/install.sh
       - tools/nativelink/install.sh
       - "**/BUCK"
@@ -41,7 +41,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          bash tools/renovate/update_sha.sh tools/buckle/install.sh
+          bash tools/renovate/update_sha.sh tools/buck2/install.sh
           bash tools/renovate/update_sha.sh tools/crun/install.sh
           bash tools/renovate/update_sha.sh tools/nativelink/install.sh
       # Each changed BUCK's or MODULE.bazel's archive pins: only a URL that

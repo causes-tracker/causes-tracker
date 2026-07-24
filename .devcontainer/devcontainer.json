@@ -27,5 +27,5 @@
       ]
     }
   },
-  "postCreateCommand": "bazel version && sudo bash tools/nativelink/install.sh /usr/local/bin && sudo bash tools/buckle/install.sh /usr/local/bin && npm install -g @anthropic-ai/claude-code && (jj git init --colocate 2>/dev/null || true) && jj config set --user ui.default-command log && jj config set --user user.name \"$(git config user.name)\" && jj config set --user user.email \"$(git config user.email)\""
+  "postCreateCommand": "bazel version && sudo bash tools/nativelink/install.sh /usr/local/bin && sudo bash tools/buck2/install.sh /usr/local/bin && npm install -g @anthropic-ai/claude-code && (jj git init --colocate 2>/dev/null || true) && jj config set --user ui.default-command log && jj config set --user user.name \"$(git config user.name)\" && jj config set --user user.email \"$(git config user.email)\""
 }

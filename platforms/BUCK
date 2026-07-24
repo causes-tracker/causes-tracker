@@ -1,7 +1,31 @@
-load(":defs.bzl", "remote_cache_platform")
+load(":defs.bzl", "image_build_platform", "platform_group", "remote_cache_platform")
 
 remote_cache_platform(
     name = "default",
     cpu_configuration = "prelude//cpu:x86_64",
     os_configuration = "prelude//os:linux",
+)
+
+# Requesting this constraint value via `exec_compatible_with` routes a
+# target's actions to :image_build instead of :default.
+constraint_setting(
+    name = "image_build_setting",
+)
+
+constraint_value(
+    name = "image_build_enabled",
+    constraint_setting = ":image_build_setting",
+    visibility = ["PUBLIC"],
+)
+
+image_build_platform(
+    name = "image_build",
+    cpu_configuration = "prelude//cpu:x86_64",
+    image_build_marker = ":image_build_enabled",
+    os_configuration = "prelude//os:linux",
+)
+
+platform_group(
+    name = "all",
+    platforms = [":default", ":image_build"],
 )

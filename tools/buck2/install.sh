@@ -5,7 +5,7 @@ set -euo pipefail
 . "$(dirname "$0")/../install_release.shlib"
 
 BINDIR="${1:-/usr/local/bin}"
-BUCK2_VERSION=2026-07-01
+BUCK2_VERSION=2026-07-15
 BUCK2_SHA256=c9fe39745fbe014a2d05b6b17369cc9be56838a9463455938b0f987826473a88
 install_release facebook/buck2 "$BUCK2_SHA256" \
 	"$BUCK2_VERSION" "buck2-x86_64-unknown-linux-musl.zst" \

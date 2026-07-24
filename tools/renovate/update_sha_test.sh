@@ -63,6 +63,8 @@ case "$path" in
 	;;
 "repos/containers/crun/releases/tags/1.20")
 	;; # no digest field on this asset -> fall through to curl
+"repos/facebook/buck2/releases/tags/2026-07-01")
+	;; # no digest field on this asset -> fall through to curl
 *)
 	echo "gh stub: unexpected path $path" >&2
 	exit 1
@@ -86,6 +88,9 @@ done
 case "$url" in
 "https://github.com/containers/crun/releases/download/1.20/crun-1.20-linux-amd64")
 	printf 'fake-crun-binary' >"$out"
+	;;
+"https://github.com/facebook/buck2/releases/download/2026-07-01/buck2-x86_64-unknown-linux-musl.zst")
+	printf 'fake-buck2-binary' >"$out"
 	;;
 *)
 	echo "curl stub: unexpected url $url" >&2
@@ -114,6 +119,16 @@ want_sha="$(printf 'fake-crun-binary' | sha256sum | awk '{print $1}')"
 expect "crun: unprefixed tag used for both lookup and download" \
 	"CRUN_SHA256=${want_sha}" \
 	"$(grep CRUN_SHA256 "$crun")"
+
+# buck2: tag is a dated release with no "v" prefix, and the asset name
+# carries no version (unlike crun/nativelink), so it must not be rewritten.
+buck2="$tmp/buck2-install.sh"
+printf 'BUCK2_VERSION=2026-07-01\nBUCK2_SHA256=stale\n' >"$buck2"
+update_sha "tools/buck2/install.sh" "$buck2"
+want_buck2_sha="$(printf 'fake-buck2-binary' | sha256sum | awk '{print $1}')"
+expect "buck2: unprefixed dated tag, unversioned asset name" \
+	"BUCK2_SHA256=${want_buck2_sha}" \
+	"$(grep BUCK2_SHA256 "$buck2")"
 
 # Unknown installer is rejected.
 rc=0

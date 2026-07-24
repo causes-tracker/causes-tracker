@@ -45,8 +45,8 @@
       "separateMajorMinor": false
     },
     {
-      "description": "python-build-standalone releases are 8-digit dates, not semver.",
-      "matchDepNames": ["astral-sh/python-build-standalone"],
+      "description": "Releases tagged with 8-digit dates, not semver.",
+      "matchDepNames": ["astral-sh/python-build-standalone", "facebook/buck2"],
       "versioning": "loose"
     }
   ],
@@ -101,17 +101,16 @@
       "extractVersionTemplate": "^v(?<version>.*)$"
     },
     {
-      "description": "Renovate cannot update the sha256 (renovatebot/renovate#22183); the renovate-sha workflow recomputes it on the bump PR.",
+      "description": "Renovate cannot update the sha256 (renovatebot/renovate#22183); the renovate-sha workflow recomputes it on the bump PR. buck2 release tags are dates with no v prefix.",
       "customType": "regex",
       "managerFilePatterns": [
-        "/^tools/buckle/install\\.sh$/"
+        "/^tools/buck2/install\\.sh$/"
       ],
       "matchStrings": [
-        "BUCKLE_VERSION=(?<currentValue>\\S+)"
+        "BUCK2_VERSION=(?<currentValue>\\S+)"
       ],
-      "depNameTemplate": "benbrittain/buckle",
-      "datasourceTemplate": "github-releases",
-      "extractVersionTemplate": "^v(?<version>.*)$"
+      "depNameTemplate": "facebook/buck2",
+      "datasourceTemplate": "github-releases"
     },
     {
       "description": "Renovate cannot update the sha256 (renovatebot/renovate#22183); the renovate-sha workflow recomputes it on the bump PR. crun release tags carry no v prefix.",

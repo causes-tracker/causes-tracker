@@ -17,11 +17,11 @@ update_sha() {
 	local repo var asset tag_prefix
 
 	case "$installer" in
-	tools/buckle/install.sh)
-		repo=benbrittain/buckle
-		var=BUCKLE
-		asset='buckle-x86_64-unknown-linux-gnu.tar.xz'
-		tag_prefix=v
+	tools/buck2/install.sh)
+		repo=facebook/buck2
+		var=BUCK2
+		asset='buck2-x86_64-unknown-linux-musl.zst'
+		tag_prefix=
 		;;
 	tools/nativelink/install.sh)
 		repo=TraceMachina/nativelink

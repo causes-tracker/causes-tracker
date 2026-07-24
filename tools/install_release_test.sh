@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Tests install_release.shlib with a stubbed curl: installs happen only on a
-# matching sha256, across the tgz, txz-with-member, and raw formats, and a
-# download failure, unknown format, or missing member installs nothing.
+# matching sha256, across the tgz, txz-with-member, zst, and raw formats, and
+# a download failure, unknown format, or missing member installs nothing.
 set -uo pipefail
 
 if [[ -f "${RUNFILES_DIR:-/dev/null}/bazel_tools/tools/bash/runfiles/runfiles.bash" ]]; then
@@ -65,8 +65,7 @@ fi
 }
 
 # txz payload, with the binary at a subdirectory path that differs from the
-# installed name (buckle's shape: archive holds pkg-dir/buckle, installed as
-# buckle).
+# installed name (archive holds pkg-dir/tool, installed under the bare name).
 printf '#!/bin/sh\necho subdir-tool-ran\n' >"$work/subtool"
 chmod +x "$work/subtool"
 mkdir -p "$work/pkg-dir"
@@ -102,6 +101,23 @@ if install_release me/tool "$txz_sha" v1 tool-1.txz txz ghost "$bindir" \
 fi
 [[ -e "$bindir/ghost" ]] && {
 	echo "installed despite missing member"
+	exit 1
+}
+
+# zst payload: the download is a single zstd-compressed binary (buck2's
+# shape: a bare .zst with no archive wrapper).
+zstd -q "$work/subtool" -o "$work/pkg.zst"
+zst_sha="$(sha256sum "$work/pkg.zst" | cut -d' ' -f1)"
+cat >"$stub/curl" <<EOF
+#!/bin/sh
+out=""
+while [ \$# -gt 0 ]; do [ "\$1" = "-o" ] && out="\$2"; shift; done
+cp "$work/pkg.zst" "\$out"
+EOF
+chmod +x "$stub/curl"
+install_release me/tool "$zst_sha" v1 tool-1.zst zst zst-tool "$bindir"
+[[ -x "$bindir/zst-tool" && "$("$bindir/zst-tool")" == "subdir-tool-ran" ]] || {
+	echo "zst: not installed or wrong content"
 	exit 1
 }
 

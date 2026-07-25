@@ -53,11 +53,12 @@ def _cached_http_archive_impl(ctx: AnalysisContext) -> list[Provider]:
         sha256 = ctx.attrs.sha256,
     )
     out = ctx.actions.declare_output("out", dir = True)
-    script = 'mkdir -p "$2" && tar -x -f "$1" --strip-components={} -C "$2"'.format(
-        ctx.attrs.strip_components,
-    )
+    script = 'archive="$1"; out="$2"; shift 2; mkdir -p "$out" && ' + \
+             'tar -x -f "$archive" --strip-components={} -C "$out" "$@"'.format(
+                 ctx.attrs.strip_components,
+             )
     ctx.actions.run(
-        cmd_args("/bin/sh", "-c", script, "unpack", archive, out.as_output()),
+        cmd_args("/bin/sh", "-c", script, "unpack", archive, out.as_output(), ctx.attrs.paths),
         category = "cached_http_archive",
         allow_cache_upload = True,
     )
@@ -70,6 +71,8 @@ def _cached_http_archive_impl(ctx: AnalysisContext) -> list[Provider]:
 cached_http_archive = rule(
     impl = _cached_http_archive_impl,
     attrs = {
+        # Top-level archive paths to extract; empty extracts everything.
+        "paths": attrs.list(attrs.string(), default = []),
         "sha256": attrs.string(),
         "strip_components": attrs.int(default = 0),
         "sub_targets": attrs.list(attrs.string(), default = []),

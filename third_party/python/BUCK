@@ -1,4 +1,4 @@
-load("//tools:defs.bzl", "cached_http_archive")
+load("//tools:defs.bzl", "cached_check", "cached_http_archive")
 
 export_file(
     name = "pin",
@@ -8,12 +8,23 @@ export_file(
 
 cached_http_archive(
     name = "cpython",
-    sha256 = "b442fb93903c6f3392b2430961d4725354ae0da7558c785a908d714264309b28",
-    # //tools/nativelink:worker_image depends on this through //tools:py, so
-    # a --local-only image build needs this unpack action on the hybrid
-    # platform too; every other consumer of //tools:py picks it up as well.
+    # python/install is the full interpreter tree (stdlib, headers, every
+    # C extension statically linked in — lib-dynload is empty); the sibling
+    # python/build is unrelated build-artifact output that paths excludes.
+    paths = ["python/install"],
+    sha256 = "3b3c3b571761e76497de602dec0c8a7c7046790b8ecc54b44862c8a6ecb27df5",
     exec_compatible_with = ["//platforms:image_build_enabled"],
-    strip_components = 1,
-    urls = ["https://github.com/astral-sh/python-build-standalone/releases/download/20260718/cpython-3.14.6+20260718-x86_64-unknown-linux-gnu-install_only.tar.gz"],
+    strip_components = 2,
+    urls = ["https://github.com/astral-sh/python-build-standalone/releases/download/20260623/cpython-3.14.6+20260623-x86_64-unknown-linux-musl-noopt+static-full.tar.zst"],
     visibility = ["PUBLIC"],
+)
+
+cached_check(
+    name = "cpython_layout_test",
+    exe = "//tools:py",
+    srcs = [
+        "cpython_layout_test.py",
+        ":cpython",
+        ":pin",
+    ],
 )

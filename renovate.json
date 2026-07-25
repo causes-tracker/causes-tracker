@@ -158,6 +158,17 @@
         "\"(?<depName>[^\":@]+):(?<currentValue>[^\"@]+)@(?<currentDigest>sha256:[0-9a-f]+)\""
       ],
       "datasourceTemplate": "docker"
+    },
+    {
+      "description": "devcontainer features are OCI artifacts on ghcr.io; version and digest come from the lockfile together.",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^\\.devcontainer/devcontainer-lock\\.json$/"
+      ],
+      "matchStrings": [
+        "\"(?<depName>ghcr\\.io/devcontainers/features/[^\"]+):\\d+\":\\s*\\{\\s*\"version\":\\s*\"(?<currentValue>[^\"]+)\",\\s*\"resolved\":\\s*\"[^\"]+@(?<currentDigest>sha256:[0-9a-f]+)\",\\s*\"integrity\":\\s*\"sha256:[0-9a-f]+\""
+      ],
+      "datasourceTemplate": "docker"
     }
   ]
 }

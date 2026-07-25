@@ -1,14 +1,18 @@
-# The one platform every target and action uses. Every action executes on
-# the local NativeLink worker ([buck2_re_client] in .buckconfig): inputs
-# are staged from the CAS, so an action sees exactly its declared inputs.
-# Unsandboxed local execution is not a path — a cached result carries no
-# record of how it was produced, so allowing both would launder impure
-# results into the shared cache.
+# Two platforms.
+# `default` hosts every target not routed elsewhere: actions execute on
+# the NativeLink worker ([buck2_re_client] in .buckconfig), inputs staged
+# from the CAS, so an action sees exactly its declared inputs.
+# `image_build` hosts only the worker-image subgraph: limited hybrid, so
+# the launcher can build the image with no executor running.
 #
-# Invariant: everything in `//...` is a cacheable pure function of its
-# declared inputs, so caching is platform-wide with no per-target opt-out.
-# A target that cannot satisfy this must be redesigned or become a `run`
-# target.
+# Invariant: the shared cache holds only executor-produced results.
+# `default` cannot execute locally at all; `image_build` can, but never
+# uploads (a cached result carries no record of how it was produced, so a
+# locally-run action must not be able to launder an impure result into
+# the shared cache).
+# Everything in `//...` remains a cacheable pure function of its declared
+# inputs; a target that cannot satisfy this must be redesigned or become
+# a `run` target.
 
 def _impl(ctx: AnalysisContext) -> list[Provider]:
     constraints = dict()
@@ -45,5 +49,80 @@ remote_cache_platform = rule(
     attrs = {
         "cpu_configuration": attrs.dep(providers = [ConfigurationInfo]),
         "os_configuration": attrs.dep(providers = [ConfigurationInfo]),
+    },
+)
+
+# The worker OCI image subgraph (see tools/nativelink:worker_image) needs
+# local execution so the buck2 launcher can verify the image's bytes with
+# `--local-only` before handing an executor a socket to serve them from.
+# Hybrid: both local and remote stay enabled, so `--local-only` /
+# `--remote-only` / cache flags keep selecting per invocation same as any
+# other buck2 target; targets opt in via `exec_compatible_with =
+# ["//platforms:image_build_enabled"]`.
+def _image_build_impl(ctx: AnalysisContext) -> list[Provider]:
+    constraints = dict()
+    constraints.update(ctx.attrs.cpu_configuration[ConfigurationInfo].constraints)
+    constraints.update(ctx.attrs.os_configuration[ConfigurationInfo].constraints)
+    marker = ctx.attrs.image_build_marker[ConstraintValueInfo]
+    constraints[marker.setting.label] = marker
+    cfg = ConfigurationInfo(constraints = constraints, values = {})
+
+    name = ctx.label.raw_target()
+
+    # Reads gated on a key: keyless, the cache address is NativeLink, which
+    # the launcher's --local-only cold start cannot assume is up.
+    # The launcher separately points a cold start straight at BuildBuddy via
+    # .buckconfig.prelaunch (see tools/buck2/buck2.sh) when a key is present.
+    has_cache_key = read_config("buck2_re_client", "http_headers") != None
+
+    platform = ExecutionPlatformInfo(
+        label = name,
+        configuration = cfg,
+        executor_config = CommandExecutorConfig(
+            local_enabled = True,
+            remote_enabled = True,
+            use_limited_hybrid = True,
+            remote_cache_enabled = has_cache_key,
+            allow_cache_uploads = False,
+            remote_execution_properties = {},
+            remote_execution_use_case = "buck2-default",
+            use_windows_path_separators = False,
+        ),
+    )
+
+    return [
+        DefaultInfo(),
+        platform,
+        PlatformInfo(label = str(name), configuration = cfg),
+        ExecutionPlatformRegistrationInfo(
+            platforms = [platform],
+        ),
+    ]
+
+image_build_platform = rule(
+    impl = _image_build_impl,
+    attrs = {
+        "cpu_configuration": attrs.dep(providers = [ConfigurationInfo]),
+        "image_build_marker": attrs.dep(providers = [ConstraintValueInfo]),
+        "os_configuration": attrs.dep(providers = [ConfigurationInfo]),
+    },
+)
+
+# `[build] execution_platforms` in .buckconfig names exactly one target, so
+# the registered platforms are combined here.
+# Order matters: a target with no exec_compatible_with matches the first
+# entry, so :default (remote-only) must stay first.
+def _platform_group_impl(ctx: AnalysisContext) -> list[Provider]:
+    return [
+        DefaultInfo(),
+        ExecutionPlatformRegistrationInfo(
+            platforms = [dep[ExecutionPlatformInfo] for dep in ctx.attrs.platforms],
+        ),
+    ]
+
+platform_group = rule(
+    impl = _platform_group_impl,
+    attrs = {
+        "platforms": attrs.list(attrs.dep(providers = [ExecutionPlatformInfo])),
     },
 )

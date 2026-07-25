@@ -1,0 +1,9 @@
+# Lets the //platforms:image_build hybrid platform read the shared
+# BuildBuddy cache for --local-only builds of the worker image (see
+# platforms/defs.bzl).
+# Copy this file to .buckconfig.local and replace YOUR_KEY_HERE with your
+# API key from https://app.buildbuddy.io/settings/org/api-keys
+# Without this file, --local-only image builds still work; they just never
+# consult a shared cache, so every cold start rebuilds locally from scratch.
+[buck2_re_client]
+  http_headers = x-buildbuddy-api-key:YOUR_KEY_HERE

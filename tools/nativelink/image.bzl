@@ -86,10 +86,13 @@ _validate_image = rule(
 
 # macro to keep the target lean
 def worker_image(name, **kwargs):
+    exec_compatible_with = kwargs.get("exec_compatible_with", [])
+
     _worker_image(
         name = name + "_build",
         _script = "make_image.py",
         crane = kwargs.get("crane"),
+        exec_compatible_with = exec_compatible_with,
         layer = kwargs.get("layer"),
         py = kwargs.get("py"),
         visibility = [],
@@ -99,7 +102,8 @@ def worker_image(name, **kwargs):
     _validate_image(
         name = name,
         _script = "make_image.py",
-        image = ":" + name + "_build",
         digest = kwargs.get("digest"),
+        exec_compatible_with = exec_compatible_with,
+        image = ":" + name + "_build",
         py = kwargs.get("py"),
     )

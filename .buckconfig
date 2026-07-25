@@ -1,3 +1,4 @@
+
 # `probes` is a separate cell so `buck2 build //...` (the root cell) never
 # includes its deliberately-failing targets.
 [cells]
@@ -38,7 +39,14 @@
     target:probes//...->root//platforms:default
 
 [build]
-  execution_platforms = root//platforms:default
+  # :image_build is reached only by targets that request it explicitly via
+  # exec_compatible_with (see platforms/BUCK).
+  execution_platforms = root//platforms:all
 
 [project]
   ignore = .git,.jj,buck-out,node_modules,target
+
+# The launcher writes this file for its pre-start image build and removes
+# it after; the optional include is a no-op the rest of the time.
+# It sits last so its values override the sections above.
+<?file:.buckconfig.prelaunch>

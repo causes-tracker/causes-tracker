@@ -8,12 +8,12 @@ export_file(
 
 cached_http_archive(
     name = "cpython",
-    sha256 = "3d943d8b4360823959012d7e9f4c755256ac1e9c04b609c24894a1b480736e36",
+    sha256 = "b442fb93903c6f3392b2430961d4725354ae0da7558c785a908d714264309b28",
     # //tools/nativelink:worker_image depends on this through //tools:py, so
     # a --local-only image build needs this unpack action on the hybrid
     # platform too; every other consumer of //tools:py picks it up as well.
     exec_compatible_with = ["//platforms:image_build_enabled"],
     strip_components = 1,
-    urls = ["https://github.com/astral-sh/python-build-standalone/releases/download/20260623/cpython-3.14.6+20260623-x86_64-unknown-linux-gnu-install_only.tar.gz"],
+    urls = ["https://github.com/astral-sh/python-build-standalone/releases/download/20260718/cpython-3.14.6+20260718-x86_64-unknown-linux-gnu-install_only.tar.gz"],
     visibility = ["PUBLIC"],
 )

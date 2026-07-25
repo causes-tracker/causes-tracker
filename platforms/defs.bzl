@@ -52,8 +52,8 @@ remote_cache_platform = rule(
     },
 )
 
-# The worker OCI image subgraph (see tools/nativelink:worker_image) needs
-# local execution so the buck2 launcher can verify the image's bytes with
+# The worker layer subgraph (see tools/nativelink:layer) needs local
+# execution so the buck2 launcher can verify the layer's bytes with
 # `--local-only` before handing an executor a socket to serve them from.
 # Hybrid: both local and remote stay enabled, so `--local-only` /
 # `--remote-only` / cache flags keep selecting per invocation same as any

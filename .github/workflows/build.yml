@@ -65,6 +65,16 @@ jobs:
         run: sudo bash tools/buck2/install.sh /usr/local/bin
       - name: Install NativeLink
         run: sudo bash tools/nativelink/install.sh /usr/local/bin
+      # The buck2 launcher runs NativeLink inside a crun container built
+      # from the pinned worker layer.
+      - name: Install crun
+        run: sudo bash tools/crun/install.sh /usr/local/bin
+      # ubuntu-latest restricts unprivileged user-namespace creation by
+      # default; rootless crun needs one to build its container. The
+      # devcontainer instead grants this via --cap-add SYS_ADMIN + seccomp,
+      # which isn't available on a hosted runner.
+      - name: Allow unprivileged user namespaces
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       # The buck2 launcher auto-starts NativeLink with this overlay, whose
       # stores write through to BuildBuddy (NativeLink holds the key).
       - name: Configure NativeLink BuildBuddy overlay

@@ -1,12 +1,11 @@
 load("//tools:defs.bzl", "cached_check")
 load("//tools/nativelink:busybox.bzl", "busybox")
-load("//tools/nativelink:image.bzl", "worker_image")
 load("//tools/nativelink:layer.bzl", "worker_layer")
 load("//tools/nativelink:rootfs.bzl", "busybox_rootfs")
 
 # exec_compatible_with routes the whole worker-image subgraph (this target
-# down through rootfs, layer and worker_image) to the hybrid platform, so a
-# --local-only build of worker_image can execute every action it depends on.
+# down through rootfs and layer) to the hybrid platform, so a --local-only
+# build of layer can execute every action it depends on.
 busybox(
     name = "busybox",
     crane = "//third_party/crane:crane[crane]",
@@ -40,6 +39,7 @@ cached_check(
 
 worker_layer(
     name = "layer",
+    digest = "fc1afd47c55bb3a8b26ce67c63ad58c624d184eef2f1f4982b2c7387eb415d77",
     exec_compatible_with = ["//platforms:image_build_enabled"],
     py = "//tools:py",
     rootfs = ":rootfs",
@@ -54,26 +54,5 @@ cached_check(
         ":layer",
         ":rootfs",
         "make_layer.py",
-    ],
-)
-
-worker_image(
-    name = "worker_image",
-    crane = "//third_party/crane:crane[crane]",
-    exec_compatible_with = ["//platforms:image_build_enabled"],
-    layer = ":layer",
-    digest = "af18e99e3ecc14f51f78e8d5def7391d02dcdaea5d762d7cf179c5def7831a89",
-    py = "//tools:py",
-)
-
-cached_check(
-    name = "image_test",
-    exe = "//tools:py",
-    srcs = [
-        "image_test.py",
-        ":worker_image",
-        ":layer",
-        "//third_party/crane:crane[crane]",
-        "make_image.py",
     ],
 )

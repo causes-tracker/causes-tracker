@@ -5,6 +5,8 @@ and entries are added in sorted order, so the bytes depend only on the
 tree's content.
 """
 
+import hashlib
+import json
 import os
 import sys
 import tarfile
@@ -22,16 +24,70 @@ def normalize(ti):
     return ti
 
 
+class _HashingWriter:
+    """File-like wrapper that feeds every write into a running sha256."""
+
+    def __init__(self, f):
+        self._f = f
+        self.digest = hashlib.sha256()
+
+    def write(self, data):
+        self.digest.update(data)
+        return self._f.write(data)
+
+    def tell(self):
+        return self._f.tell()
+
+
 def write_layer(root, out):
     paths = []
     for dirpath, dirnames, filenames in os.walk(root):
         for n in dirnames + filenames:
             p = os.path.join(dirpath, n)
             paths.append((os.path.relpath(p, root), p))
-    with tarfile.open(out, "w", format=tarfile.GNU_FORMAT) as tar:
-        for arcname, p in sorted(paths):
-            tar.add(p, arcname=arcname, filter=normalize, recursive=False)
+    with open(out, "wb") as raw:
+        hasher = _HashingWriter(raw)
+        with tarfile.open(fileobj=hasher, mode="w", format=tarfile.GNU_FORMAT) as tar:
+            for arcname, p in sorted(paths):
+                tar.add(p, arcname=arcname, filter=normalize, recursive=False)
+    return hasher.digest.hexdigest()
+
+
+def build_layer(root, out, digest_out):
+    digest = write_layer(root, out)
+    with open(digest_out, "wt") as f:
+        f.write(digest + "\n")
+
+
+def check_digest(digest_out, digest, stamp_path):
+    with open(digest_out, "rt") as f:
+        actual_digest = f.read().strip()
+    if actual_digest != digest:
+        valid = {
+            "version": 1,
+            "data": {
+                "status": "failure",
+                "message": f"Layer digest {actual_digest} does not match expected {digest}",
+            },
+        }
+    else:
+        valid = {
+            "version": 1,
+            "data": {
+                "status": "success",
+                "message": f"Layer digest {actual_digest} validated",
+            },
+        }
+    with open(stamp_path, "wt") as f:
+        json.dump(valid, f)
 
 
 if __name__ == "__main__":
-    write_layer(sys.argv[1], sys.argv[2])
+    match sys.argv[1]:
+        case "build":
+            build_layer(sys.argv[2], sys.argv[3], sys.argv[4])
+        case "check":
+            assert sys.argv[3] == "--digest", "Expected --digest argument but got: " + sys.argv[3]
+            check_digest(sys.argv[2], sys.argv[4], sys.argv[5])
+        case _:
+            raise RuntimeError("Expected 'build' or 'check' but got: " + sys.argv[1])

@@ -4,6 +4,10 @@
 # Config selection: the gitignored `.nativelink.json5` at the repo root
 # (the BuildBuddy overlay, see tools/nativelink/config-bb.json5.template)
 # when present, else the committed local-only tools/nativelink/config.json5.
+#
+# tools/nativelink/crun-bundle-config.json.template is `crun spec --rootless`'s
+# output with NativeLink's overrides baked in — the omitted network namespace
+# is why buck2 can still reach NativeLink on 127.0.0.1:50051.
 set -euo pipefail
 
 # Outside a repo there is nothing to execute on; hand over directly.
@@ -29,7 +33,10 @@ if [[ -e "$root/.buckroot" ]] && no_daemon; then
 			>"$root/.buckconfig.prelaunch"
 	fi
 	bootstrap_rc=0
-	buck2-bin build --local-only //tools/nativelink:layer ||
+	# Output is sorted by target label, not listed order; the sed -n below relies on it.
+	outputs="$(buck2-bin build --local-only --show-full-simple-output \
+		//tools/nativelink:busybox //tools/nativelink:layer \
+		'//tools/nativelink:layer[layer][digest]')" ||
 		bootstrap_rc=$?
 	rm -f "$root/.buckconfig.prelaunch"
 	# The daemon that ran the bootstrap build is still bound to the
@@ -41,15 +48,44 @@ if [[ -e "$root/.buckroot" ]] && no_daemon; then
 			"failed; refusing to start NativeLink over unverified bytes" >&2
 		exit 1
 	fi
+	busybox="$(sed -n '1p' <<<"$outputs")"
+	layer_tar="$(sed -n '2p' <<<"$outputs")"
+	digest="$(cat "$(sed -n '3p' <<<"$outputs")")"
 
 	cfg="$root/.nativelink.json5"
 	[[ -f "$cfg" ]] || cfg="$root/tools/nativelink/config.json5"
-	mkdir -p "$HOME/.cache/causes-nativelink"
+	nl_cache="$HOME/.cache/causes-nativelink"
+	mkdir -p "$nl_cache/bin" "$nl_cache/xdg"
+	cp -f "$(command -v nativelink)" "$nl_cache/bin/nativelink"
+	cp -f "$cfg" "$nl_cache/config.json5"
+
+	rootfs="$nl_cache/rootfs-$digest"
+	if [[ ! -d "$rootfs" ]]; then
+		tmp_rootfs="$(mktemp -d "$nl_cache/rootfs-$digest.XXXXXX")"
+		"$busybox" tar x -f "$layer_tar" -C "$tmp_rootfs"
+		mv -T "$tmp_rootfs" "$rootfs"
+	fi
+
+	bundle="$nl_cache/crun-bundle"
+	rm -rf "$bundle"
+	mkdir -p "$bundle"
+	sed \
+		-e "s|@ROOTFS@|$rootfs|g" \
+		-e "s|@HOME@|$HOME|g" \
+		-e "s|@NL_CACHE@|$nl_cache|g" \
+		-e "s|@HOST_UID@|$(id -u)|g" \
+		-e "s|@HOST_GID@|$(id -g)|g" \
+		"$root/tools/nativelink/crun-bundle-config.json.template" \
+		>"$bundle/config.json"
+
+	container="causes-nativelink-$digest"
+	export XDG_RUNTIME_DIR="$nl_cache/xdg"
+	crun delete -f "$container" >/dev/null 2>&1 || true
 	(
 		flock -n 9 || exit 0
-		nohup nativelink "$cfg" \
-			>>"$HOME/.cache/causes-nativelink/nativelink.log" 2>&1 &
-	) 9>"$HOME/.cache/causes-nativelink/launch.lock"
+		crun run --bundle "$bundle" --detach --no-new-keyring "$container" \
+			>>"$nl_cache/nativelink.log" 2>&1
+	) 9>"$nl_cache/launch.lock"
 	for _ in $(seq 100); do
 		(exec 3<>/dev/tcp/127.0.0.1/50051) 2>/dev/null && break
 		sleep 0.1

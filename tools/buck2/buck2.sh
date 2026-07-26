@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# buck2 launcher: bootstrap the worker-image pin and NativeLink the first
+# buck2 launcher: bootstrap the worker-layer pin and NativeLink the first
 # time a daemon starts this session, then hand over to the pinned binary.
 # Config selection: the gitignored `.nativelink.json5` at the repo root
 # (the BuildBuddy overlay, see tools/nativelink/config-bb.json5.template)
@@ -29,7 +29,7 @@ if [[ -e "$root/.buckroot" ]] && no_daemon; then
 			>"$root/.buckconfig.prelaunch"
 	fi
 	bootstrap_rc=0
-	buck2-bin build --local-only //tools/nativelink:worker_image ||
+	buck2-bin build --local-only //tools/nativelink:layer ||
 		bootstrap_rc=$?
 	rm -f "$root/.buckconfig.prelaunch"
 	# The daemon that ran the bootstrap build is still bound to the
@@ -37,7 +37,7 @@ if [[ -e "$root/.buckroot" ]] && no_daemon; then
 	# so the next command starts fresh under the committed config.
 	buck2-bin kill >/dev/null 2>&1 || true
 	if [[ "$bootstrap_rc" -ne 0 ]]; then
-		echo "error: local-only build of //tools/nativelink:worker_image" \
+		echo "error: local-only build of //tools/nativelink:layer" \
 			"failed; refusing to start NativeLink over unverified bytes" >&2
 		exit 1
 	fi

@@ -49,6 +49,7 @@ reqwest = { version = "0.13", features = [
   "query",
 ], default-features = false }
 clap = { version = "4", features = ["env", "derive"] }
+console = "0.16"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 anyhow = "1"

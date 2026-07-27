@@ -40,6 +40,21 @@ tree_tool = rule(
     },
 )
 
+# A single sha256-pinned executable, runnable as an exec_dep.
+def _downloaded_tool_impl(ctx: AnalysisContext) -> list[Provider]:
+    out = ctx.actions.declare_output(ctx.attrs.out)
+    ctx.actions.download_file(out.as_output(), ctx.attrs.url, sha256 = ctx.attrs.sha256, is_executable = True)
+    return [DefaultInfo(default_output = out), RunInfo(args = cmd_args(out))]
+
+downloaded_tool = rule(
+    impl = _downloaded_tool_impl,
+    attrs = {
+        "out": attrs.string(),
+        "sha256": attrs.string(),
+        "url": attrs.string(),
+    },
+)
+
 # http_archive whose unpacked tree is remotely cached.
 # The prelude's http_archive never sets `allow_cache_upload` on its unpack
 # action, so its output can be read from the cache but never repopulates it.
@@ -53,12 +68,37 @@ def _cached_http_archive_impl(ctx: AnalysisContext) -> list[Provider]:
         sha256 = ctx.attrs.sha256,
     )
     out = ctx.actions.declare_output("out", dir = True)
-    script = 'archive="$1"; out="$2"; shift 2; mkdir -p "$out" && ' + \
-             'tar -x -f "$archive" --strip-components={} -C "$out" "$@"'.format(
-                 ctx.attrs.strip_components,
-             )
+    if ctx.attrs.zstd:
+        # tar has no zstd support on the platforms this runs on; decompress
+        # through the pinned zstd tool first and hand tar a plain stream.
+        extract = '"$zstd" -dc "$archive" | tar -x -f - -C "{dest}"'
+        tool_args = [ctx.attrs.zstd[RunInfo]]
+        arg_prefix = 'zstd="$1"; archive="$2"; out="$3"; shift 3'
+    else:
+        extract = 'tar -x -f "$archive" -C "{dest}"'
+        tool_args = []
+        arg_prefix = 'archive="$1"; out="$2"; shift 2'
+
+    if ctx.attrs.paths:
+        # tar's own path-selection argument is broken for directory
+        # entries on the platforms this runs on: it extracts them fine but
+        # still reports "not found" and exits nonzero. Extract everything
+        # to a scratch dir and move the wanted (already
+        # `strip_components`-deep) subtrees' entries out by hand instead.
+        # paths must be disjoint (no path nested under another), since
+        # entries from each land directly in the shared "$out".
+        script = arg_prefix + '; tmp="$(mktemp -d)"; mkdir -p "$out" && ' + \
+                 extract.format(dest = "$tmp") + " && " + \
+                 'for p in "$@"; do for e in "$tmp/$p"/* "$tmp/$p"/.[!.]* "$tmp/$p"/..?*; do ' + \
+                 '[ -e "$e" ] && mv "$e" "$out/"; done; done; true'
+    else:
+        script = arg_prefix + '; mkdir -p "$out" && ' + \
+                 extract.format(dest = "$out") + \
+                 ' --strip-components={} "$@"'.format(ctx.attrs.strip_components)
+
+    cmd = cmd_args(*(["/bin/sh", "-c", script, "unpack"] + tool_args + [archive, out.as_output()] + ctx.attrs.paths))
     ctx.actions.run(
-        cmd_args("/bin/sh", "-c", script, "unpack", archive, out.as_output(), ctx.attrs.paths),
+        cmd,
         category = "cached_http_archive",
         allow_cache_upload = True,
     )
@@ -77,5 +117,7 @@ cached_http_archive = rule(
         "strip_components": attrs.int(default = 0),
         "sub_targets": attrs.list(attrs.string(), default = []),
         "urls": attrs.list(attrs.string()),
+        # Set when the archive needs zstd decompression tar can't do itself.
+        "zstd": attrs.option(attrs.exec_dep(providers = [RunInfo]), default = None),
     },
 )

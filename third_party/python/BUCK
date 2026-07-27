@@ -17,6 +17,7 @@ cached_http_archive(
     strip_components = 2,
     urls = ["https://github.com/astral-sh/python-build-standalone/releases/download/20260718/cpython-3.14.6+20260718-x86_64-unknown-linux-musl-noopt+static-full.tar.zst"],
     visibility = ["PUBLIC"],
+    zstd = "//third_party/zstd:zstd",
 )
 
 cached_check(

@@ -49,7 +49,7 @@
         supported_platform_properties: {
           cpu_count: "minimum",
           OSFamily: "priority",
-          "container-image": "priority",
+          "container-image": "exact",
         },
       },
     },
@@ -69,7 +69,7 @@
         platform_properties: {
           cpu_count: { query_cmd: "nproc" },
           OSFamily: { query_cmd: "uname -s" },
-          "container-image": { values: [""] },
+          "container-image": { values: ["@LAYER_DIGEST@"] },
         },
       },
     },

@@ -1,3 +1,4 @@
+load("//tools/nativelink:pin.bzl", "WORKER_LAYER_DIGEST")
 load(":defs.bzl", "image_build_platform", "platform_group", "remote_cache_platform")
 
 remote_cache_platform(
@@ -20,6 +21,7 @@ constraint_value(
 
 image_build_platform(
     name = "image_build",
+    container_image = WORKER_LAYER_DIGEST,
     cpu_configuration = "prelude//cpu:x86_64",
     image_build_marker = ":image_build_enabled",
     os_configuration = "prelude//os:linux",

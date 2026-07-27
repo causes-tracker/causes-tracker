@@ -75,6 +75,13 @@ def _image_build_impl(ctx: AnalysisContext) -> list[Provider]:
     # .buckconfig.prelaunch (see tools/buck2/buck2.sh) when a key is present.
     has_cache_key = read_config("buck2_re_client", "http_headers") != None
 
+    # Overridable so a rootfs-digest-change validation build can target the
+    # still-running worker from the *previous* pin (see the "Changing the
+    # rootfs digest" section of tools/nativelink/README.md) while the
+    # target being built reads the new pin from source.
+    container_image_override = read_config("image_build", "container_image")
+    container_image = container_image_override if container_image_override != None else ctx.attrs.container_image
+
     platform = ExecutionPlatformInfo(
         label = name,
         configuration = cfg,
@@ -84,7 +91,7 @@ def _image_build_impl(ctx: AnalysisContext) -> list[Provider]:
             use_limited_hybrid = True,
             remote_cache_enabled = has_cache_key,
             allow_cache_uploads = False,
-            remote_execution_properties = {},
+            remote_execution_properties = {"container-image": container_image},
             remote_execution_use_case = "buck2-default",
             use_windows_path_separators = False,
         ),
@@ -102,6 +109,7 @@ def _image_build_impl(ctx: AnalysisContext) -> list[Provider]:
 image_build_platform = rule(
     impl = _image_build_impl,
     attrs = {
+        "container_image": attrs.string(doc = "Worker layer digest; bumping it invalidates the AC for image_build actions"),
         "cpu_configuration": attrs.dep(providers = [ConfigurationInfo]),
         "image_build_marker": attrs.dep(providers = [ConstraintValueInfo]),
         "os_configuration": attrs.dep(providers = [ConfigurationInfo]),

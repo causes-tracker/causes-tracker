@@ -4,6 +4,18 @@ load("//tools/nativelink:layer.bzl", "worker_layer")
 load("//tools/nativelink:pin.bzl", "WORKER_LAYER_DIGEST")
 load("//tools/nativelink:rootfs.bzl", "busybox_rootfs")
 
+export_file(
+    name = "install_sh",
+    src = "install.sh",
+    visibility = ["//tools/renovate:"],
+)
+
+export_file(
+    name = "buck_file",
+    src = "BUCK",
+    visibility = ["//tools/renovate:"],
+)
+
 # exec_compatible_with routes the whole worker-image subgraph (this target
 # down through rootfs and layer) to the hybrid platform, so a --local-only
 # build of layer can execute every action it depends on.

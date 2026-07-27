@@ -63,11 +63,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
         with:
           fetch-depth: 10
-      # See tools/nativelink/README.md, "Changing the rootfs digest".
-      - name: Check whether the rootfs digest pin changed
-        id: pin_check
+      # Shared by every change-detection step below (pin, renovate.json, …):
+      # base/head only exist on pull_request/merge_group, and fetch-depth:
+      # 10 must actually reach both — fail loud here rather than have a
+      # shallow-history "unknown revision" surface later as a confusing
+      # git-diff failure in whichever step happens to run first.
+      - name: Determine base/head commits for change checks
+        id: base_head
         run: |
-          pin_changed=false
           base=""
           head=""
           if [ "${{ github.event_name }}" = "pull_request" ]; then
@@ -78,17 +81,22 @@ jobs:
             head="${{ github.event.merge_group.head_sha }}"
           fi
           if [ -n "$base" ]; then
-            # fetch-depth: 10 must reach both commits; fail loud rather
-            # than have a shallow-history "unknown revision" error get
-            # swallowed by the `!` below and misread as pin_changed=true.
             git cat-file -e "$base^{commit}"
             git cat-file -e "$head^{commit}"
-            if ! git diff --quiet "$base" "$head" -- tools/nativelink/pin.bzl; then
-              pin_changed=true
-            fi
           fi
           echo "orig_head=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "head=$head" >> "$GITHUB_OUTPUT"
+      # See tools/nativelink/README.md, "Changing the rootfs digest".
+      - name: Check whether the rootfs digest pin changed
+        id: pin_check
+        run: |
+          pin_changed=false
+          base="${{ steps.base_head.outputs.base }}"
+          head="${{ steps.base_head.outputs.head }}"
+          if [ -n "$base" ] && ! git diff --quiet "$base" "$head" -- tools/nativelink/pin.bzl; then
+            pin_changed=true
+          fi
           echo "pin_changed=$pin_changed" >> "$GITHUB_OUTPUT"
       - name: Install buck2
         run: sudo bash tools/buck2/install.sh /usr/local/bin
@@ -124,7 +132,7 @@ jobs:
       - name: "Rootfs digest change: trigger executor start with the previous pin"
         if: steps.pin_check.outputs.pin_changed == 'true'
         run: |
-          git checkout "${{ steps.pin_check.outputs.base }}"
+          git checkout "${{ steps.base_head.outputs.base }}"
           # pin.bzl may not exist yet at base (e.g. the PR that introduces
           # it): fall back to the digest's previous location, the literal
           # worker_layer(digest = "...") in tools/nativelink/BUCK.
@@ -141,7 +149,7 @@ jobs:
       # what every other run tests, not the unmerged branch tip.
       - name: "Rootfs digest change: switch to the build head"
         if: steps.pin_check.outputs.pin_changed == 'true'
-        run: git checkout "${{ steps.pin_check.outputs.orig_head }}"
+        run: git checkout "${{ steps.base_head.outputs.orig_head }}"
       - name: "Rootfs digest change: validate new pin builds hermetically on the old worker"
         if: steps.pin_check.outputs.pin_changed == 'true'
         run: |
@@ -152,11 +160,35 @@ jobs:
         if: steps.pin_check.outputs.pin_changed == 'true'
         run: |
           buck2 kill
+      - name: Check whether renovate.json changed
+        id: renovate_check
+        run: |
+          changed=false
+          base="${{ steps.base_head.outputs.base }}"
+          head="${{ steps.base_head.outputs.head }}"
+          if [ -n "$base" ] && ! git diff --quiet "$base" "$head" -- renovate.json; then
+            changed=true
+          fi
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+      # See tools/renovate/README.md, "functional_check (buck2)".
+      - name: "renovate.json change: run functional check"
+        if: steps.renovate_check.outputs.changed == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          printf '[renovate]\n  gh_token = %s\n' "$GITHUB_TOKEN" >> .buckconfig.local
+          buck2 build //tools/renovate:functional_check
+      # functional_check can't satisfy --remote-only (see tools/renovate/
+      # README.md); every sweep below excludes it.
+      - name: Compute --remote-only target set
+        run: |
+          targets="$(buck2 uquery '//... - //tools/renovate:functional_check' | tr '\n' ' ')"
+          echo "REMOTE_ONLY_TARGETS=$targets" >> "$GITHUB_ENV"
       # --remote-only: CI is the trusted executor environment, so every
       # action — including the hybrid image-build platform's — runs on
       # NativeLink and warms the shared cache; nothing here executes local.
       - name: Build buck2 targets
-        run: buck2 build --remote-only //...
+        run: buck2 build --remote-only $REMOTE_ONLY_TARGETS
       # A green cached build cannot distinguish "cache works" from
       # "permanently missing"; only a demonstrated hit proves the read path.
       # buck2 clean + kill destroys buck2's local state, so the required
@@ -166,7 +198,7 @@ jobs:
         run: |
           buck2 clean
           buck2 kill
-          buck2 build --remote-only //... 2>&1 | tee rebuild.log
+          buck2 build --remote-only $REMOTE_ONLY_TARGETS 2>&1 | tee rebuild.log
           grep -q 'Cache hits: 100%' rebuild.log
       # An action reading an undeclared repo file must fail under input
       # staging. Validates that the reference configuration exercised in

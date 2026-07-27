@@ -1,0 +1,7 @@
+# Fixture text for tools/renovate:functional_check to regex-scan, never
+# executed — the crun binary itself is used off PATH, not built from this.
+export_file(
+    name = "install_sh",
+    src = "install.sh",
+    visibility = ["//tools/renovate:"],
+)

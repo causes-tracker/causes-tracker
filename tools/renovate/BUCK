@@ -1,0 +1,17 @@
+load(":functional_check.bzl", "renovate_functional_check")
+
+# Tracked by the docker-digest custom manager in renovate.json, so Renovate
+# proposes the bump automatically (rate-limited to once a month, see
+# renovate.json) — no manual re-pin step.
+renovate_functional_check(
+    name = "functional_check",
+    script = "functional_check.sh",
+    crane = "//third_party/crane:crane[crane]",
+    crane_buck = "//third_party/crane:buck_file",
+    crun_install = "//tools/crun:install_sh",
+    nativelink_buck = "//tools/nativelink:buck_file",
+    nativelink_install = "//tools/nativelink:install_sh",
+    renovate_image = "renovate/renovate:43.285.2@sha256:ffe523c05ffca0143d855624a43edb1a75642b6d38390d542ca6da9e1ba72df7",
+    renovate_json = "//:renovate_json",
+    exec_compatible_with = ["//platforms:local_only_enabled"],
+)

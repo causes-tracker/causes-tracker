@@ -48,6 +48,12 @@
       "description": "Releases tagged with 8-digit dates, not semver.",
       "matchDepNames": ["astral-sh/python-build-standalone", "facebook/buck2"],
       "versioning": "loose"
+    },
+    {
+      "description": "The renovate/renovate image pinned in tools/renovate/BUCK (the functional-check fixture) bumps at most once a month as they have very good backwards compat.",
+      "matchDatasources": ["docker"],
+      "matchDepNames": ["renovate/renovate"],
+      "schedule": ["on the first day of the month"]
     }
   ],
   "customManagers": [
@@ -138,10 +144,11 @@
       "extractVersionTemplate": "^v(?<version>.*)$"
     },
     {
-      "description": "Any github release download pinned in a BUCK file; owner/repo is the dep, so a new pinned github tool is tracked with no per-tool config. The renovate-sha workflow recomputes the sha256 on the bump PR (renovatebot/renovate#22183). The match runs to the closing quote so the whole URL is the replace target, and autoReplaceGlobalMatch (on by default) rewrites every occurrence of the version within it — needed when a version or date repeats in the asset filename.",
+      "description": "Any github release download pinned in a BUCK file or MODULE.bazel; owner/repo is the dep, so a new pinned github tool is tracked with no per-tool config. The renovate-sha workflow recomputes the sha256 on the bump PR (renovatebot/renovate#22183). The match runs to the closing quote so the whole URL is the replace target, and autoReplaceGlobalMatch (on by default) rewrites every occurrence of the version within it — needed when a version or date repeats in the asset filename.",
       "customType": "regex",
       "managerFilePatterns": [
-        "/(^|/)BUCK$/"
+        "/(^|/)BUCK$/",
+        "/^MODULE\\.bazel$/"
       ],
       "matchStrings": [
         "https://github\\.com/(?<depName>[^/\"]+/[^/\"]+)/releases/download/(?<currentValue>[^/\"]+)/[^\"]*"

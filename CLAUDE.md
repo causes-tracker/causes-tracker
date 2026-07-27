@@ -29,7 +29,7 @@ bazel run //:format                   # format all source files in-place
 bazel run //:format.check             # check formatting without changes (what CI runs)
 bazel run //infra/postgres:psql -- …  # hermetic psql
 bazel run //infra:tofu -- <module> …  # hermetic OpenTofu (e.g. infra/terraform, infra/github)
-bazel run //tools:sqlx -- …           # hermetic sqlx-cli
+bazel run //tools/sqlx-cli:sqlx -- …  # hermetic sqlx-cli
 bazel run //tools:cargo -- …          # hermetic cargo (metadata only, not compilation)
 ```
 

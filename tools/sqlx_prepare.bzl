@@ -182,7 +182,7 @@ def sqlx_prepare(name, crate, migrations):
         migrations = migrations,
         pg_extracted = "//infra/postgres:postgres_extracted",
         pg_fixture = "//infra/postgres:testfixture.sh",
-        sqlx_bin = "//tools:sqlx_bin",
+        sqlx_bin = "//tools/sqlx-cli:sqlx_bin",
     )
     sh_test(
         name = name + "_test",

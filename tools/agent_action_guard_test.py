@@ -306,17 +306,17 @@ class HelperScriptsTest(unittest.TestCase):
         "cargo.sh",
         "rustc.sh",
         "rustfmt.sh",
-        "sqlx.sh",
         "proto_gen_impl.sh",
         "sqlx_prepare_check.sh",
         "sqlx_prepare_update.sh",
         "toolchain_versions_test.sh",
+        "sqlx-cli/sqlx.sh",
     )
 
     def test_helpers_are_not_blocked(self):
         here = os.path.dirname(os.path.abspath(__file__))
         for name in self.HELPERS:
-            path = os.path.join(here, name)
+            path = os.path.normpath(os.path.join(here, name))
             with open(path, encoding="utf-8") as handle:
                 content = handle.read()
             self.assertIsNone(decide(write(path, content)), f"helper should pass: {name}")

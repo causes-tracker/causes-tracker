@@ -1,0 +1,35 @@
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("//build:rust.bzl", "rust_binary")
+load("//tools/lint:format_check.bzl", "format_srcs")
+
+exports_files(["sqlx.sh"])
+
+# Hermetic sqlx binary compiled from this crate via the crate_index.
+# Bazel caches and invalidates this like any other rust_binary target.
+rust_binary(
+    name = "sqlx_bin",
+    srcs = ["src/main.rs"],
+    edition = "2021",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@crates//:clap",
+        "@crates//:console",
+        "@crates//:sqlx",
+        "@crates//:sqlx-cli",
+        "@crates//:tokio",
+    ],
+)
+
+# Run the hermetic sqlx binary.
+# DATABASE_URL must be set (or present in .env) for migrate.
+#   bazel run //tools/sqlx-cli:sqlx -- migrate run
+sh_binary(
+    name = "sqlx",
+    srcs = ["sqlx.sh"],
+    data = [
+        ":sqlx_bin",
+        "@bazel_tools//tools/bash/runfiles",
+    ],
+)
+
+format_srcs()

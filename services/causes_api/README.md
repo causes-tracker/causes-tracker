@@ -123,7 +123,7 @@ Run migrations manually:
 
 ```sh
 DATABASE_URL=postgresql://causes:causes@localhost:5432/causes \
-  bazel run //tools:sqlx -- migrate run \
+  bazel run //tools/sqlx-cli:sqlx -- migrate run \
   --source lib/rust/api_db/migrations
 ```
 

@@ -100,6 +100,8 @@
         // Default is 10 minutes; a stuck upload silently hangs a build for
         // that long instead of failing loud with DeadlineExceeded.
         max_upload_timeout_s: 60,
+        use_namespaces: true,
+        use_mount_namespace: true,
         platform_properties: {
           cpu_count: { query_cmd: "nproc" },
           OSFamily: { query_cmd: "uname -s" },

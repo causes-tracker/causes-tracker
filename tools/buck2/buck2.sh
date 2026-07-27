@@ -57,7 +57,11 @@ if [[ -e "$root/.buckroot" ]] && no_daemon; then
 	nl_cache="$HOME/.cache/causes-nativelink"
 	mkdir -p "$nl_cache/bin" "$nl_cache/xdg"
 	cp -f "$(command -v nativelink)" "$nl_cache/bin/nativelink"
-	cp -f "$cfg" "$nl_cache/config.json5"
+	# Advertised as the container-image platform property (see
+	# platforms/defs.bzl) so buck2 bakes it into every image_build action's
+	# digest, and bumping the pin invalidates NativeLink's cache for
+	# actions that ran under the old image.
+	sed -e "s|@LAYER_DIGEST@|$digest|g" "$cfg" >"$nl_cache/config.json5"
 
 	rootfs="$nl_cache/rootfs-$digest"
 	if [[ ! -d "$rootfs" ]]; then

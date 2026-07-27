@@ -61,6 +61,35 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          fetch-depth: 10
+      # See tools/nativelink/README.md, "Changing the rootfs digest".
+      - name: Check whether the rootfs digest pin changed
+        id: pin_check
+        run: |
+          pin_changed=false
+          base=""
+          head=""
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="${{ github.event.pull_request.base.sha }}"
+            head="${{ github.event.pull_request.head.sha }}"
+          elif [ "${{ github.event_name }}" = "merge_group" ]; then
+            base="${{ github.event.merge_group.base_sha }}"
+            head="${{ github.event.merge_group.head_sha }}"
+          fi
+          if [ -n "$base" ]; then
+            # fetch-depth: 10 must reach both commits; fail loud rather
+            # than have a shallow-history "unknown revision" error get
+            # swallowed by the `!` below and misread as pin_changed=true.
+            git cat-file -e "$base^{commit}"
+            git cat-file -e "$head^{commit}"
+            if ! git diff --quiet "$base" "$head" -- tools/nativelink/pin.bzl; then
+              pin_changed=true
+            fi
+          fi
+          echo "orig_head=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "pin_changed=$pin_changed" >> "$GITHUB_OUTPUT"
       - name: Install buck2
         run: sudo bash tools/buck2/install.sh /usr/local/bin
       - name: Install NativeLink
@@ -92,6 +121,37 @@ jobs:
         run: |
           sed "s/YOUR_KEY_HERE/${BUILDBUDDY_API_KEY}/" \
             .buckconfig.local.template > .buckconfig.local
+      - name: "Rootfs digest change: trigger executor start with the previous pin"
+        if: steps.pin_check.outputs.pin_changed == 'true'
+        run: |
+          git checkout "${{ steps.pin_check.outputs.base }}"
+          # pin.bzl may not exist yet at base (e.g. the PR that introduces
+          # it): fall back to the digest's previous location, the literal
+          # worker_layer(digest = "...") in tools/nativelink/BUCK.
+          if [ -f tools/nativelink/pin.bzl ]; then
+            old_digest="$(grep -oP 'WORKER_LAYER_DIGEST = "\K[a-f0-9]+' tools/nativelink/pin.bzl)"
+          else
+            old_digest="$(grep -oP 'digest = "\K[a-f0-9]+' tools/nativelink/BUCK)"
+          fi
+          echo "OLD_LAYER_DIGEST=$old_digest" >> "$GITHUB_ENV"
+          buck2 targets //...
+      # Restores the exact commit the initial checkout put in place (the
+      # PR's merge-preview commit, or the merge-queue's combined commit),
+      # not head.sha directly — the rest of the job must keep testing
+      # what every other run tests, not the unmerged branch tip.
+      - name: "Rootfs digest change: switch to the build head"
+        if: steps.pin_check.outputs.pin_changed == 'true'
+        run: git checkout "${{ steps.pin_check.outputs.orig_head }}"
+      - name: "Rootfs digest change: validate new pin builds hermetically on the old worker"
+        if: steps.pin_check.outputs.pin_changed == 'true'
+        run: |
+          buck2 build --remote-only \
+            -c image_build.container_image="$OLD_LAYER_DIGEST" \
+            '//tools/nativelink:layer[layer][digest]'
+      - name: "Rootfs digest change: retire the old worker"
+        if: steps.pin_check.outputs.pin_changed == 'true'
+        run: |
+          buck2 kill
       # --remote-only: CI is the trusted executor environment, so every
       # action — including the hybrid image-build platform's — runs on
       # NativeLink and warms the shared cache; nothing here executes local.

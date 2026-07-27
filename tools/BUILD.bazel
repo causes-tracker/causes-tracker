@@ -1,7 +1,6 @@
 load("@rules_python//python:defs.bzl", "py_binary", "py_library", "py_test")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
-load("//build:rust.bzl", "rust_binary")
 load("//tools/lint:format_check.bzl", "format_srcs")
 load("//tools/lint:linters.bzl", "markdown_lint_test")
 
@@ -28,34 +27,6 @@ py_binary(
     name = "show_coverage",
     srcs = ["show_coverage.py"],
     main = "show_coverage.py",
-)
-
-# Hermetic sqlx binary compiled from tools/sqlx-cli via the crate_index.
-# Bazel caches and invalidates this like any other rust_binary target.
-rust_binary(
-    name = "sqlx_bin",
-    srcs = ["sqlx-cli/src/main.rs"],
-    edition = "2021",
-    visibility = ["//visibility:public"],
-    deps = [
-        "@crates//:clap",
-        "@crates//:console",
-        "@crates//:sqlx",
-        "@crates//:sqlx-cli",
-        "@crates//:tokio",
-    ],
-)
-
-# Run the hermetic sqlx binary.
-# DATABASE_URL must be set (or present in .env) for migrate.
-#   bazel run //tools:sqlx -- migrate run
-sh_binary(
-    name = "sqlx",
-    srcs = ["sqlx.sh"],
-    data = [
-        ":sqlx_bin",
-        "@bazel_tools//tools/bash/runfiles",
-    ],
 )
 
 # Run the hermetic cargo binary from the rules_rs toolchain.
@@ -161,24 +132,6 @@ sh_test(
 )
 
 sh_test(
-    name = "update_archive_sha_test",
-    srcs = ["renovate/update_archive_sha_test.sh"],
-    data = [
-        "renovate/update_archive_sha.sh",
-        "@bazel_tools//tools/bash/runfiles",
-    ],
-)
-
-sh_test(
-    name = "update_sha_test",
-    srcs = ["renovate/update_sha_test.sh"],
-    data = [
-        "renovate/update_sha.sh",
-        "@bazel_tools//tools/bash/runfiles",
-    ],
-)
-
-sh_test(
     name = "install_release_test",
     srcs = ["install_release_test.sh"],
     data = [
@@ -206,10 +159,10 @@ py_test(
         "proto_gen_impl.sh",
         "rustc.sh",
         "rustfmt.sh",
-        "sqlx.sh",
         "sqlx_prepare_check.sh",
         "sqlx_prepare_update.sh",
         "toolchain_versions_test.sh",
+        "//tools/sqlx-cli:sqlx.sh",
     ],
     main = "agent_action_guard_test.py",
     deps = [":agent_action_guard"],

@@ -1,0 +1,22 @@
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//tools/lint:format_check.bzl", "format_srcs")
+
+sh_test(
+    name = "update_archive_sha_test",
+    srcs = ["update_archive_sha_test.sh"],
+    data = [
+        "update_archive_sha.sh",
+        "@bazel_tools//tools/bash/runfiles",
+    ],
+)
+
+sh_test(
+    name = "update_sha_test",
+    srcs = ["update_sha_test.sh"],
+    data = [
+        "update_sha.sh",
+        "@bazel_tools//tools/bash/runfiles",
+    ],
+)
+
+format_srcs()

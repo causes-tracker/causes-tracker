@@ -54,7 +54,7 @@ NATIVE_TOOLS = {
     "rustfmt": "bazel run //:format (or //tools:rustfmt)",
     # Database.
     "psql": "bazel run //infra/postgres:psql -- …",
-    "sqlx": "bazel run //tools:sqlx -- …",
+    "sqlx": "bazel run //tools/sqlx-cli:sqlx -- …",
     # Infrastructure.
     "tofu": "bazel run //infra:tofu -- …",
     "terraform": "bazel run //infra:tofu -- … (the repo uses OpenTofu)",

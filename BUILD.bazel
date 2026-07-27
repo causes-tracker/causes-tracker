@@ -156,7 +156,9 @@ _FORMAT_PACKAGES = [
     "//build/patches:",
     "//docs:",
     "//infra:",
+    "//infra/github:",
     "//infra/postgres:",
+    "//infra/terraform:",
     "//lib/rust/api_db:",
     "//lib/rust/causes_mcp:",
     "//lib/rust/causes_proto:",
@@ -168,6 +170,8 @@ _FORMAT_PACKAGES = [
     "//tools:",
     "//tools/lint:",
     "//tools/proto-gen:",
+    "//tools/renovate:",
+    "//tools/sqlx-cli:",
 ]
 
 # Aggregate each language's per-package filegroups into one non-empty filegroup.

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Runs the hermetic sqlx binary built by //tools:sqlx_bin.
-# Usage: bazel run //tools:sqlx -- <sqlx args>
-#   e.g. bazel run //tools:sqlx -- migrate run
+# Runs the hermetic sqlx binary built by :sqlx_bin.
+# Usage: bazel run //tools/sqlx-cli:sqlx -- <sqlx args>
+#   e.g. bazel run //tools/sqlx-cli:sqlx -- migrate run
 set -euo pipefail
 
 # Standard Bazel 3-way runfiles init.
@@ -21,4 +21,4 @@ else
 fi
 
 cd "${BUILD_WORKSPACE_DIRECTORY}"
-exec "$(rlocation _main/tools/sqlx_bin)" "$@"
+exec "$(rlocation _main/tools/sqlx-cli/sqlx_bin)" "$@"

@@ -1,8 +1,15 @@
-load("//tools:defs.bzl", "cached_check", "cached_http_archive")
+load("//tools:defs.bzl", "cached_check", "cached_http_archive", "tree_tool")
 
 export_file(
     name = "pin",
     src = "BUCK",
+    visibility = ["PUBLIC"],
+)
+
+tree_tool(
+    name = "py",
+    path = "bin/python3",
+    tree = ":cpython",
     visibility = ["PUBLIC"],
 )
 
@@ -22,7 +29,7 @@ cached_http_archive(
 
 cached_check(
     name = "cpython_layout_test",
-    exe = "//tools:py",
+    exe = ":py",
     srcs = [
         "cpython_layout_test.py",
         ":cpython",

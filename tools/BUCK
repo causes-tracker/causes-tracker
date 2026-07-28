@@ -1,11 +1,4 @@
-load(":defs.bzl", "cached_check", "tree_tool")
-
-tree_tool(
-    name = "py",
-    path = "bin/python3",
-    tree = "//third_party/python:cpython",
-    visibility = ["PUBLIC"],
-)
+load(":defs.bzl", "cached_check")
 
 export_file(
     name = "agent_action_guard_src",
@@ -14,14 +7,14 @@ export_file(
 
 command_alias(
     name = "agent_action_guard",
-    exe = ":py",
+    exe = "//third_party/python:py",
     args = ["$(location :agent_action_guard_src)"],
     visibility = ["PUBLIC"],
 )
 
 cached_check(
     name = "py_version_check",
-    exe = ":py",
+    exe = "//third_party/python:py",
     srcs = [
         "py_version_check.py",
         "//third_party/python:pin",

@@ -16,7 +16,7 @@ busybox(
 
 cached_check(
     name = "busybox_test",
-    exe = "//tools:py",
+    exe = "//third_party/python:py",
     srcs = [
         "busybox_test.py",
         ":busybox",
@@ -31,7 +31,7 @@ busybox_rootfs(
 
 cached_check(
     name = "rootfs_test",
-    exe = "//tools:py",
+    exe = "//third_party/python:py",
     srcs = [
         "busybox_rootfs_test.py",
         ":rootfs",
@@ -42,14 +42,14 @@ worker_layer(
     name = "layer",
     digest = WORKER_LAYER_DIGEST,
     exec_compatible_with = ["//platforms:image_build_enabled"],
-    py = "//tools:py",
+    py = "//third_party/python:py",
     rootfs = ":rootfs",
     script = "make_layer.py",
 )
 
 cached_check(
     name = "layer_test",
-    exe = "//tools:py",
+    exe = "//third_party/python:py",
     srcs = [
         "layer_test.py",
         ":layer",

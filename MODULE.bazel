@@ -56,7 +56,7 @@ http_file(
     name = "postgresql_linux_amd64",
     downloaded_file_path = "postgresql.tar.gz",
     sha256 = "463422cb007fd15bb37819b1d3562392dd81bba385205fbd0eef4891cb1d18b5",
-    url = "https://github.com/theseus-rs/postgresql-binaries/releases/download/17.9.0/postgresql-17.9.0-x86_64-unknown-linux-gnu.tar.gz",
+    url = "https://github.com/theseus-rs/postgresql-binaries/releases/download/17.10.0/postgresql-17.10.0-x86_64-unknown-linux-gnu.tar.gz",
 )
 
 # Eclipse Temurin JRE 21 for Linux x86_64.  Used by //infra/tla to run TLC.

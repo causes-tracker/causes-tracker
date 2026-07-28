@@ -36,6 +36,8 @@ Skip this checklist only for routine pushes with no rebase/reorder.
 
 1. **No raw git.** Never run `git commit`, `git push`, `git checkout`, etc.
    Use `jj describe`, `jj git push`, `jj new`, etc.
+   A harness git worktree (`EnterWorktree`, under `.claude/worktrees/`) cannot host jj: it has no `.jj`, so jj commands there operate on the main workspace instead.
+   Isolate background work in a jj workspace outside the repo (see `.claude/rules/project/project_buck2_bazel_isolation.md`), and if the harness forces edits inside its own worktree stop and ask rather than falling back to raw git.
 
 2. **No staging area.** `@` (the working copy) IS the commit.
    Edits are tracked automatically.

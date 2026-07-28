@@ -64,7 +64,8 @@
       "Bash(bash tools/check.sh ci //...)"
     ],
     "deny": [
-      "Read(~/.aws/credentials)"
+      "Read(~/.aws/credentials)",
+      "Bash(git:*)"
     ]
   }
 }

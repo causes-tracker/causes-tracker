@@ -44,7 +44,7 @@ export PATH="$bindir:$PATH"
 # ---- fixture repo: the real renovate.json, backdated pins ----
 repo="$work/repo"
 mkdir -p "$repo/tools/nativelink" "$repo/tools/crun" \
-	"$repo/third_party/crane" "$repo/third_party/python"
+	"$repo/third_party/crane" "$repo/third_party/python" "$repo/.devcontainer"
 cp "$renovate_json" "$repo/renovate.json"
 sed 's/^NATIVELINK_VERSION=.*/NATIVELINK_VERSION=1.5.0/' \
 	"$nativelink_install" >"$repo/tools/nativelink/install.sh"
@@ -73,6 +73,29 @@ http_archive(
     sha256 = "8c88519b0ef0af9801fcdee419bbb12116bd9e6b18e162ae093c932d8b264050",
     url = "https://github.com/astral-sh/uv/releases/download/0.11.0/uv-x86_64-unknown-linux-gnu.tar.gz",
 )
+EOF
+# devcontainer feature pins: version and digest backdated together so the
+# customManagers regex over the lockfile must move both in one update.
+cat >"$repo/.devcontainer/devcontainer-lock.json" <<'EOF'
+{
+  "features": {
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
+      "version": "1.9.0",
+      "resolved": "ghcr.io/devcontainers/features/docker-outside-of-docker@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "integrity": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "ghcr.io/devcontainers/features/github-cli:1": {
+      "version": "1.0.0",
+      "resolved": "ghcr.io/devcontainers/features/github-cli@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "integrity": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "1.6.0",
+      "resolved": "ghcr.io/devcontainers/features/node@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "integrity": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  }
+}
 EOF
 git -C "$repo" -c init.defaultBranch=master init -q
 git -C "$repo" -c user.email=test@test -c user.name=test add -A
@@ -144,7 +167,10 @@ update_proposed() {
 # Every backdated pin must yield an update decision, not just extract.
 for dep in TraceMachina/nativelink containers/crun astral-sh/uv \
 	google/go-containerregistry busybox \
-	python/cpython astral-sh/python-build-standalone; do
+	python/cpython astral-sh/python-build-standalone \
+	ghcr.io/devcontainers/features/docker-outside-of-docker \
+	ghcr.io/devcontainers/features/github-cli \
+	ghcr.io/devcontainers/features/node; do
 	if grep -qF "\"depName\": \"${dep}\"" "$log"; then
 		echo "PASS: extracted depName ${dep}"
 	else
@@ -158,6 +184,25 @@ for dep in TraceMachina/nativelink containers/crun astral-sh/uv \
 		fail=1
 	fi
 done
+
+# python/cpython tags alpha/beta/rc candidates upstream (e.g. v3.15.0b4);
+# any proposed newValue must be a plain X.Y.Z release, never a pre-release.
+cpython_new_value() {
+	awk -v dep="\"depName\": \"python/cpython\"" '
+		/"depName": "/ { cur = (index($0, dep) > 0) }
+		cur && /"newValue"/ { print; exit }
+	' "$log" | grep -oE '"[0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9]*"' | tr -d '"'
+}
+new_value="$(cpython_new_value)"
+if [[ -z "$new_value" ]]; then
+	echo "FAIL: no newValue found for python/cpython to check"
+	fail=1
+elif [[ "$new_value" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+	echo "PASS: python/cpython newValue ${new_value} is a stable release"
+else
+	echo "FAIL: python/cpython newValue ${new_value} is a pre-release"
+	fail=1
+fi
 
 # The multi-axis pair moves together: one grouped branch carries both the
 # cpython version and the python-build-standalone date.

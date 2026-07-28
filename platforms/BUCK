@@ -1,5 +1,5 @@
 load("//tools/nativelink:pin.bzl", "WORKER_LAYER_DIGEST")
-load(":defs.bzl", "image_build_platform", "platform_group", "remote_cache_platform")
+load(":defs.bzl", "image_build_platform", "local_only_platform", "platform_group", "remote_cache_platform")
 
 remote_cache_platform(
     name = "default",
@@ -27,7 +27,27 @@ image_build_platform(
     os_configuration = "prelude//os:linux",
 )
 
+# Requesting this constraint value via `exec_compatible_with` routes a
+# target's actions to :local_only instead of :default — remote dispatch is
+# structurally unavailable there, not just discouraged.
+constraint_setting(
+    name = "local_only_setting",
+)
+
+constraint_value(
+    name = "local_only_enabled",
+    constraint_setting = ":local_only_setting",
+    visibility = ["PUBLIC"],
+)
+
+local_only_platform(
+    name = "local_only",
+    cpu_configuration = "prelude//cpu:x86_64",
+    local_only_marker = ":local_only_enabled",
+    os_configuration = "prelude//os:linux",
+)
+
 platform_group(
     name = "all",
-    platforms = [":default", ":image_build"],
+    platforms = [":default", ":image_build", ":local_only"],
 )

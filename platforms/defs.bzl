@@ -116,6 +116,55 @@ image_build_platform = rule(
     },
 )
 
+# For actions that must never reach a remote executor at all (e.g. a
+# credential baked into the command — remote dispatch requires uploading
+# the Action/Command proto to CAS as a precondition of execution, which
+# `allow_cache_uploads = False` does not prevent, since that only gates the
+# *result* write, not the *request* upload needed just to dispatch it).
+# remote_enabled = False removes the capability outright, the same shape as
+# `image_build`'s allow_cache_uploads = False: a target opting in this way
+# gets a real guarantee, not a scheduling preference like local_only on an
+# individual action would.
+def _local_only_impl(ctx: AnalysisContext) -> list[Provider]:
+    constraints = dict()
+    constraints.update(ctx.attrs.cpu_configuration[ConfigurationInfo].constraints)
+    constraints.update(ctx.attrs.os_configuration[ConfigurationInfo].constraints)
+    marker = ctx.attrs.local_only_marker[ConstraintValueInfo]
+    constraints[marker.setting.label] = marker
+    cfg = ConfigurationInfo(constraints = constraints, values = {})
+
+    name = ctx.label.raw_target()
+    platform = ExecutionPlatformInfo(
+        label = name,
+        configuration = cfg,
+        executor_config = CommandExecutorConfig(
+            local_enabled = True,
+            remote_enabled = False,
+            remote_cache_enabled = False,
+            allow_cache_uploads = False,
+            remote_execution_use_case = "buck2-default",
+            use_windows_path_separators = False,
+        ),
+    )
+
+    return [
+        DefaultInfo(),
+        platform,
+        PlatformInfo(label = str(name), configuration = cfg),
+        ExecutionPlatformRegistrationInfo(
+            platforms = [platform],
+        ),
+    ]
+
+local_only_platform = rule(
+    impl = _local_only_impl,
+    attrs = {
+        "cpu_configuration": attrs.dep(providers = [ConfigurationInfo]),
+        "local_only_marker": attrs.dep(providers = [ConstraintValueInfo]),
+        "os_configuration": attrs.dep(providers = [ConfigurationInfo]),
+    },
+)
+
 # `[build] execution_platforms` in .buckconfig names exactly one target, so
 # the registered platforms are combined here.
 # Order matters: a target with no exec_compatible_with matches the first

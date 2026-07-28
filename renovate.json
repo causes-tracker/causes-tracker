@@ -144,14 +144,14 @@
       "extractVersionTemplate": "^v(?<version>.*)$"
     },
     {
-      "description": "Any github release download pinned in a BUCK file or MODULE.bazel; owner/repo is the dep, so a new pinned github tool is tracked with no per-tool config. The renovate-sha workflow recomputes the sha256 on the bump PR (renovatebot/renovate#22183). The match runs to the closing quote so the whole URL is the replace target, and autoReplaceGlobalMatch (on by default) rewrites every occurrence of the version within it — needed when a version or date repeats in the asset filename.",
+      "description": "Any github release download pinned in a BUCK file or MODULE.bazel; owner/repo is the dep, so a new pinned github tool is tracked with no per-tool config. The renovate-sha workflow recomputes the sha256 on the bump PR (renovatebot/renovate#22183). The match runs to the closing quote so the whole URL is the replace target, and autoReplaceGlobalMatch (on by default) rewrites every occurrence of the version within it — needed when a version or date repeats in the asset filename. currentValue excludes any leading v so a v-prefixed tag path plus a bare-version filename (e.g. opentofu, protoc-gen-doc) both rewrite; a v-prefixed capture would leave the filename stale and 404.",
       "customType": "regex",
       "managerFilePatterns": [
         "/(^|/)BUCK$/",
         "/^MODULE\\.bazel$/"
       ],
       "matchStrings": [
-        "https://github\\.com/(?<depName>[^/\"]+/[^/\"]+)/releases/download/(?<currentValue>[^/\"]+)/[^\"]*"
+        "https://github\\.com/(?<depName>[^/\"]+/[^/\"]+)/releases/download/v?(?<currentValue>[^/\"]+)/[^\"]*"
       ],
       "datasourceTemplate": "github-releases"
     },

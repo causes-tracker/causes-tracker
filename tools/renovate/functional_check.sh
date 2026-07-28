@@ -73,6 +73,11 @@ http_archive(
     sha256 = "8c88519b0ef0af9801fcdee419bbb12116bd9e6b18e162ae093c932d8b264050",
     url = "https://github.com/astral-sh/uv/releases/download/0.11.0/uv-x86_64-unknown-linux-gnu.tar.gz",
 )
+http_archive(
+    name = "opentofu_linux_amd64",
+    sha256 = "0000000000000000000000000000000000000000000000000000000000000000",
+    url = "https://github.com/opentofu/opentofu/releases/download/v1.11.0/tofu_1.11.0_linux_amd64.zip",
+)
 EOF
 # devcontainer feature pins: version and digest backdated together so the
 # customManagers regex over the lockfile must move both in one update.
@@ -166,7 +171,7 @@ update_proposed() {
 
 # Every backdated pin must yield an update decision, not just extract.
 for dep in TraceMachina/nativelink containers/crun astral-sh/uv \
-	google/go-containerregistry busybox \
+	google/go-containerregistry busybox opentofu/opentofu \
 	python/cpython astral-sh/python-build-standalone \
 	ghcr.io/devcontainers/features/docker-outside-of-docker \
 	ghcr.io/devcontainers/features/github-cli \
@@ -201,6 +206,27 @@ elif [[ "$new_value" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
 	echo "PASS: python/cpython newValue ${new_value} is a stable release"
 else
 	echo "FAIL: python/cpython newValue ${new_value} is a pre-release"
+	fail=1
+fi
+
+# opentofu's release URL carries the version twice — v1.11.0 in the path,
+# 1.11.0 in the filename — and autoReplaceGlobalMatch rewrites occurrences of
+# the captured currentValue verbatim. Only a bare (no-v) currentValue reaches
+# the filename; a v-prefixed one rewrites the path alone, leaving a 404 (#516).
+opentofu_current_value() {
+	awk -v dep="\"depName\": \"opentofu/opentofu\"" '
+		/"depName": "/ { cur = (index($0, dep) > 0) }
+		cur && /"currentValue"/ { print; exit }
+	' "$log" | grep -oE '"[^"]+"' | tail -1 | tr -d '"'
+}
+otf_cv="$(opentofu_current_value)"
+if [[ -z "$otf_cv" ]]; then
+	echo "FAIL: no currentValue found for opentofu/opentofu to check"
+	fail=1
+elif [[ "$otf_cv" =~ ^[0-9] ]]; then
+	echo "PASS: opentofu currentValue ${otf_cv} is the bare version"
+else
+	echo "FAIL: opentofu currentValue ${otf_cv} keeps a prefix; the filename won't rewrite"
 	fail=1
 fi
 

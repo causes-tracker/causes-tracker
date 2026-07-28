@@ -55,7 +55,7 @@ http_file(
 http_file(
     name = "postgresql_linux_amd64",
     downloaded_file_path = "postgresql.tar.gz",
-    sha256 = "333937dac26a33d367810b0db20892bbca6cf244f670e26f54f3e0b57dcb50b6",
+    sha256 = "65c06cf318b9a57525d842d658d6d18cd461d12b3a89b57d6d8ed7cccbe2db53",
     url = "https://github.com/theseus-rs/postgresql-binaries/releases/download/18.4.0/postgresql-18.4.0-x86_64-unknown-linux-gnu.tar.gz",
 )
 

@@ -5,7 +5,7 @@ services:
     # To update:
     #   docker pull pgvector/pgvector:pg17
     #   docker inspect --format='{{index .RepoDigests 0}}' pgvector/pgvector:pg17
-    image: pgvector/pgvector:pg17@sha256:815bf5378222044da3b34d98e6a5fdac37b15c428b67d09c7c2d90a038e597bf
+    image: pgvector/pgvector:pg17@sha256:f193b9c848deb27b0e892f85ed07b53fd83ccb1feb634ba415b1cdc44411bedc
     environment:
       POSTGRES_USER: causes
       POSTGRES_PASSWORD: causes

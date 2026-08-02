@@ -156,6 +156,19 @@
       "datasourceTemplate": "github-releases"
     },
     {
+      "description": "An Alpine apk pinned by cached_http_archive URL in a BUCK file; repology tracks the upstream version. The -r package revision and sha256 are recomputed by the renovate-sha workflow on the bump PR (renovatebot/renovate#22183).",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/(^|/)BUCK$/"
+      ],
+      "matchStrings": [
+        "https://dl-cdn\\.alpinelinux\\.org/alpine/v3\\.19/[^/]+/[^/]+/(?<depName>[a-z][a-z0-9-]*)-(?<currentValue>\\d[\\w.]*)-r\\d+\\.apk"
+      ],
+      "datasourceTemplate": "repology",
+      "packageNameTemplate": "alpine_3_19/{{{depName}}}",
+      "versioningTemplate": "loose"
+    },
+    {
       "description": "A digest-pinned docker image in a BUCK file; the digest is content-addressed, so no sha-recompute is needed.",
       "customType": "regex",
       "managerFilePatterns": [

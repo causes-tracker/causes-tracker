@@ -50,7 +50,10 @@ sed 's/^NATIVELINK_VERSION=.*/NATIVELINK_VERSION=1.5.0/' \
 	"$nativelink_install" >"$repo/tools/nativelink/install.sh"
 sed 's/^CRUN_VERSION=.*/CRUN_VERSION=1.20/' \
 	"$crun_install" >"$repo/tools/crun/install.sh"
-sed -E 's/busybox:[0-9.]+-musl@sha256:[0-9a-f]+/busybox:1.36.0-musl@sha256:0000000000000000000000000000000000000000000000000000000000000000/' \
+# busybox and tzdata backdated so their managers must propose an update.
+sed -E \
+	-e 's/busybox:[0-9.]+-musl@sha256:[0-9a-f]+/busybox:1.36.0-musl@sha256:0000000000000000000000000000000000000000000000000000000000000000/' \
+	-e 's/tzdata-[0-9a-z.]+-r[0-9]+\.apk/tzdata-2024a-r0.apk/' \
 	"$nativelink_buck" >"$repo/tools/nativelink/BUCK"
 sed 's|download/v[0-9.]*/|download/v0.19.0/|' \
 	"$crane_buck" >"$repo/third_party/crane/BUCK"
@@ -171,7 +174,7 @@ update_proposed() {
 
 # Every backdated pin must yield an update decision, not just extract.
 for dep in TraceMachina/nativelink containers/crun astral-sh/uv \
-	google/go-containerregistry busybox opentofu/opentofu \
+	google/go-containerregistry busybox tzdata opentofu/opentofu \
 	python/cpython astral-sh/python-build-standalone \
 	ghcr.io/devcontainers/features/docker-outside-of-docker \
 	ghcr.io/devcontainers/features/github-cli \

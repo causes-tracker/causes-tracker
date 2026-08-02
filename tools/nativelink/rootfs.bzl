@@ -2,21 +2,27 @@
 # mount-point directories the runtime expects.
 def _busybox_rootfs_impl(ctx: AnalysisContext) -> list[Provider]:
     busybox = ctx.attrs.busybox[DefaultInfo].default_outputs[0]
+    bash = ctx.attrs.bash[DefaultInfo].default_outputs[0]
     out = ctx.actions.declare_output("rootfs", dir = True)
     script = """
 set -eu
 bb="$1"
 root="$2"
-mkdir -p "$root/bin" "$root/tmp" "$root/proc" "$root/dev" "$root/etc"
+bash="$3"
+mkdir -p "$root/bin" "$root/usr/bin" "$root/tmp" "$root/proc" "$root/dev" "$root/etc"
 cp "$bb" "$root/bin/busybox"
 chmod 0755 "$root/bin/busybox"
 "$bb" --list | while read -r applet; do
   [ "$applet" = busybox ] && continue
+  # env also at /usr/bin, where #!/usr/bin/env shebangs look.
+  [ "$applet" = env ] && ln -s /bin/busybox "$root/usr/bin/env"
   ln -s busybox "$root/bin/$applet"
 done
+# Real bash, not the busybox applet: the cc/cxx build-script shims use BASH_SOURCE.
+cp -a "$bash/." "$root/"
 """
     ctx.actions.run(
-        cmd_args("/bin/sh", "-c", script, "rootfs", busybox, out.as_output()),
+        cmd_args("/bin/sh", "-c", script, "rootfs", busybox, out.as_output(), bash),
         category = "busybox_rootfs",
     )
     return [DefaultInfo(default_output = out)]
@@ -24,6 +30,7 @@ done
 busybox_rootfs = rule(
     impl = _busybox_rootfs_impl,
     attrs = {
+        "bash": attrs.dep(providers = [DefaultInfo]),
         "busybox": attrs.dep(providers = [DefaultInfo]),
     },
 )

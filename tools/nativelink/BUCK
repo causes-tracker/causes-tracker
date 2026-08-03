@@ -1,4 +1,5 @@
 load("//tools:defs.bzl", "cached_check")
+load("//tools/nativelink:bash.bzl", "bash_bundle")
 load("//tools/nativelink:busybox.bzl", "busybox")
 load("//tools/nativelink:layer.bzl", "worker_layer")
 load("//tools/nativelink:pin.bzl", "WORKER_LAYER_DIGEST")
@@ -35,8 +36,16 @@ cached_check(
     ],
 )
 
+bash_bundle(
+    name = "bash",
+    crane = "//third_party/crane:crane[crane]",
+    exec_compatible_with = ["//platforms:image_build_enabled"],
+    image = "bash:5.2@sha256:3bee76a96d86d5d2d5efc7c1c570e5a7c95db22348a26944e0e546fa174e3324",
+)
+
 busybox_rootfs(
     name = "rootfs",
+    bash = ":bash",
     busybox = ":busybox",
     exec_compatible_with = ["//platforms:image_build_enabled"],
 )

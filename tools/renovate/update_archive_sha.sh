@@ -16,7 +16,7 @@ set -euo pipefail
 # The trailing size_bytes field is emitted only when the block declares one.
 archives_of() {
 	[[ -f "$1" ]] || return 0
-	local line name="" sha="" url="" size="" quotes in_string=0
+	local line name="" sha="" url="" size="" quotes in_string=0 dsha durl dname
 	while IFS= read -r line; do
 		# Lines inside (or delimiting) a triple-quoted string are literal
 		# content, not fields or block ends.
@@ -26,6 +26,17 @@ archives_of() {
 			continue
 		fi
 		if [[ "$in_string" == 1 ]]; then
+			continue
+		fi
+		# A one-line dict pin ({"sha256": ..., "url": ...}, e.g. an apk package
+		# list entry) is self-contained; its stable key is the package name,
+		# the url basename up to its version.
+		if [[ "$line" == *'"sha256": "'* && "$line" == *'"url": "'* ]]; then
+			dsha="$(sed -n 's/.*"sha256": "\([^"]*\)".*/\1/p' <<<"$line")"
+			durl="$(sed -n 's/.*"url": "\([^"]*\)".*/\1/p' <<<"$line")"
+			dname="${durl##*/}"
+			dname="${dname%%-[0-9]*}"
+			printf '%s\t%s\t%s\n' "$dname" "$dsha" "$durl"
 			continue
 		fi
 		[[ "$line" == *'name = "'* ]] && name="$(sed -n 's/.*name = "\([^"]*\)".*/\1/p' <<<"$line")"

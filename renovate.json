@@ -162,7 +162,7 @@
         "/(^|/)BUCK$/"
       ],
       "matchStrings": [
-        "https://dl-cdn\\.alpinelinux\\.org/alpine/v3\\.19/[^/]+/[^/]+/(?<depName>[a-z][a-z0-9-]*)-(?<currentValue>\\d[\\w.]*)-r\\d+\\.apk"
+        "https://dl-cdn\\.alpinelinux\\.org/alpine/v3\\.19/[^/]+/[^/]+/(?<depName>[a-z][a-z0-9+-]*)-(?<currentValue>\\d[\\w.]*)-r\\d+\\.apk"
       ],
       "datasourceTemplate": "repology",
       "packageNameTemplate": "alpine_3_19/{{{depName}}}",

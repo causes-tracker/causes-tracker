@@ -188,6 +188,33 @@ PATH="$stub:$PATH" main "$tmp/work3" "$tmp/base3"
 expect "main recomputes size_bytes for the changed archive" "size_bytes = ${#new_url}," \
 	"$(sed -n 's/.*\(size_bytes = [0-9]*,\).*/\1/p' "$tmp/work3")"
 
+# One-line dict pins ({"sha256": ..., "url": ...}, e.g. apk package lists) are
+# keyed by package name — the url basename up to its version.
+cat >"$tmp/BUCK_dict" <<'EOF'
+musl_runtime(
+    name = "musl_runtime",
+    packages = [
+        {"sha256": "1111", "url": "https://dl-cdn.alpinelinux.org/alpine/v3.19/main/x86_64/musl-1.2.4_git20230717-r6.apk"},
+        {"sha256": "2222", "url": "https://dl-cdn.alpinelinux.org/alpine/v3.19/main/x86_64/lz4-libs-1.9.4-r5.apk"},
+    ],
+)
+EOF
+expect "archives_of reads dict pins keyed by package name" \
+	$'musl\t1111\thttps://dl-cdn.alpinelinux.org/alpine/v3.19/main/x86_64/musl-1.2.4_git20230717-r6.apk\nlz4-libs\t2222\thttps://dl-cdn.alpinelinux.org/alpine/v3.19/main/x86_64/lz4-libs-1.9.4-r5.apk' \
+	"$(archives_of "$tmp/BUCK_dict")"
+
+# main recomputes a dict pin's sha when its URL changes vs base.
+cat >"$tmp/base4" <<'EOF'
+    {"sha256": "MMMM", "url": "https://dl-cdn.alpinelinux.org/alpine/v3.19/main/x86_64/musl-1.2.4_git20230717-r6.apk"},
+EOF
+cat >"$tmp/work4" <<'EOF'
+    {"sha256": "MMMM", "url": "https://dl-cdn.alpinelinux.org/alpine/v3.19/main/x86_64/musl-1.2.4_git20230717-r7.apk"},
+EOF
+want_musl="$(printf '%s' 'https://dl-cdn.alpinelinux.org/alpine/v3.19/main/x86_64/musl-1.2.4_git20230717-r7.apk' | sha256sum | awk '{print $1}')"
+PATH="$stub:$PATH" main "$tmp/work4" "$tmp/base4"
+expect "main recomputes a changed dict pin" "\"sha256\": \"${want_musl}\"" \
+	"$(sed -n 's/.*\("sha256": "[0-9a-f]*"\).*/\1/p' "$tmp/work4")"
+
 echo ""
 echo "$PASS passed, $FAIL failed"
 [[ "$FAIL" -eq 0 ]]

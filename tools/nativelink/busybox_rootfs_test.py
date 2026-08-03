@@ -37,4 +37,10 @@ for d in ("tmp", "proc", "dev", "etc"):
 env = os.path.join(root, "usr", "bin", "env")
 assert os.path.islink(env), env
 
+passwd = open(os.path.join(root, "etc", "passwd"), encoding="utf-8").read()
+assert ":12021:0:" in passwd, passwd
+hosts = open(os.path.join(root, "etc", "hosts"), encoding="utf-8").read()
+assert "127.0.0.1 localhost" in hosts, hosts
+assert os.path.isfile(os.path.join(root, "usr", "share", "zoneinfo", "UTC")), "zoneinfo/UTC"
+
 open(sys.argv[2], "w", encoding="utf-8").write("ok")

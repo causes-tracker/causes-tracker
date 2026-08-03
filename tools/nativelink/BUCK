@@ -1,4 +1,4 @@
-load("//tools:defs.bzl", "cached_check")
+load("//tools:defs.bzl", "cached_check", "cached_http_archive")
 load("//tools/nativelink:bash.bzl", "bash_bundle")
 load("//tools/nativelink:busybox.bzl", "busybox")
 load("//tools/nativelink:layer.bzl", "worker_layer")
@@ -43,11 +43,21 @@ bash_bundle(
     image = "bash:5.2@sha256:3bee76a96d86d5d2d5efc7c1c570e5a7c95db22348a26944e0e546fa174e3324",
 )
 
+cached_http_archive(
+    name = "tzdata",
+    exec_compatible_with = ["//platforms:image_build_enabled"],
+    paths = ["usr/share/zoneinfo"],
+    sha256 = "348693272f53109aa9687e022b52f27086f1d86ac3fc5a6be36f334b06c2f454",
+    urls = ["https://dl-cdn.alpinelinux.org/alpine/v3.19/main/x86_64/tzdata-2025b-r0.apk"],
+    visibility = ["//tools/renovate:"],
+)
+
 busybox_rootfs(
     name = "rootfs",
     bash = ":bash",
     busybox = ":busybox",
     exec_compatible_with = ["//platforms:image_build_enabled"],
+    zoneinfo = ":tzdata",
 )
 
 cached_check(

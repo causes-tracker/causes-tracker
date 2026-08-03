@@ -40,7 +40,7 @@ bash_bundle(
     name = "bash",
     crane = "//third_party/crane:crane[crane]",
     exec_compatible_with = ["//platforms:image_build_enabled"],
-    image = "bash:5.2@sha256:3bee76a96d86d5d2d5efc7c1c570e5a7c95db22348a26944e0e546fa174e3324",
+    image = "bash:5.3@sha256:a19c811ee9e97fa8a080001d82b8e0ded303f0795cffdb1cbd162731bc8ce208",
 )
 
 busybox_rootfs(

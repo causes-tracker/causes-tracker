@@ -1,0 +1,41 @@
+load("//third_party/musl:defs.bzl", "musl_shims")
+load("//tools:defs.bzl", "cached_check", "cached_http_archive", "shellcheck_package")
+
+# theseus-rs/postgresql-binaries publishes a musl target; the from-scratch
+# busybox worker needs the musl build.
+cached_http_archive(
+    name = "postgres_extracted",
+    sha256 = "c864af924c32dadfeaca61585fc7092679c8b6374162e62e96e33d9ece0d55c2",
+    size_bytes = 26108430,
+    strip_components = 1,
+    urls = ["https://github.com/theseus-rs/postgresql-binaries/releases/download/18.6.0/postgresql-18.6.0-x86_64-unknown-linux-musl.tar.gz"],
+)
+
+musl_shims(
+    name = "pg_shims",
+    bins = [
+        "initdb",
+        "pg_ctl",
+        "postgres",
+        "psql",
+    ],
+    dirs = [
+        "lib",
+        "share",
+    ],
+    dist = ":postgres_extracted",
+    runtime = "//third_party/musl:musl_runtime",
+)
+
+cached_check(
+    name = "pg_smoke_test",
+    exe = "//tools:bash",
+    srcs = [
+        "pg_smoke_test.sh",
+        "pg_fixture.sh",
+        ":pg_shims",
+        "//third_party/musl:musl_runtime",
+    ],
+)
+
+shellcheck_package()

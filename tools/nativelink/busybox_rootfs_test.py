@@ -18,12 +18,7 @@ applets = set(
 for applet in ("sh", "tar", "ls", "ln"):
     link = os.path.join(root, "bin", applet)
     assert os.path.islink(link) and os.readlink(link) == "busybox", link
-# bash is a real musl binary staged next to the applet symlinks (buck2's
-# prelude build-script and clippy wrappers are #!/usr/bin/env bash and use
-# BASH_SOURCE), not a busybox applet, so it is excluded from the symlink set.
-bash = os.path.join(root, "bin", "bash")
-assert os.path.isfile(bash) and not os.path.islink(bash) and os.access(bash, os.X_OK), bash
-links = {n for n in os.listdir(os.path.join(root, "bin")) if n not in ("busybox", "bash")}
+links = {n for n in os.listdir(os.path.join(root, "bin")) if n != "busybox"}
 assert links == applets - {"busybox"}, sorted(applets - {"busybox"} ^ links)
 
 echoed = subprocess.run(

@@ -151,6 +151,7 @@ musl_runtime(
         ":icu-data-en",
     ],
     script = "stage_runtime.sh",
+    visibility = ["//infra/postgres:"],
 )
 
 cached_check(

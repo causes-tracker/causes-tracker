@@ -29,7 +29,10 @@ def _impl(ctx: AnalysisContext) -> list[Provider]:
             remote_enabled = True,
             remote_cache_enabled = True,
             allow_cache_uploads = True,
-            remote_execution_properties = {},
+            # container-image keys every action to the worker image, so a
+            # WORKER_LAYER_DIGEST bump invalidates the cache and re-runs on the
+            # new image rather than serving results produced under the old rootfs.
+            remote_execution_properties = {"container-image": ctx.attrs.container_image},
             remote_execution_use_case = "buck2-default",
             use_windows_path_separators = False,
         ),
@@ -47,6 +50,7 @@ def _impl(ctx: AnalysisContext) -> list[Provider]:
 remote_cache_platform = rule(
     impl = _impl,
     attrs = {
+        "container_image": attrs.string(doc = "Worker layer digest, advertised as the container-image RE property."),
         "cpu_configuration": attrs.dep(providers = [ConfigurationInfo]),
         "os_configuration": attrs.dep(providers = [ConfigurationInfo]),
     },

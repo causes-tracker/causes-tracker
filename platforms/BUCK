@@ -3,6 +3,7 @@ load(":defs.bzl", "image_build_platform", "local_only_platform", "platform_group
 
 remote_cache_platform(
     name = "default",
+    container_image = WORKER_LAYER_DIGEST,
     cpu_configuration = "prelude//cpu:x86_64",
     os_configuration = "prelude//os:linux",
 )

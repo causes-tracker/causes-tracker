@@ -54,7 +54,6 @@ cached_http_archive(
 
 busybox_rootfs(
     name = "rootfs",
-    bash = ":bash",
     busybox = ":busybox",
     exec_compatible_with = ["//platforms:image_build_enabled"],
     zoneinfo = ":tzdata",

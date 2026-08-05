@@ -4,6 +4,7 @@ load("//tools/nativelink:busybox.bzl", "busybox")
 load("//tools/nativelink:layer.bzl", "worker_layer")
 load("//tools/nativelink:pin.bzl", "WORKER_LAYER_DIGEST")
 load("//tools/nativelink:rootfs.bzl", "busybox_rootfs")
+load("//tools/nativelink:rootfs_manifest.bzl", "rootfs_manifest_diff", "rootfs_manifest_update")
 
 export_file(
     name = "install_sh",
@@ -66,6 +67,49 @@ cached_check(
         "busybox_rootfs_test.py",
         ":rootfs",
     ],
+)
+
+# The golden rootfs.manifest reads back the layer tar and lists every field its
+# digest depends on, so a re-pin's PR diff shows what changed in the worker
+# image. On a re-pin, regenerate it alongside WORKER_LAYER_DIGEST with:
+#   buck2 run //tools/nativelink:rootfs_manifest_update
+cached_check(
+    name = "rootfs_manifest_test",
+    exe = "//third_party/python:py",
+    srcs = [
+        "rootfs_manifest.py",
+        ":layer[layer]",
+        "rootfs.manifest",
+    ],
+)
+
+cached_check(
+    name = "rootfs_manifest_unit_test",
+    exe = "//third_party/python:py",
+    srcs = [
+        "rootfs_manifest_unit_test.py",
+        "rootfs_manifest.py",
+    ],
+)
+
+rootfs_manifest_update(
+    name = "rootfs_manifest_update",
+    dest = "tools/nativelink/rootfs.manifest",
+    exec_compatible_with = ["//platforms:image_build_enabled"],
+    py = "//third_party/python:py",
+    script = "rootfs_manifest.py",
+    tar = ":layer[layer]",
+)
+
+# buck2.sh builds this and prints it when the bootstrap digest check fails, so a
+# worker-layer pin mismatch describes the rootfs change, not two hashes.
+rootfs_manifest_diff(
+    name = "rootfs_manifest_diff",
+    exec_compatible_with = ["//platforms:image_build_enabled"],
+    golden = "rootfs.manifest",
+    py = "//third_party/python:py",
+    script = "rootfs_manifest.py",
+    tar = ":layer[layer]",
 )
 
 worker_layer(

@@ -44,6 +44,19 @@ if [[ -e "$root/.buckroot" ]] && no_daemon; then
 	# so the next command starts fresh under the committed config.
 	buck2-bin kill >/dev/null 2>&1 || true
 	if [[ "$bootstrap_rc" -ne 0 ]]; then
+		# The validated :layer build fails when the built tar's digest does
+		# not match the pin; :layer[layer] is that tar without the check, so
+		# its manifest still builds. Diff it against the committed golden to
+		# describe the rootfs change.
+		if manifest_diff="$(buck2-bin build --local-only \
+			--show-full-simple-output \
+			//tools/nativelink:rootfs_manifest_diff 2>/dev/null)" &&
+			[[ -s "$manifest_diff" ]]; then
+			echo "error: worker-layer digest does not match the pin; the" \
+				"built rootfs differs from tools/nativelink/rootfs.manifest:" >&2
+			cat "$manifest_diff" >&2
+		fi
+		buck2-bin kill >/dev/null 2>&1 || true
 		echo "error: local-only build of //tools/nativelink:layer" \
 			"failed; refusing to start NativeLink over unverified bytes" >&2
 		exit 1

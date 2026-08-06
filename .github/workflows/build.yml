@@ -189,6 +189,23 @@ jobs:
       # NativeLink and warms the shared cache; nothing here executes local.
       - name: Build buck2 targets
         run: buck2 build --remote-only $REMOTE_ONLY_TARGETS
+      # A rootfs pin bump reshapes the worker image; diff the built tar's
+      # manifest against the base golden so review sees the member-level
+      # change without depending on the author regenerating rootfs.manifest.
+      - name: "Rootfs digest change: show the rootfs manifest diff"
+        if: steps.pin_check.outputs.pin_changed == 'true'
+        run: |
+          base="${{ steps.base_head.outputs.base }}"
+          git show "$base:tools/nativelink/rootfs.manifest" \
+            >"$RUNNER_TEMP/base.manifest" 2>/dev/null \
+            || : >"$RUNNER_TEMP/base.manifest"
+          tar="$(buck2 build --show-simple-output '//tools/nativelink:layer[layer]')"
+          buck2 run //third_party/python:py -- \
+            tools/nativelink/rootfs_manifest.py diff \
+            "$RUNNER_TEMP/base.manifest" "$tar" "$RUNNER_TEMP/manifest.diff"
+          echo "::group::worker rootfs manifest change (vs base)"
+          cat "$RUNNER_TEMP/manifest.diff"
+          echo "::endgroup::"
       # A green cached build cannot distinguish "cache works" from
       # "permanently missing"; only a demonstrated hit proves the read path.
       # buck2 clean + kill destroys buck2's local state, so the required

@@ -111,7 +111,7 @@ filegroup(
 http_archive(
     name = "uv_linux_amd64",
     build_file_content = """exports_files(["uv"])""",
-    sha256 = "eaf842262aa1c418d8ecc5605f02ee1ebfd369124fa48548e85f9481a47831a9",
+    sha256 = "90b2f223fb69d19db49e117da601f64978593417988530aa733d456141b4bcbb",
     strip_prefix = "uv-x86_64-unknown-linux-gnu",
     url = "https://github.com/astral-sh/uv/releases/download/0.12.1/uv-x86_64-unknown-linux-gnu.tar.gz",
 )

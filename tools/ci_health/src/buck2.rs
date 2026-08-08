@@ -121,15 +121,19 @@ fn parse_commands(rest: &str) -> Result<Commands> {
     })
 }
 
-/// Parse `Up: 270KiB  Down: 90MiB  (GRPC-SESSION-ID)`.
+/// Parse buck2's `Network:` remainder, accepting both the
+/// `Up: 270KiB  Down: 90MiB  (SESSION)` and `up 5.1KiB  down 4.2MiB  session
+/// SESSION` shapes.
 fn parse_network(rest: &str) -> Result<Network> {
-    let side = |key: &str| -> Result<u64> {
-        let val = after(rest, key).with_context(|| format!("missing {key}"))?;
+    let side = |upper: &str, lower: &str| -> Result<u64> {
+        let val = after(rest, upper)
+            .or_else(|| after(rest, lower))
+            .with_context(|| format!("missing {lower}"))?;
         parse_size(token(val))
     };
     Ok(Network {
-        up: side("Up: ")?,
-        down: side("Down: ")?,
+        up: side("Up: ", "up ")?,
+        down: side("Down: ", "down ")?,
     })
 }
 
@@ -221,6 +225,25 @@ BUILD SUCCEEDED
         assert_eq!(got[0].bytes_uploaded, 0);
         assert_eq!(got[0].bytes_downloaded, 0);
         assert_eq!(got[0].commands_cached, 0);
+    }
+
+    /// The newer buck2 `Network:` line shape: lowercase `up`/`down` with a
+    /// `session` label.
+    #[test]
+    fn parses_newer_network_line_shape() {
+        let log = "\
+[2026-08-08T11:58:50.676+00:00] Build ID: aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
+[2026-08-08T11:58:50.676+00:00] Commands: 7 (cached: 4, remote: 0, local: 3)
+[2026-08-08T11:58:50.676+00:00] Network: up 5.1KiB  down 4.2MiB  session GRPC-SESSION-ID
+BUILD SUCCEEDED
+";
+        let got = extract_invocations(log).unwrap();
+        assert_eq!(got.len(), 1);
+        assert_eq!(got[0].bytes_uploaded, (5.1_f64 * 1024.0).round() as u64);
+        assert_eq!(
+            got[0].bytes_downloaded,
+            (4.2_f64 * 1024.0 * 1024.0).round() as u64
+        );
     }
 
     /// `buck2 clean` / `buck2 kill` print a `Build ID:` but run no

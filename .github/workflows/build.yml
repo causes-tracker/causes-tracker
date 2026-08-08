@@ -22,6 +22,10 @@ env:
     --build_metadata=GITHUB_PR_NUMBER=${{ github.event.pull_request.number }}
     --build_metadata=GITHUB_BRANCH=${{ github.ref_name }}
     --build_metadata=GITHUB_JOB=${{ github.job }}
+# GitHub's default step shell (`bash -e {0}`) omits pipefail; force our own.
+defaults:
+  run:
+    shell: bash --noprofile --norc -euo pipefail {0}
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -84,7 +88,8 @@ jobs:
             git cat-file -e "$base^{commit}"
             git cat-file -e "$head^{commit}"
           fi
-          echo "orig_head=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          orig_head="$(git rev-parse HEAD)"
+          echo "orig_head=$orig_head" >> "$GITHUB_OUTPUT"
           echo "base=$base" >> "$GITHUB_OUTPUT"
           echo "head=$head" >> "$GITHUB_OUTPUT"
       # See tools/nativelink/README.md, "Changing the rootfs digest".
@@ -183,6 +188,8 @@ jobs:
       - name: Compute --remote-only target set
         run: |
           targets="$(buck2 uquery '//... - //tools/renovate:functional_check' | tr '\n' ' ')"
+          # an empty result exits 0, so pipefail can't catch it; reject it here.
+          [ -n "${targets// /}" ] || { echo "empty --remote-only target set" >&2; exit 1; }
           echo "REMOTE_ONLY_TARGETS=$targets" >> "$GITHUB_ENV"
       # --remote-only: CI is the trusted executor environment, so every
       # action — including the hybrid image-build platform's — runs on
@@ -197,8 +204,7 @@ jobs:
         run: |
           base="${{ steps.base_head.outputs.base }}"
           git show "$base:tools/nativelink/rootfs.manifest" \
-            >"$RUNNER_TEMP/base.manifest" 2>/dev/null \
-            || : >"$RUNNER_TEMP/base.manifest"
+            >"$RUNNER_TEMP/base.manifest"
           tar="$(buck2 build --show-simple-output '//tools/nativelink:layer[layer]')"
           buck2 run //third_party/python:py -- \
             tools/nativelink/rootfs_manifest.py diff \

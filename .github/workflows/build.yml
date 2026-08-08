@@ -99,8 +99,14 @@ jobs:
           pin_changed=false
           base="${{ steps.base_head.outputs.base }}"
           head="${{ steps.base_head.outputs.head }}"
-          if [ -n "$base" ] && ! git diff --quiet "$base" "$head" -- tools/nativelink/pin.bzl; then
-            pin_changed=true
+          if [ -n "$base" ]; then
+            rc=0
+            git diff --quiet "$base" "$head" -- tools/nativelink/pin.bzl || rc=$?
+            case "$rc" in
+              0) ;;
+              1) pin_changed=true ;;
+              *) echo "git diff --quiet errored ($rc)" >&2; exit 1 ;;
+            esac
           fi
           echo "pin_changed=$pin_changed" >> "$GITHUB_OUTPUT"
       - name: Install buck2
@@ -171,8 +177,14 @@ jobs:
           changed=false
           base="${{ steps.base_head.outputs.base }}"
           head="${{ steps.base_head.outputs.head }}"
-          if [ -n "$base" ] && ! git diff --quiet "$base" "$head" -- renovate.json; then
-            changed=true
+          if [ -n "$base" ]; then
+            rc=0
+            git diff --quiet "$base" "$head" -- renovate.json || rc=$?
+            case "$rc" in
+              0) ;;
+              1) changed=true ;;
+              *) echo "git diff --quiet errored ($rc)" >&2; exit 1 ;;
+            esac
           fi
           echo "changed=$changed" >> "$GITHUB_OUTPUT"
       # See tools/renovate/README.md, "functional_check (buck2)".
@@ -228,18 +240,35 @@ jobs:
       # CI is isolating actions; it makes no claim about dev environments.
       - name: Verify undeclared inputs are invisible
         run: |
-          if buck2 build probes//:undeclared_read; then
+          rc=0
+          out="$(buck2 build probes//:undeclared_read 2>&1)" || rc=$?
+          if [ "$rc" -eq 0 ]; then
             echo "undeclared read unexpectedly succeeded" >&2
             exit 1
           fi
+          # Must fail because staging blocked the read; assert the probe's error.
+          grep -qF "can't open 'README.md'" <<<"$out" || {
+            echo "build failed ($rc), but not on the undeclared read:" >&2
+            printf '%s\n' "$out" >&2
+            exit 1
+          }
       - name: Show NativeLink log on failure
         if: failure()
         run: cat ~/.cache/causes-nativelink/nativelink.log || true
       - name: Shut down buck2 daemon
         if: always()
         run: |
-          buck2 kill || true
-          pkill -x nativelink || true
+          # Signal, then confirm each is actually gone. buck2-bin is the raw
+          # binary (the launcher would re-bootstrap on `kill`).
+          buck2-bin kill || true
+          [ "$(buck2-bin status 2>&1)" = 'no buckd running' ] \
+            || { echo "buckd still running after kill" >&2; exit 1; }
+          pkill -x nativelink || [ "$?" -eq 1 ]
+          for _ in $(seq 50); do pgrep -x nativelink >/dev/null || break; sleep 0.1; done
+          if pgrep -x nativelink >/dev/null; then
+            echo "nativelink still running after kill" >&2
+            exit 1
+          fi
   # Metrics collection runs as a separate job depending on `build` and
   # `buck2` so that their step logs are finalized by the time `record`
   # reads them. Inside a job, the GH logs endpoint 404s on the

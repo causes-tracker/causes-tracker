@@ -152,9 +152,9 @@ jq \
 mv "$config.new" "$config"
 
 log="$work/renovate.log"
+rc=0
 XDG_RUNTIME_DIR="$xdg" crun run --no-new-keyring -b "$bundle" \
-	"renovate-functional-check-$$" >"$log" 2>&1
-rc=$?
+	"renovate-functional-check-$$" >"$log" 2>&1 || rc=$?
 
 fail=0
 if [[ "$rc" -ne 0 ]]; then

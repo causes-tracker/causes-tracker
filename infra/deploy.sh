@@ -25,6 +25,11 @@ bazel --quiet run //infra:tofu -- infra/terraform apply -replace=aws_instance.ca
 
 IP=$(bazel --quiet run //infra:tofu -- infra/terraform output -raw ec2_public_ip)
 ssh-keygen -R "$IP" 2>/dev/null || true
+# Confirm the stale host key is actually gone before we connect.
+if ssh-keygen -F "$IP" >/dev/null 2>&1; then
+	echo "error: stale host key for $IP survived removal" >&2
+	exit 1
+fi
 
 echo "==> Deployed. Instance at ${IP}"
 echo "    Wait ~30s for the container to start and obtain a TLS certificate."

@@ -70,14 +70,15 @@ def _cached_http_archive_impl(ctx: AnalysisContext) -> list[Provider]:
     out = ctx.actions.declare_output("out", dir = True)
     if ctx.attrs.zstd:
         # tar has no zstd support on the platforms this runs on; decompress
-        # through the pinned zstd tool first and hand tar a plain stream.
-        extract = '"$zstd" -dc "$archive" | tar -x -f - -C "{dest}"'
+        # through the pinned zstd tool first, to a temp file (its own
+        # statement) so set -e catches a zstd failure.
+        extract = '"$zstd" -dc "$archive" >"$zstd_tmp"; tar -x -f "$zstd_tmp" -C "{dest}"'
         tool_args = [ctx.attrs.zstd[RunInfo]]
-        arg_prefix = 'zstd="$1"; archive="$2"; out="$3"; shift 3'
+        arg_prefix = 'set -eu; zstd="$1"; archive="$2"; out="$3"; shift 3; zstd_tmp="$(mktemp)"'
     else:
         extract = 'tar -x -f "$archive" -C "{dest}"'
         tool_args = []
-        arg_prefix = 'archive="$1"; out="$2"; shift 2'
+        arg_prefix = 'set -eu; archive="$1"; out="$2"; shift 2'
 
     if ctx.attrs.paths:
         # tar's own path-selection argument is broken for directory
@@ -87,12 +88,12 @@ def _cached_http_archive_impl(ctx: AnalysisContext) -> list[Provider]:
         # `strip_components`-deep) subtrees' entries out by hand instead.
         # paths must be disjoint (no path nested under another), since
         # entries from each land directly in the shared "$out".
-        script = arg_prefix + '; tmp="$(mktemp -d)"; mkdir -p "$out" && ' + \
-                 extract.format(dest = "$tmp") + " && " + \
-                 'for p in "$@"; do for e in "$tmp/$p"/* "$tmp/$p"/.[!.]* "$tmp/$p"/..?*; do ' + \
-                 '[ -e "$e" ] && mv "$e" "$out/"; done; done; true'
+        script = arg_prefix + '; tmp="$(mktemp -d)"; mkdir -p "$out"; ' + \
+                 extract.format(dest = "$tmp") + \
+                 '; for p in "$@"; do for e in "$tmp/$p"/* "$tmp/$p"/.[!.]* "$tmp/$p"/..?*; do ' + \
+                 'if [ -e "$e" ]; then mv "$e" "$out/"; fi; done; done'
     else:
-        script = arg_prefix + '; mkdir -p "$out" && ' + \
+        script = arg_prefix + '; mkdir -p "$out"; ' + \
                  extract.format(dest = "$out") + \
                  ' --strip-components={} "$@"'.format(ctx.attrs.strip_components)
 

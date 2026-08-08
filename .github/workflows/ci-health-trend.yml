@@ -11,6 +11,10 @@ permissions:
   contents: read
   issues: write
   actions: read
+# GitHub's default step shell (`bash -e {0}`) omits pipefail; force our own.
+defaults:
+  run:
+    shell: bash --noprofile --norc -euo pipefail {0}
 jobs:
   trend:
     runs-on: ubuntu-latest

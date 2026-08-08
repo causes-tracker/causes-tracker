@@ -27,6 +27,10 @@ permissions:
 concurrency:
   group: renovate-fix-${{ github.ref }}
   cancel-in-progress: false
+# GitHub's default step shell (`bash -e {0}`) omits pipefail; force our own.
+defaults:
+  run:
+    shell: bash --noprofile --norc -euo pipefail {0}
 jobs:
   fix-sha:
     runs-on: ubuntu-latest
@@ -50,14 +54,30 @@ jobs:
       - name: Recompute archive sha256 pins
         run: |
           git fetch -q --depth=1 origin master
-          git diff --name-only FETCH_HEAD -- ':(glob)**/BUCK' MODULE.bazel | while read -r pinfile; do
+          # Capture separately so a git failure aborts (a pipe to while would exit 0).
+          changed="$(git diff --name-only FETCH_HEAD -- ':(glob)**/BUCK' MODULE.bazel)"
+          while IFS= read -r pinfile; do
+            [ -n "$pinfile" ] || continue
             base="$(mktemp)"
-            git show "FETCH_HEAD:$pinfile" >"$base" 2>/dev/null || : >"$base"
+            # A pinfile new since master is absent at FETCH_HEAD; an empty base
+            # then means "all pins new". Test existence structurally so any
+            # other git failure still aborts.
+            if git cat-file -e "FETCH_HEAD:$pinfile" 2>/dev/null; then
+              git show "FETCH_HEAD:$pinfile" >"$base"
+            else
+              : >"$base"
+            fi
             bash tools/renovate/update_archive_sha.sh "$pinfile" "$base"
-          done
+          done <<<"$changed"
       - name: Push fix if the pins changed
         run: |
-          git diff --quiet && exit 0
+          rc=0
+          git diff --quiet || rc=$?
+          case "$rc" in
+            0) exit 0 ;;
+            1) ;;
+            *) echo "git diff --quiet errored ($rc)" >&2; exit 1 ;;
+          esac
           git config user.name "github-actions[bot]"
           git config user.email \
             "41898282+github-actions[bot]@users.noreply.github.com"

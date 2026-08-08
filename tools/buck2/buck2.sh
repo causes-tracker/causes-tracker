@@ -18,11 +18,24 @@ done
 
 # A live daemon means this repo is already bootstrapped for this session.
 no_daemon() {
-	buck2-bin status 2>&1 | grep -qx 'no buckd running'
+	# Match on the output, not the pipe exit (pipefail would let a failed
+	# status mask the grep).
+	local out
+	out="$(buck2-bin status 2>&1)" || true
+	grep -qx 'no buckd running' <<<"$out"
 }
 
 if [[ -e "$root/.buckroot" ]] && no_daemon; then
-	pkill -x nativelink 2>/dev/null || true
+	# Clear any stale worker, then confirm it is gone before starting a new one.
+	pkill -x nativelink 2>/dev/null || [ "$?" -eq 1 ]
+	for _ in $(seq 50); do
+		pgrep -x nativelink >/dev/null || break
+		sleep 0.1
+	done
+	if pgrep -x nativelink >/dev/null; then
+		echo "error: stale nativelink survived kill" >&2
+		exit 1
+	fi
 
 	if [[ -f "$root/.buckconfig.local" ]]; then
 		printf '[buck2_re_client]\n%s\n%s\n%s\n%s\n' \
@@ -43,6 +56,10 @@ if [[ -e "$root/.buckroot" ]] && no_daemon; then
 	# bootstrap config (RE config only binds at daemon startup); kill it
 	# so the next command starts fresh under the committed config.
 	buck2-bin kill >/dev/null 2>&1 || true
+	no_daemon || {
+		echo "error: buck2 daemon alive after kill" >&2
+		exit 1
+	}
 	if [[ "$bootstrap_rc" -ne 0 ]]; then
 		# The validated :layer build fails when the built tar's digest does
 		# not match the pin; :layer[layer] is that tar without the check, so
@@ -98,6 +115,10 @@ if [[ -e "$root/.buckroot" ]] && no_daemon; then
 	container="causes-nativelink-$digest"
 	export XDG_RUNTIME_DIR="$nl_cache/xdg"
 	crun delete -f "$container" >/dev/null 2>&1 || true
+	if crun state "$container" >/dev/null 2>&1; then
+		echo "error: container $container survived delete" >&2
+		exit 1
+	fi
 	(
 		flock -n 9 || exit 0
 		crun run --bundle "$bundle" --detach --no-new-keyring "$container" \
@@ -108,8 +129,9 @@ if [[ -e "$root/.buckroot" ]] && no_daemon; then
 		sleep 0.1
 	done
 	if ! (exec 3<>/dev/tcp/127.0.0.1/50051) 2>/dev/null; then
-		echo "warning: NativeLink did not become ready on 127.0.0.1:50051;" \
+		echo "error: NativeLink did not become ready on 127.0.0.1:50051;" \
 			"see ~/.cache/causes-nativelink/nativelink.log" >&2
+		exit 1
 	fi
 fi
 

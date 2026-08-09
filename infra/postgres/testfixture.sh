@@ -41,6 +41,10 @@ pg_start() {
 
 pg_stop() {
 	if [[ -n "${PGBIN:-}" && -n "${PGDATA:-}" ]]; then
-		"$PGBIN/pg_ctl" stop -D "$PGDATA" -m immediate -q 2>/dev/null || true
+		# pg_ctl stop waits for shutdown, so a clean exit means it is down.
+		# Guard on status so a repeated trap is a no-op.
+		if "$PGBIN/pg_ctl" status -D "$PGDATA" >/dev/null 2>&1; then
+			"$PGBIN/pg_ctl" stop -D "$PGDATA" -m immediate -s
+		fi
 	fi
 }

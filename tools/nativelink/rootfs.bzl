@@ -12,7 +12,10 @@ zoneinfo="$3"
 mkdir -p "$root/bin" "$root/usr/bin" "$root/usr/share" "$root/tmp" "$root/proc" "$root/dev" "$root/etc"
 cp "$bb" "$root/bin/busybox"
 chmod 0755 "$root/bin/busybox"
-"$bb" --list | while read -r applet; do
+# Capture separately so set -e catches a --list failure (a pipe to while
+# would not).
+applets="$("$bb" --list)"
+for applet in $applets; do
   [ "$applet" = busybox ] && continue
   # env also at /usr/bin, where #!/usr/bin/env shebangs look.
   [ "$applet" = env ] && ln -s /bin/busybox "$root/usr/bin/env"

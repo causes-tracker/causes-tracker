@@ -53,8 +53,9 @@ genrule(
     ],
     outs = ["proto_docs.md"],
     cmd = """
+        set -euo pipefail
         EXECROOT=$$(pwd)
-        WKT_DIR=$$(dirname $$(echo '$(locations @protobuf//:well_known_type_protos)' | tr ' ' '\\n' | head -1))
+        WKT_DIR=$$(dirname $$(echo '$(locations @protobuf//:well_known_type_protos)' | tr ' ' '\\n' | sed -n 1p))
         WKT_ROOT=$$(echo "$$WKT_DIR" | sed 's|/google/protobuf$$||')
         PROTO_FILES=$$(echo '$(locations :proto_srcs)' | tr ' ' '\\n' | sed "s|^|$$EXECROOT/|" | tr '\\n' ' ')
         $(location @protobuf//:protoc) \

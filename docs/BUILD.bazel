@@ -33,6 +33,7 @@ genrule(
     ],
     outs = ["site.tar.gz"],
     cmd = """
+        set -euo pipefail
         EXECROOT=$$(pwd)
         OUTDIR=$$EXECROOT/$(@D)
         # Zensical requires the config to sit at the project root with relative paths.
@@ -50,7 +51,7 @@ genrule(
         # Zensical locates its theme assets via __file__ at runtime, but the Bazel
         # runfiles layout differs from a regular pip install, so it silently skips
         # the copy. Copy them manually from the tool's runfiles.
-        ZENSICAL_ASSETS=$$(find $$EXECROOT/$(location :zensical).runfiles -path "*/zensical/templates/assets" -type d | head -1)
+        ZENSICAL_ASSETS=$$(find $$EXECROOT/$(location :zensical).runfiles -path "*/zensical/templates/assets" -type d -print -quit)
         cp -rL "$$ZENSICAL_ASSETS" $$OUTDIR/site/assets
         tar czf $$EXECROOT/$@ -C $$OUTDIR site
     """,

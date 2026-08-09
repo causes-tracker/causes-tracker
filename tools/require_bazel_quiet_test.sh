@@ -9,7 +9,19 @@ set -uo pipefail
 violations_file="$(mktemp)"
 trap 'rm -f "$violations_file"' EXIT
 
+# List tracked files: jj locally, git in CI (no jj there). Abort on a
+# listing failure so a broken enumeration can't pass by scanning nothing.
+if command -v jj >/dev/null; then
+	files="$(jj file list --ignore-working-copy 'glob:**/*.sh' 'glob:**/*.md')"
+else
+	files="$(git ls-files ':(glob)**/*.sh' ':(glob)**/*.md')"
+fi || {
+	echo "FAIL: could not list tracked files" >&2
+	exit 1
+}
+
 while IFS= read -r file; do
+	[[ -n "$file" ]] || continue
 	awk -v file="$file" '
 		file ~ /\.sh$/ && /^[[:space:]]*#/ { next }
 		/\$\([^)]*bazel/ {
@@ -19,8 +31,7 @@ while IFS= read -r file; do
 			print "    " $0
 		}
 	' "$file"
-done < <(jj file list --ignore-working-copy 'glob:**/*.sh' 'glob:**/*.md' 2>/dev/null |
-	sort) >"$violations_file"
+done <<<"$(printf '%s\n' "$files" | sort)" >"$violations_file"
 
 if [[ -s "$violations_file" ]]; then
 	echo "FAIL: bazel run/build commands missing --quiet:" >&2

@@ -45,7 +45,7 @@ build_docs_site() {
 	# bazel run (where RUNFILES_DIR may be absent).
 	local runfiles_root assets
 	runfiles_root="$(dirname "$(dirname "$(dirname "$ZENSICAL")")")"
-	assets=$(find "$runfiles_root" -path "*/zensical/templates/assets" -type d 2>/dev/null | head -1)
+	assets=$(find "$runfiles_root" -path "*/zensical/templates/assets" -type d -print -quit 2>/dev/null)
 	if [[ -z "$assets" ]]; then
 		echo >&2 "ERROR: zensical theme assets not found under runfiles root: $runfiles_root"
 		return 1

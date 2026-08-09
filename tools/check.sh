@@ -133,7 +133,7 @@ compute_cache_key() {
 	target="@"
 	while [[ -z "$(jj diff -r "$target" --summary 2>/dev/null)" ]]; do
 		parent_ids="$(jj log -r "$target-" --no-graph -T 'commit_id ++ "\n"' 2>/dev/null)"
-		parent_count=$(printf '%s' "$parent_ids" | grep -c . || true)
+		parent_count="$(printf '%s\n' "$parent_ids" | awk 'NF{n++} END{print n+0}')"
 		if [[ "$parent_count" -ne 1 ]]; then
 			# Walked up empty diffs and hit either a merge (2+ parents) or
 			# the root (0 parents). Two cases:
@@ -281,8 +281,12 @@ run_agent_scan() {
 	# Comma-separated set of extensions present in master, used by the
 	# new-language detector. Computed once per agent run; cheap (a single
 	# jj invocation listing tracked paths).
-	local master_exts
-	master_exts="$(jj file list --ignore-working-copy -r master 2>/dev/null |
+	local master_exts master_files
+	if ! master_files="$(jj file list --ignore-working-copy -r master)"; then
+		echo "agent mode requires jj (could not list master files)" >&2
+		exit 1
+	fi
+	master_exts="$(printf '%s\n' "$master_files" |
 		awk -F/ '{print $NF}' |
 		awk -F. 'NF > 1 { print $NF }' |
 		sort -u | tr '\n' ',')"
@@ -294,15 +298,31 @@ run_agent_scan() {
 
 check_rules_rs_macros() {
 	local files
-	files="$(jj file list --ignore-working-copy 'glob:**/BUILD.bazel' 2>/dev/null)"
+	# List tracked BUILD.bazel files: jj locally, git in CI (no jj there).
+	if command -v jj >/dev/null; then
+		files="$(jj file list --ignore-working-copy 'glob:**/BUILD.bazel')"
+	else
+		files="$(git ls-files ':(glob)**/BUILD.bazel')"
+	fi
 	if [[ -z "$files" ]]; then
 		return 0
 	fi
-	if echo "$files" | xargs grep -n \
-		'load("@rules_rs//rs:rust_\(binary\|library\|test\)\.bzl"' 2>/dev/null; then
+	local -a filelist
+	mapfile -t filelist <<<"$files"
+	local rc=0
+	grep -n 'load("@rules_rs//rs:rust_\(binary\|library\|test\)\.bzl"' \
+		-- "${filelist[@]}" || rc=$?
+	case "$rc" in
+	0)
 		echo "ERROR: Use //build:rust.bzl macros instead of @rules_rs directly." >&2
 		return 1
-	fi
+		;;
+	1) ;;
+	*)
+		echo "check_rules_rs_macros: grep errored ($rc)" >&2
+		exit 1
+		;;
+	esac
 }
 
 check_package_readmes() {

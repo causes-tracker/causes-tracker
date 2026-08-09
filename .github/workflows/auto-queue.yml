@@ -2,6 +2,10 @@ name: auto-queue
 on:
   pull_request_target:
     types: [labeled, edited]
+# GitHub's default step shell (`bash -e {0}`) omits pipefail; force our own.
+defaults:
+  run:
+    shell: bash --noprofile --norc -euo pipefail {0}
 jobs:
   auto-queue:
     runs-on: ubuntu-latest

@@ -8,7 +8,6 @@ identical-content files either as links or as separate copies.
 """
 
 import hashlib
-import json
 import os
 import sys
 import tarfile
@@ -70,35 +69,9 @@ def build_layer(root, out, digest_out):
         f.write(digest + "\n")
 
 
-def check_digest(digest_out, digest, stamp_path):
-    with open(digest_out, "rt") as f:
-        actual_digest = f.read().strip()
-    if actual_digest != digest:
-        valid = {
-            "version": 1,
-            "data": {
-                "status": "failure",
-                "message": f"Layer digest {actual_digest} does not match expected {digest}",
-            },
-        }
-    else:
-        valid = {
-            "version": 1,
-            "data": {
-                "status": "success",
-                "message": f"Layer digest {actual_digest} validated",
-            },
-        }
-    with open(stamp_path, "wt") as f:
-        json.dump(valid, f)
-
-
 if __name__ == "__main__":
     match sys.argv[1]:
         case "build":
             build_layer(sys.argv[2], sys.argv[3], sys.argv[4])
-        case "check":
-            assert sys.argv[3] == "--digest", "Expected --digest argument but got: " + sys.argv[3]
-            check_digest(sys.argv[2], sys.argv[4], sys.argv[5])
         case _:
-            raise RuntimeError("Expected 'build' or 'check' but got: " + sys.argv[1])
+            raise RuntimeError("Expected 'build' but got: " + sys.argv[1])

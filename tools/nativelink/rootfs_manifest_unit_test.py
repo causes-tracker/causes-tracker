@@ -1,7 +1,7 @@
 """Unit checks for rootfs_manifest.py's tar-to-manifest projection.
 
 Fabricated tars exercise each member kind, hardlink dedup, the anomaly
-path, and the diff/check modes at the python interface, so a change that
+path, and the validate/check modes at the python interface, so a change that
 alters the projection or the mode dispatch fails here.
 
 argv[1] is rootfs_manifest.py, argv[2] the output to touch on success.
@@ -10,6 +10,7 @@ argv[1] is rootfs_manifest.py, argv[2] the output to touch on success.
 import hashlib
 import importlib.util
 import io
+import json
 import os
 import sys
 import tarfile
@@ -109,16 +110,33 @@ with tempfile.TemporaryDirectory() as td:
     assert rm.main(["prog", tar, stale, missing]) == 1
     assert not os.path.exists(missing)
 
-    # diff: golden vs a changed tar names the changed member; identical is empty.
-    changed = os.path.join(td, "changed.diff")
-    assert rm.main(["prog", "diff", stale, tar, changed]) == 0
-    with open(changed, encoding="utf-8") as fh:
-        diff_text = fh.read()
-    assert "-- 0755" in diff_text and "+- 0644" in diff_text, diff_text
-    same = os.path.join(td, "same.diff")
-    rm.main(["prog", "diff", golden, tar, same])
-    with open(same, encoding="utf-8") as fh:
-        assert fh.read() == "", "identical tar must diff empty"
+    # validate: a matching digest stamps success.
+    dg = os.path.join(td, "digest")
+    with open(dg, "w", encoding="utf-8") as fh:
+        fh.write("abc123\n")
+    ok_stamp = os.path.join(td, "ok.stamp")
+    assert rm.main(["prog", "validate", dg, "abc123", tar, golden, ok_stamp]) == 0
+    with open(ok_stamp, encoding="utf-8") as fh:
+        assert json.load(fh)["data"]["status"] == "success"
+
+    # validate: a digest mismatch whose manifest still matches the golden is a
+    # serialization-only difference, not a content change.
+    ser_stamp = os.path.join(td, "ser.stamp")
+    assert rm.main(["prog", "validate", dg, "wrong", tar, golden, ser_stamp]) == 0
+    with open(ser_stamp, encoding="utf-8") as fh:
+        ser = json.load(fh)["data"]
+    assert ser["status"] == "failure", ser
+    assert "abc123" in ser["message"] and "wrong" in ser["message"], ser
+    assert "only the tar serialization differs" in ser["message"], ser
+
+    # validate: a mismatch against a manifest the tar no longer matches carries
+    # the diff naming the changed member.
+    diff_stamp = os.path.join(td, "diff.stamp")
+    assert rm.main(["prog", "validate", dg, "wrong", tar, stale, diff_stamp]) == 0
+    with open(diff_stamp, encoding="utf-8") as fh:
+        differ = json.load(fh)["data"]
+    assert differ["status"] == "failure", differ
+    assert "-- 0755" in differ["message"] and "+- 0644" in differ["message"], differ
 
 with open(out, "w", encoding="utf-8") as fh:
     fh.write("ok")

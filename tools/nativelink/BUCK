@@ -4,7 +4,7 @@ load("//tools/nativelink:busybox.bzl", "busybox")
 load("//tools/nativelink:layer.bzl", "worker_layer")
 load("//tools/nativelink:pin.bzl", "WORKER_LAYER_DIGEST")
 load("//tools/nativelink:rootfs.bzl", "busybox_rootfs")
-load("//tools/nativelink:rootfs_manifest.bzl", "rootfs_manifest_diff", "rootfs_manifest_update")
+load("//tools/nativelink:rootfs_manifest.bzl", "rootfs_manifest_update")
 
 export_file(
     name = "install_sh",
@@ -102,21 +102,12 @@ rootfs_manifest_update(
     tar = ":layer[layer]",
 )
 
-# buck2.sh builds this and prints it when the bootstrap digest check fails, so a
-# worker-layer pin mismatch describes the rootfs change, not two hashes.
-rootfs_manifest_diff(
-    name = "rootfs_manifest_diff",
-    exec_compatible_with = ["//platforms:image_build_enabled"],
-    golden = "rootfs.manifest",
-    py = "//third_party/python:py",
-    script = "rootfs_manifest.py",
-    tar = ":layer[layer]",
-)
-
 worker_layer(
     name = "layer",
     digest = WORKER_LAYER_DIGEST,
     exec_compatible_with = ["//platforms:image_build_enabled"],
+    golden = "rootfs.manifest",
+    manifest_script = "rootfs_manifest.py",
     py = "//third_party/python:py",
     rootfs = ":rootfs",
     script = "make_layer.py",

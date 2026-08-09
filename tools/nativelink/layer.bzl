@@ -32,47 +32,47 @@ _worker_layer = rule(
 
 def _validate_layer_impl(ctx: AnalysisContext) -> list[Provider]:
     valid_stamp = ctx.actions.declare_output("layer.stamp")
-
-    script = ctx.attrs.script
     layer_provider = ctx.attrs.layer[DefaultInfo]
 
-    validation_spec = ctx.actions.run(
+    # The stamp message carries the whole diagnostic: expected vs actual digest
+    # and, on a mismatch, whether the rootfs content changed or only the tar
+    # serialization did. buck2 prints it when the validation fails.
+    ctx.actions.run(
         cmd_args(
             ctx.attrs.py[RunInfo],
-            script,
-            "check",
+            ctx.attrs.manifest_script,
+            "validate",
             layer_provider.sub_targets["digest"][DefaultInfo].default_outputs,
-            "--digest",
             ctx.attrs.digest,
+            layer_provider.default_outputs[0],
+            ctx.attrs.golden,
             valid_stamp.as_output(),
         ),
         category = "worker_layer",
         identifier = "validate",
     )
 
-    validation_spec = ValidationSpec(
-        name = "layer_digest_validation",
-        validation_result = valid_stamp,
-    )
-
     return [
         DefaultInfo(
             default_output = layer_provider.default_outputs[0],
-            # other_outputs = [valid_stamp],
             sub_targets = {
                 "layer": [layer_provider],
             },
         ),
-        ValidationInfo(validations = [validation_spec]),
+        ValidationInfo(validations = [ValidationSpec(
+            name = "layer_digest_validation",
+            validation_result = valid_stamp,
+        )]),
     ]
 
 _validate_layer = rule(
     impl = _validate_layer_impl,
     attrs = {
         "digest": attrs.string(doc = "Reference output digest to support validation without a hermetic builder"),
-        "py": attrs.exec_dep(providers = [RunInfo]),
-        "script": attrs.source(doc = "Path to the script that implements the layer validation"),
+        "golden": attrs.source(doc = "Golden rootfs.manifest, to classify a mismatch as content vs serialization"),
         "layer": attrs.dep(),
+        "manifest_script": attrs.source(doc = "rootfs_manifest.py, whose validate form writes the stamp"),
+        "py": attrs.exec_dep(providers = [RunInfo]),
     },
 )
 
@@ -94,7 +94,8 @@ def worker_layer(name, digest, **kwargs):
         name = name,
         digest = digest,
         exec_compatible_with = exec_compatible_with,
+        golden = kwargs.get("golden"),
         layer = ":" + name + "_build",
+        manifest_script = kwargs.get("manifest_script"),
         py = kwargs.get("py"),
-        script = kwargs.get("script"),
     )

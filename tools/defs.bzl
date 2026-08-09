@@ -88,7 +88,10 @@ def _cached_http_archive_impl(ctx: AnalysisContext) -> list[Provider]:
         # `strip_components`-deep) subtrees' entries out by hand instead.
         # paths must be disjoint (no path nested under another), since
         # entries from each land directly in the shared "$out".
-        script = arg_prefix + '; tmp="$(mktemp -d)"; mkdir -p "$out"; ' + \
+        # The scratch dir sits next to "$out", on the same filesystem, so the
+        # moves below are renames that keep hardlinks; a scratch under a tmpfs
+        # $TMPDIR would make them cross-fs copies and break the links.
+        script = arg_prefix + '; mkdir -p "$out"; tmp="$(mktemp -d "$out.XXXXXX")"; ' + \
                  extract.format(dest = "$tmp") + \
                  '; for p in "$@"; do for e in "$tmp/$p"/* "$tmp/$p"/.[!.]* "$tmp/$p"/..?*; do ' + \
                  'if [ -e "$e" ]; then mv "$e" "$out/"; fi; done; done'

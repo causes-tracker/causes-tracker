@@ -41,7 +41,9 @@ pub fn extract_invocations(log: &str) -> Result<Vec<Buck2Invocation>> {
             let cur = current
                 .as_mut()
                 .with_context(|| format!("Network line before any Build ID: {line}"))?;
-            cur.network = Some(parse_network(rest).with_context(|| format!("parse {line}"))?);
+            if let Some(net) = parse_network(rest).with_context(|| format!("parse {line}"))? {
+                cur.network = Some(net);
+            }
         }
     }
     if let Some(done) = current.and_then(Pending::finish) {
@@ -123,18 +125,20 @@ fn parse_commands(rest: &str) -> Result<Commands> {
 
 /// Parse buck2's `Network:` remainder, accepting both the
 /// `Up: 270KiB  Down: 90MiB  (SESSION)` and `up 5.1KiB  down 4.2MiB  session
-/// SESSION` shapes.
-fn parse_network(rest: &str) -> Result<Network> {
-    let side = |upper: &str, lower: &str| -> Result<u64> {
-        let val = after(rest, upper)
-            .or_else(|| after(rest, lower))
-            .with_context(|| format!("missing {lower}"))?;
-        parse_size(token(val))
-    };
-    Ok(Network {
-        up: side("Up: ", "up ")?,
-        down: side("Down: ", "down ")?,
-    })
+/// SESSION` shapes. A line carrying neither count (`session SESSION` alone,
+/// printed when no bytes moved) yields `None`; one count without the other
+/// is malformed and errors.
+fn parse_network(rest: &str) -> Result<Option<Network>> {
+    let side = |upper: &str, lower: &str| after(rest, upper).or_else(|| after(rest, lower));
+    match (side("Up: ", "up "), side("Down: ", "down ")) {
+        (Some(up), Some(down)) => Ok(Some(Network {
+            up: parse_size(token(up))?,
+            down: parse_size(token(down))?,
+        })),
+        (None, None) => Ok(None),
+        (Some(_), None) => bail!("missing down"),
+        (None, Some(_)) => bail!("missing up"),
+    }
 }
 
 /// Parse buck2's humanized byte sizes: `0B`, `270KiB`, `95MiB`, `1.2GiB`.
@@ -244,6 +248,36 @@ BUILD SUCCEEDED
             got[0].bytes_downloaded,
             (4.2_f64 * 1024.0 * 1024.0).round() as u64
         );
+    }
+
+    /// buck2 prints a `Network:` line carrying only a session label, no
+    /// byte counts, when the invocation moved no bytes; it records zero
+    /// traffic rather than erroring.
+    #[test]
+    fn network_line_without_byte_counts_records_zero() {
+        let log = "\
+[2026-08-08T18:28:48.554+00:00] Build ID: aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
+[2026-08-08T18:28:48.554+00:00] Commands: 2 (cached: 2, remote: 0, local: 0)
+[2026-08-08T18:28:48.554+00:00] Network: session GRPC-SESSION-ID
+BUILD SUCCEEDED
+";
+        let got = extract_invocations(log).unwrap();
+        assert_eq!(got.len(), 1);
+        assert_eq!(got[0].bytes_uploaded, 0);
+        assert_eq!(got[0].bytes_downloaded, 0);
+    }
+
+    /// A `Network:` line carrying one count but not the other is malformed,
+    /// distinct from the countless line above, and errors.
+    #[test]
+    fn network_line_with_one_count_errors() {
+        let log = "\
+[2026-08-08T18:28:48.554+00:00] Build ID: aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
+[2026-08-08T18:28:48.554+00:00] Commands: 2 (cached: 2, remote: 0, local: 0)
+[2026-08-08T18:28:48.554+00:00] Network: up 5.1KiB  session GRPC-SESSION-ID
+BUILD SUCCEEDED
+";
+        assert!(extract_invocations(log).is_err());
     }
 
     /// `buck2 clean` / `buck2 kill` print a `Build ID:` but run no

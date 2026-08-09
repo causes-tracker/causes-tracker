@@ -1,15 +1,47 @@
 name: auto-queue
 on:
   pull_request_target:
-    types: [labeled, edited]
+    types: [labeled, edited, synchronize]
 jobs:
   auto-queue:
     runs-on: ubuntu-latest
     if: >-
-      contains(github.event.pull_request.labels.*.name, 'merge') && github.event.pull_request.base.ref == 'master'
+      github.event.action != 'synchronize' && contains(github.event.pull_request.labels.*.name, 'merge') && github.event.pull_request.base.ref == 'master'
     steps:
       - name: Add to merge queue
         env:
           GH_TOKEN: ${{ secrets.AUTO_QUEUE_TOKEN }}
           PR: ${{ github.event.pull_request.number }}
         run: gh pr merge "$PR" --repo "$GITHUB_REPOSITORY" --auto
+  # New commits supersede the review that earned the merge label, and the
+  # ruleset requires no re-approval, so cancel the pending merge; a maintainer
+  # must re-label after seeing the new head.
+  revoke-merge-intent:
+    runs-on: ubuntu-latest
+    if: >-
+      github.event.action == 'synchronize' && contains(github.event.pull_request.labels.*.name, 'merge') && github.event.pull_request.base.ref == 'master'
+    steps:
+      - name: Strip label, cancel auto-merge, and dequeue
+        env:
+          GH_TOKEN: ${{ secrets.AUTO_QUEUE_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          owner="${REPO%%/*}"
+          name="${REPO##*/}"
+          pr="$(gh api graphql -f query='
+            query($o: String!, $n: String!, $p: Int!) {
+              repository(owner: $o, name: $n) {
+                pullRequest(number: $p) { id autoMergeRequest { enabledAt } isInMergeQueue }
+              }
+            }' -f o="$owner" -f n="$name" -F p="$PR")"
+          node="$(jq -er '.data.repository.pullRequest.id' <<<"$pr")"
+          has_auto="$(jq -r '.data.repository.pullRequest.autoMergeRequest != null' <<<"$pr")"
+          in_queue="$(jq -r '.data.repository.pullRequest.isInMergeQueue' <<<"$pr")"
+          gh pr edit "$PR" --repo "$REPO" --remove-label merge
+          if [ "$has_auto" = true ]; then
+            gh api graphql -f query='mutation($id: ID!) { disablePullRequestAutoMerge(input: {pullRequestId: $id}) { clientMutationId } }' -f id="$node"
+          fi
+          if [ "$in_queue" = true ]; then
+            gh api graphql -f query='mutation($id: ID!) { dequeuePullRequest(input: {id: $id}) { clientMutationId } }' -f id="$node"
+          fi

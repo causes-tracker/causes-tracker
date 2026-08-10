@@ -46,11 +46,20 @@ if [[ -e "$root/.buckroot" ]] && no_daemon; then
 			>"$root/.buckconfig.prelaunch"
 	fi
 	bootstrap_rc=0
-	# Output is sorted by target label, not listed order; the sed -n below relies on it.
-	outputs="$(buck2-bin build --local-only --show-full-simple-output \
-		//tools/nativelink:busybox //tools/nativelink:layer \
-		'//tools/nativelink:layer[layer][digest]')" ||
-		bootstrap_rc=$?
+	targets=(
+		//tools/nativelink:busybox
+		//tools/nativelink:layer
+		'//tools/nativelink:layer[layer][digest]'
+	)
+	# Stream the build so its superconsole shows; a captured $(...) is not a
+	# TTY, so buck2 hides all progress and the ~20s bootstrap looks hung.
+	buck2-bin build --local-only "${targets[@]}" || bootstrap_rc=$?
+	# Re-query the now-cached build for the output paths: a no-op that streams
+	# nothing, so capturing it hides no progress. Sorted by target label, which
+	# the sed -n below relies on.
+	if [[ "$bootstrap_rc" -eq 0 ]]; then
+		outputs="$(buck2-bin build --local-only --show-full-simple-output "${targets[@]}")"
+	fi
 	rm -f "$root/.buckconfig.prelaunch"
 	# The daemon that ran the bootstrap build is still bound to the
 	# bootstrap config (RE config only binds at daemon startup); kill it

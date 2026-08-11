@@ -3,4 +3,4 @@
 # platforms/BUCK (so bumping this digest also changes the container-image
 # property baked into every image_build action, invalidating NativeLink's
 # action cache for actions that ran under the old image).
-WORKER_LAYER_DIGEST = "7917a34dce0bbd54ed1831c161409a6da234fcf3da32e255ddfb8ba654e7e098"
+WORKER_LAYER_DIGEST = "f68d650526f3a4ddfe231e4307015d1c3477cfc3974ac5bb4555b856784395ec"

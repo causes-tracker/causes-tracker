@@ -1,8 +1,10 @@
 """Write a normalized tar of the tree argv[1] to argv[2].
 
 uid, gid, uname, gname, and mtime are zeroed, modes are pinned to 0755/0644,
-and entries are added in sorted order, so the bytes depend only on the
-tree's content.
+entries are added in sorted order, and hardlinks are written as full regular
+files, so the bytes depend only on each path's content.
+REAPI directories do not model hardlinks, so a worker may materialize a tree's
+identical-content files either as links or as separate copies.
 """
 
 import hashlib
@@ -49,7 +51,16 @@ def write_layer(root, out):
         hasher = _HashingWriter(raw)
         with tarfile.open(fileobj=hasher, mode="w", format=tarfile.GNU_FORMAT) as tar:
             for arcname, p in sorted(paths):
-                tar.add(p, arcname=arcname, filter=normalize, recursive=False)
+                ti = normalize(tar.gettarinfo(p, arcname))
+                if ti.islnk():
+                    ti.type = tarfile.REGTYPE
+                    ti.linkname = ""
+                    ti.size = os.path.getsize(p)
+                if ti.isreg():
+                    with open(p, "rb") as f:
+                        tar.addfile(ti, f)
+                else:
+                    tar.addfile(ti)
     return hasher.digest.hexdigest()
 
 

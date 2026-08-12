@@ -35,6 +35,8 @@ def build_tree(base, entries):
                 f.write(arg)
         elif kind == "symlink":
             os.symlink(arg, p)
+        elif kind == "hardlink":
+            os.link(os.path.join(base, arg), p)
 
 
 def set_all_mtimes(base, stamp):
@@ -79,6 +81,21 @@ try:
 finally:
     os.umask(old_umask)
 assert strict == loose, "umask leaked into modes"
+
+# hardlink permutation: REAPI directories cannot carry hardlinks, so a tree
+# reaches the builder either linked or with the links exploded into copies; the
+# bytes must match either way.
+linked = entries + [("hardlink", "bin/tool2", "bin/tool")]
+copied = entries + [("file", "bin/tool2", "content")]
+assert layer_bytes(linked) == layer_bytes(copied), "link count leaked into bytes"
+with tempfile.TemporaryDirectory() as td:
+    tree = os.path.join(td, "tree")
+    os.mkdir(tree)
+    build_tree(tree, linked)
+    out = os.path.join(td, "layer.tar")
+    make_layer.write_layer(tree, out)
+    with tarfile.open(out) as t:
+        assert not any(m.islnk() for m in t), "hardlink node in layer tar"
 
 # uid/gid/uname/gname/mtime: normalize zeroes arbitrary values.
 ti = tarfile.TarInfo("x")

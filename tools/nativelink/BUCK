@@ -49,6 +49,7 @@ cached_http_archive(
     exec_compatible_with = ["//platforms:image_build_enabled"],
     paths = ["usr/share/zoneinfo"],
     sha256 = "348693272f53109aa9687e022b52f27086f1d86ac3fc5a6be36f334b06c2f454",
+    size_bytes = 386738,
     urls = ["https://dl-cdn.alpinelinux.org/alpine/v3.19/main/x86_64/tzdata-2025b-r0.apk"],
     visibility = ["//tools/renovate:"],
 )

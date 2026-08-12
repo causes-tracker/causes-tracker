@@ -70,6 +70,19 @@ pub struct Buck2Stats {
     pub invocations: Vec<Buck2Invocation>,
 }
 
+impl Buck2Stats {
+    /// Aggregate cache-hit rate across the job's invocations.
+    /// None when no invocation ran a command.
+    pub fn cache_hit_rate(&self) -> Option<f64> {
+        let total: u64 = self.invocations.iter().map(|i| i.commands_total).sum();
+        if total == 0 {
+            return None;
+        }
+        let cached: u64 = self.invocations.iter().map(|i| i.commands_cached).sum();
+        Some(cached as f64 / total as f64)
+    }
+}
+
 /// One entry from the JSONL file `tools/check.sh` writes when
 /// `CHECK_TIMING_JSONL` is set.
 /// `gate` is the gate name passed to `run_gate` (e.g. `format_check`),
@@ -176,5 +189,30 @@ mod tests {
         let m: RunMetrics = serde_json::from_str(legacy).unwrap();
         assert!(m.gate_timings.is_empty());
         assert!(m.buck2.is_none());
+    }
+
+    #[test]
+    fn buck2_cache_hit_rate_sums_across_invocations() {
+        let inv = |total: u64, cached: u64| Buck2Invocation {
+            build_id: Buck2BuildId("b".into()),
+            commands_total: total,
+            commands_cached: cached,
+            commands_remote: 0,
+            commands_local: total - cached,
+            bytes_uploaded: 0,
+            bytes_downloaded: 0,
+        };
+        let stats = |invocations| Buck2Stats {
+            job_wall_seconds: 0.0,
+            build_seconds: 0.0,
+            round_trip_seconds: 0.0,
+            invocations,
+        };
+        assert_eq!(
+            stats(vec![inv(100, 90), inv(100, 70)]).cache_hit_rate(),
+            Some(0.8)
+        );
+        assert_eq!(stats(vec![]).cache_hit_rate(), None);
+        assert_eq!(stats(vec![inv(0, 0)]).cache_hit_rate(), None);
     }
 }

@@ -26,6 +26,12 @@ pub struct Baseline {
     pub sample_count: usize,
     pub median_job_wall_seconds: f64,
     pub median_cache_hit_rate: f64,
+    /// Median buck2 job wall seconds over baseline runs carrying buck2
+    /// data; None when none did.
+    pub median_buck2_job_wall_seconds: Option<f64>,
+    /// Median buck2 cache-hit rate over baseline runs carrying buck2
+    /// data; None when none did.
+    pub median_buck2_cache_hit_rate: Option<f64>,
     /// Per-gate median seconds, sorted alphabetically by gate name.
     pub gate_medians: Vec<BaselineGate>,
 }
@@ -36,6 +42,14 @@ impl Baseline {
         let mut hit_rates: Vec<f64> = runs
             .iter()
             .filter_map(|r| r.bazel.cache_hit_rate())
+            .collect();
+        let mut buck2_walls: Vec<f64> = runs
+            .iter()
+            .filter_map(|r| r.buck2.as_ref().map(|b| b.job_wall_seconds))
+            .collect();
+        let mut buck2_hit_rates: Vec<f64> = runs
+            .iter()
+            .filter_map(|r| r.buck2.as_ref().and_then(|b| b.cache_hit_rate()))
             .collect();
         let mut per_gate: BTreeMap<&str, Vec<f64>> = BTreeMap::new();
         for run in runs {
@@ -61,6 +75,8 @@ impl Baseline {
             sample_count: runs.len(),
             median_job_wall_seconds: median(&mut walls).unwrap_or(0.0),
             median_cache_hit_rate: median(&mut hit_rates).unwrap_or(0.0),
+            median_buck2_job_wall_seconds: median(&mut buck2_walls),
+            median_buck2_cache_hit_rate: median(&mut buck2_hit_rates),
             gate_medians,
         }
     }
@@ -106,6 +122,38 @@ pub fn classify(current: &RunMetrics, baseline: &Baseline, thresholds: PrThresho
                 cur_rate * 100.0,
                 drop_pp,
                 baseline.median_cache_hit_rate * 100.0,
+            ));
+        }
+    }
+
+    // buck2 job wall time: same ratio as the build job.
+    if let (Some(cur), Some(base)) = (
+        current.buck2.as_ref(),
+        baseline.median_buck2_job_wall_seconds,
+    ) {
+        if base > 0.0 {
+            let cap = base * thresholds.job_wall_seconds_ratio;
+            if cur.job_wall_seconds > cap {
+                reasons.push(format!(
+                    "buck2 job wall time {:.0}s exceeds {:.0}s ({}× baseline median {:.0}s)",
+                    cur.job_wall_seconds, cap, thresholds.job_wall_seconds_ratio, base,
+                ));
+            }
+        }
+    }
+
+    // buck2 cache hit rate: same drop threshold as bazel.
+    if let (Some(cur_rate), Some(base_rate)) = (
+        current.buck2.as_ref().and_then(|b| b.cache_hit_rate()),
+        baseline.median_buck2_cache_hit_rate,
+    ) {
+        let drop_pp = (base_rate - cur_rate) * 100.0;
+        if drop_pp > thresholds.cache_hit_rate_drop_pp {
+            reasons.push(format!(
+                "buck2 cache hit rate {:.1}% dropped {:.1}pp below baseline median {:.1}%",
+                cur_rate * 100.0,
+                drop_pp,
+                base_rate * 100.0,
             ));
         }
     }
@@ -197,6 +245,32 @@ pub fn render_pr_comment(current: &RunMetrics, baseline: &Baseline, verdict: &Ve
         "| remote bytes downloaded | {} | — |\n",
         current.bazel.remote_bytes_downloaded
     ));
+    if let Some(b) = &current.buck2 {
+        let base_wall = baseline
+            .median_buck2_job_wall_seconds
+            .map(|s| format!("{s:.0}s"))
+            .unwrap_or_else(|| "—".to_string());
+        out.push_str(&format!(
+            "| buck2 job wall time | {:.0}s | {} |\n",
+            b.job_wall_seconds, base_wall
+        ));
+        out.push_str(&format!("| buck2 build | {:.0}s | — |\n", b.build_seconds));
+        out.push_str(&format!(
+            "| buck2 round trip | {:.0}s | — |\n",
+            b.round_trip_seconds
+        ));
+        let cur_hr = b
+            .cache_hit_rate()
+            .map(|r| format!("{:.1}%", r * 100.0))
+            .unwrap_or_else(|| "n/a".to_string());
+        let base_hr = baseline
+            .median_buck2_cache_hit_rate
+            .map(|r| format!("{:.1}%", r * 100.0))
+            .unwrap_or_else(|| "—".to_string());
+        out.push_str(&format!(
+            "| buck2 cache hit rate | {cur_hr} | {base_hr} |\n"
+        ));
+    }
     if !current.gate_timings.is_empty() || !baseline.gate_medians.is_empty() {
         out.push_str("\n**Per-gate timings:**\n\n");
         out.push_str("| gate | this run | baseline median (n) |\n");
@@ -260,7 +334,10 @@ fn median(xs: &mut [f64]) -> Option<f64> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::metrics::{BazelStats, CommitSha, GateTiming, RunId, StepTimings};
+    use crate::metrics::{
+        BazelStats, Buck2BuildId, Buck2Invocation, Buck2Stats, CommitSha, GateTiming, RunId,
+        StepTimings,
+    };
 
     fn gate(name: &str, seconds: f64) -> GateTiming {
         GateTiming {
@@ -302,6 +379,29 @@ mod tests {
             gate_timings: vec![],
             buck2: None,
         }
+    }
+
+    fn buck2_stats(wall: f64, cached: u64, total: u64) -> Buck2Stats {
+        Buck2Stats {
+            job_wall_seconds: wall,
+            build_seconds: wall * 0.3,
+            round_trip_seconds: wall * 0.2,
+            invocations: vec![Buck2Invocation {
+                build_id: Buck2BuildId("bid".into()),
+                commands_total: total,
+                commands_cached: cached,
+                commands_remote: 0,
+                commands_local: total - cached,
+                bytes_uploaded: 0,
+                bytes_downloaded: 0,
+            }],
+        }
+    }
+
+    fn run_with_buck2(wall: f64, b: Buck2Stats) -> RunMetrics {
+        let mut m = run(wall, 900, 1000);
+        m.buck2 = Some(b);
+        m
     }
 
     fn pr_thresholds() -> PrThresholds {
@@ -427,5 +527,65 @@ mod tests {
         let md = render_pr_comment(&current, &baseline, &v);
         assert!(md.contains("Per-gate timings"));
         assert!(md.contains("| format_check | 14.0s | 4.0s (3) |"));
+    }
+
+    #[test]
+    fn flags_buck2_wall_regression() {
+        // bazel wall matches baseline, so only the buck2 job trips.
+        let baseline = Baseline::from_runs(&[
+            run_with_buck2(180.0, buck2_stats(20.0, 100, 100)),
+            run_with_buck2(180.0, buck2_stats(20.0, 100, 100)),
+            run_with_buck2(180.0, buck2_stats(20.0, 100, 100)),
+        ]);
+        let current = run_with_buck2(180.0, buck2_stats(40.0, 100, 100)); // 2× baseline
+        let v = classify(&current, &baseline, pr_thresholds());
+        let Verdict::Regressed { reasons } = v else {
+            panic!("expected regression, got {v:?}");
+        };
+        assert!(reasons.iter().any(|r| r.contains("buck2 job wall time")));
+        assert!(!reasons.iter().any(|r| r.contains("gate")));
+    }
+
+    #[test]
+    fn flags_buck2_cache_hit_drop() {
+        let baseline = Baseline::from_runs(&[
+            run_with_buck2(180.0, buck2_stats(20.0, 90, 100)), // 90%
+            run_with_buck2(180.0, buck2_stats(20.0, 90, 100)),
+            run_with_buck2(180.0, buck2_stats(20.0, 90, 100)),
+        ]);
+        let current = run_with_buck2(180.0, buck2_stats(20.0, 70, 100)); // 70% — 20pp drop
+        let v = classify(&current, &baseline, pr_thresholds());
+        let Verdict::Regressed { reasons } = v else {
+            panic!("expected regression, got {v:?}");
+        };
+        assert!(reasons.iter().any(|r| r.contains("buck2 cache hit rate")));
+    }
+
+    #[test]
+    fn rendered_comment_includes_buck2_rows() {
+        let baseline = Baseline::from_runs(&[run_with_buck2(180.0, buck2_stats(20.0, 90, 100))]);
+        let current = run_with_buck2(300.0, buck2_stats(20.0, 90, 100));
+        let v = classify(&current, &baseline, pr_thresholds());
+        let md = render_pr_comment(&current, &baseline, &v);
+        assert!(md.contains("| buck2 job wall time | 20s | 20s |"), "{md}");
+        assert!(md.contains("buck2 cache hit rate"), "{md}");
+    }
+
+    #[test]
+    fn baseline_aggregates_buck2_medians() {
+        let baseline = Baseline::from_runs(&[
+            run_with_buck2(180.0, buck2_stats(20.0, 90, 100)),
+            run_with_buck2(180.0, buck2_stats(30.0, 90, 100)),
+            run_with_buck2(180.0, buck2_stats(40.0, 90, 100)),
+        ]);
+        assert_eq!(baseline.median_buck2_job_wall_seconds, Some(30.0));
+        assert_eq!(baseline.median_buck2_cache_hit_rate, Some(0.9));
+    }
+
+    #[test]
+    fn buck2_medians_none_when_no_run_carries_buck2() {
+        let baseline = Baseline::from_runs(&[run(180.0, 900, 1000)]);
+        assert_eq!(baseline.median_buck2_job_wall_seconds, None);
+        assert_eq!(baseline.median_buck2_cache_hit_rate, None);
     }
 }

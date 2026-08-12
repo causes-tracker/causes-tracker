@@ -7,7 +7,7 @@ cached_http_archive(
     # action routes there too.
     exec_compatible_with = ["//platforms:image_build_enabled"],
     sub_targets = ["crane"],
-    urls = ["https://github.com/google/go-containerregistry/releases/download/v0.21.7/go-containerregistry_Linux_x86_64.tar.gz"],
+    urls = ["https://github.com/google/go-containerregistry/releases/download/v0.21.9/go-containerregistry_Linux_x86_64.tar.gz"],
     visibility = ["//tools/nativelink:", "//tools/renovate:"],
 )
 

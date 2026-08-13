@@ -43,7 +43,7 @@ tree_tool = rule(
 # A single sha256-pinned executable, runnable as an exec_dep.
 def _downloaded_tool_impl(ctx: AnalysisContext) -> list[Provider]:
     out = ctx.actions.declare_output(ctx.attrs.out)
-    ctx.actions.download_file(out.as_output(), ctx.attrs.url, sha256 = ctx.attrs.sha256, is_executable = True)
+    ctx.actions.download_file(out.as_output(), ctx.attrs.url, sha256 = ctx.attrs.sha256, size_bytes = ctx.attrs.size_bytes, is_executable = True)
     return [DefaultInfo(default_output = out), RunInfo(args = cmd_args(out))]
 
 downloaded_tool = rule(
@@ -51,6 +51,9 @@ downloaded_tool = rule(
     attrs = {
         "out": attrs.string(),
         "sha256": attrs.string(),
+        # The byte size lets buck2 form the CAS digest (sha256:size) without a
+        # HEAD to the origin, so a cached blob is served without contacting it.
+        "size_bytes": attrs.int(),
         "url": attrs.string(),
     },
 )
@@ -66,6 +69,7 @@ def _cached_http_archive_impl(ctx: AnalysisContext) -> list[Provider]:
         archive.as_output(),
         ctx.attrs.urls[0],
         sha256 = ctx.attrs.sha256,
+        size_bytes = ctx.attrs.size_bytes,
     )
     out = ctx.actions.declare_output("out", dir = True)
     if ctx.attrs.zstd:
@@ -118,6 +122,9 @@ cached_http_archive = rule(
         # Top-level archive paths to extract; empty extracts everything.
         "paths": attrs.list(attrs.string(), default = []),
         "sha256": attrs.string(),
+        # The byte size lets buck2 form the CAS digest (sha256:size) without a
+        # HEAD to the origin, so a cached blob is served without contacting it.
+        "size_bytes": attrs.int(),
         "strip_components": attrs.int(default = 0),
         "sub_targets": attrs.list(attrs.string(), default = []),
         "urls": attrs.list(attrs.string()),

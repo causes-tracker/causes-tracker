@@ -2,7 +2,7 @@
 # Test driver for update_archive_sha.sh.
 # Sources the script (with _UPDATE_ARCHIVE_SHA_SOURCED=1 to skip main) and
 # checks archives_of (which archives, and their pins, are seen — the parse that
-# decides which shas get recomputed) and rewrite_sha (the mutation).
+# decides which shas get recomputed) and rewrite_sha/rewrite_size (the mutations).
 set -uo pipefail
 
 if [[ -f "${RUNFILES_DIR:-/dev/null}/bazel_tools/tools/bash/runfiles/runfiles.bash" ]]; then
@@ -149,6 +149,44 @@ want_a="$(printf '%s' 'https://ex/a/v2' | sha256sum | awk '{print $1}')"
 PATH="$stub:$PATH" main "$tmp/work2" "$tmp/base2"
 expect "main recomputes the changed archive" "sha256 = \"${want_a}\"" "$(sed -n 's/.*\(sha256 = "[0-9a-f]*"\).*/\1/p' "$tmp/work2" | head -1)"
 expect "main leaves the unchanged archive" 'sha256 = "BBBB"' "$(sed -n 's/.*\(sha256 = "[^"]*"\).*/\1/p' "$tmp/work2" | tail -1)"
+
+# A block with size_bytes emits it as a fourth field; one without still emits three.
+cat >"$tmp/BUCK_size" <<'EOF'
+cached_http_archive(
+    name = "sized",
+    sha256 = "eeee",
+    size_bytes = 12345,
+    urls = ["https://example/s/v1/s.tar.gz"],
+)
+
+cached_http_archive(
+    name = "unsized",
+    sha256 = "ffff",
+    urls = ["https://example/u/v1/u.tar.gz"],
+)
+EOF
+expect "archives_of emits size_bytes as a fourth field, omits it when absent" \
+	$'sized\teeee\thttps://example/s/v1/s.tar.gz\t12345\nunsized\tffff\thttps://example/u/v1/u.tar.gz' \
+	"$(archives_of "$tmp/BUCK_size")"
+
+rewrite_size "$tmp/BUCK_size" "12345" "67890"
+expect "rewrite_size updates the size" 'size_bytes = 67890,' "$(grep -m1 'size_bytes' "$tmp/BUCK_size" | trim)"
+rc=0
+rewrite_size "$tmp/BUCK_size" "11111" "22222" 2>/dev/null || rc=$?
+expect "rewrite_size fails when the old size is absent" "1" "$rc"
+
+# main recomputes size_bytes alongside sha256 when the URL changed. The stub
+# curl writes the URL as content, so the new size is the URL's byte length.
+cat >"$tmp/base3" <<'EOF'
+cached_http_archive(name = "s", sha256 = "SSSS", size_bytes = 1, urls = ["https://ex/s/v1"])
+EOF
+cat >"$tmp/work3" <<'EOF'
+cached_http_archive(name = "s", sha256 = "SSSS", size_bytes = 1, urls = ["https://ex/s/v2"])
+EOF
+new_url="https://ex/s/v2"
+PATH="$stub:$PATH" main "$tmp/work3" "$tmp/base3"
+expect "main recomputes size_bytes for the changed archive" "size_bytes = ${#new_url}," \
+	"$(sed -n 's/.*\(size_bytes = [0-9]*,\).*/\1/p' "$tmp/work3")"
 
 echo ""
 echo "$PASS passed, $FAIL failed"

@@ -3,8 +3,8 @@
 One permutation per input dimension the function must be invariant to,
 asserted at the python interface; uid/gid cannot be varied on disk
 without privileges, so normalize() is checked on fabricated TarInfos.
-Digest properties cover build_layer's digest output and check_digest's
-pass/fail stamp, which back the layer target's ValidationInfo.
+Digest properties cover build_layer's digest output; the pin's pass/fail
+stamp is validated in rootfs_manifest_unit_test.py.
 
 argv[1] is the built layer tar, argv[2] the rootfs tree,
 argv[3] make_layer.py, argv[4] the output to touch on success.
@@ -12,7 +12,6 @@ argv[3] make_layer.py, argv[4] the output to touch on success.
 
 import hashlib
 import importlib.util
-import json
 import os
 import sys
 import tarfile
@@ -125,9 +124,7 @@ with tempfile.TemporaryDirectory() as td:
     with open(layer, "rb") as a, open(again, "rb") as b:
         assert a.read() == b.read(), "built layer differs from recomputation"
 
-# Digest validation: build_layer's digest output matches a recomputation
-# from the tar it just wrote, check_digest passes when the pin matches and
-# fails with a message naming both digests when it doesn't.
+# build_layer writes the tar's own sha256 to the digest output.
 with tempfile.TemporaryDirectory() as td:
     out = os.path.join(td, "layer.tar")
     digest_out = os.path.join(td, "layer.digest")
@@ -136,20 +133,5 @@ with tempfile.TemporaryDirectory() as td:
         expected_digest = hashlib.sha256(f.read()).hexdigest()
     with open(digest_out, encoding="utf-8") as f:
         assert f.read().strip() == expected_digest, "digest output wrong"
-
-    right_stamp = os.path.join(td, "right.stamp")
-    make_layer.check_digest(digest_out, expected_digest, right_stamp)
-    with open(right_stamp, encoding="utf-8") as f:
-        result = json.load(f)
-    assert result["data"]["status"] == "success", result
-
-    wrong_digest = "0" * 64
-    wrong_stamp = os.path.join(td, "wrong.stamp")
-    make_layer.check_digest(digest_out, wrong_digest, wrong_stamp)
-    with open(wrong_stamp, encoding="utf-8") as f:
-        result = json.load(f)
-    assert result["data"]["status"] == "failure", result
-    assert expected_digest in result["data"]["message"], result
-    assert wrong_digest in result["data"]["message"], result
 
 open(sys.argv[4], "w", encoding="utf-8").write("ok")

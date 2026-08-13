@@ -10,15 +10,17 @@ a member carries one only where it deviates from its constant, surfacing a
 normalization bug.
 
   rootfs_manifest.py build <tar> <out>          write <tar>'s manifest to <out>
-  rootfs_manifest.py diff <golden> <tar> <out>  write <golden>-vs-<tar> diff to
-      <out> (the telemetry buck2.sh prints when a bootstrap digest mismatch
-      means the built rootfs no longer matches the pinned one)
+  rootfs_manifest.py validate <digest> <expected> <tar> <golden> <stamp>
+      write the layer's buck2 validation stamp; on a digest mismatch the stamp
+      message classifies it as a content change (with the manifest diff) or a
+      serialization-only difference (the manifest still matches the golden)
   rootfs_manifest.py <tar> <golden> <stamp>     check <tar> matches <golden>; on
       mismatch print the diff and exit 1, else write <stamp> (cached_check form)
 """
 
 import difflib
 import hashlib
+import json
 import sys
 import tarfile
 
@@ -71,19 +73,43 @@ def _diff(old_text, new_text, old_name, new_name):
     )
 
 
+def _validate(digest_file, expected, tar, golden, stamp):
+    with open(digest_file, encoding="utf-8") as fh:
+        actual = fh.read().strip()
+    if actual == expected:
+        status = "success"
+        message = "Layer digest {} validated".format(actual)
+    else:
+        with open(golden, encoding="utf-8") as fh:
+            want = fh.read()
+        built = _manifest(tar)
+        head = "Layer digest {} does not match expected {}".format(actual, expected)
+        name = golden.rsplit("/", 1)[-1]
+        if built == want:
+            # Same content, different bytes: a serialization difference, not a
+            # rootfs change, so re-pinning WORKER_LAYER_DIGEST is the fix.
+            message = (
+                "{}; the rootfs manifest still matches {}, so the content is "
+                "identical and only the tar serialization differs.".format(head, name)
+            )
+        else:
+            message = "{}; the rootfs content differs from {}:\n{}".format(
+                head, name, _diff(want, built, "golden", "built")
+            )
+        status = "failure"
+    with open(stamp, "w", encoding="utf-8") as fh:
+        json.dump({"version": 1, "data": {"status": status, "message": message}}, fh)
+    return 0
+
+
 def main(argv):
     if argv[1] == "build":
         tar, out = argv[2], argv[3]
         with open(out, "w", encoding="utf-8") as fh:
             fh.write(_manifest(tar))
         return 0
-    if argv[1] == "diff":
-        golden, tar, out = argv[2], argv[3], argv[4]
-        with open(golden, encoding="utf-8") as fh:
-            want = fh.read()
-        with open(out, "w", encoding="utf-8") as fh:
-            fh.write(_diff(want, _manifest(tar), "golden", "built"))
-        return 0
+    if argv[1] == "validate":
+        return _validate(argv[2], argv[3], argv[4], argv[5], argv[6])
 
     # cached_check form: <tar> <golden> <stamp>.
     tar, golden, stamp = argv[1], argv[2], argv[3]

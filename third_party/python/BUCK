@@ -23,7 +23,7 @@ cached_http_archive(
     size_bytes = 38440317,
     exec_compatible_with = ["//platforms:image_build_enabled"],
     strip_components = 2,
-    urls = ["https://github.com/astral-sh/python-build-standalone/releases/download/20260805/cpython-3.14.7+20260805-x86_64-unknown-linux-musl-noopt+static-full.tar.zst"],
+    urls = ["https://github.com/astral-sh/python-build-standalone/releases/download/20260807/cpython-3.14.7+20260807-x86_64-unknown-linux-musl-noopt+static-full.tar.zst"],
     visibility = ["PUBLIC"],
     zstd = "//third_party/zstd:zstd",
 )

@@ -11,12 +11,13 @@ set -euo pipefail
 
 # Emit "name<TAB>sha256<TAB>url[<TAB>size_bytes]" for each archive in file $1 — a
 # rule block that carries both a `sha256 = "..."` and a single-element
-# `urls = ["..."]` (BUCK cached_http_archive) or a singular `url = "..."`
-# (MODULE.bazel http_archive/http_file).
-# The trailing size_bytes field is emitted only when the block declares one.
+# `urls = ["..."]` (BUCK cached_http_archive), a singular `url = "..."`
+# (MODULE.bazel http_archive/http_file), or a one-line dict pin
+# (`{"sha256": ..., "url": ...}`).
+# The trailing size_bytes field is emitted only when the pin declares one.
 archives_of() {
 	[[ -f "$1" ]] || return 0
-	local line name="" sha="" url="" size="" quotes in_string=0 dsha durl dname
+	local line name="" sha="" url="" size="" quotes in_string=0 dsha durl dname dsize
 	while IFS= read -r line; do
 		# Lines inside (or delimiting) a triple-quoted string are literal
 		# content, not fields or block ends.
@@ -34,9 +35,14 @@ archives_of() {
 		if [[ "$line" == *'"sha256": "'* && "$line" == *'"url": "'* ]]; then
 			dsha="$(sed -n 's/.*"sha256": "\([^"]*\)".*/\1/p' <<<"$line")"
 			durl="$(sed -n 's/.*"url": "\([^"]*\)".*/\1/p' <<<"$line")"
+			dsize="$(sed -n 's/.*"size_bytes": \([0-9]*\).*/\1/p' <<<"$line")"
 			dname="${durl##*/}"
 			dname="${dname%%-[0-9]*}"
-			printf '%s\t%s\t%s\n' "$dname" "$dsha" "$durl"
+			if [[ -n "$dsize" ]]; then
+				printf '%s\t%s\t%s\t%s\n' "$dname" "$dsha" "$durl" "$dsize"
+			else
+				printf '%s\t%s\t%s\n' "$dname" "$dsha" "$durl"
+			fi
 			continue
 		fi
 		[[ "$line" == *'name = "'* ]] && name="$(sed -n 's/.*name = "\([^"]*\)".*/\1/p' <<<"$line")"
@@ -66,10 +72,11 @@ rewrite_sha() {
 	grep -q "$3" "$1"
 }
 
-# In pin file $1, replace size_bytes value $2 with $3; fail if $3 is absent.
+# In pin file $1, replace size_bytes value $2 with $3 (attr or dict form);
+# fail if $3 is absent.
 rewrite_size() {
-	sed -i "s/size_bytes = ${2},/size_bytes = ${3},/" "$1"
-	grep -q "size_bytes = ${3}," "$1"
+	sed -i "s/size_bytes = ${2},/size_bytes = ${3},/; s/\"size_bytes\": ${2},/\"size_bytes\": ${3},/" "$1"
+	grep -q -e "size_bytes = ${3}," -e "\"size_bytes\": ${3}," "$1"
 }
 
 main() {

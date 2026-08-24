@@ -203,6 +203,21 @@ expect "archives_of reads dict pins keyed by package name" \
 	$'musl\t1111\thttps://dl-cdn.alpinelinux.org/alpine/v3.19/main/x86_64/musl-1.2.4_git20230717-r6.apk\nlz4-libs\t2222\thttps://dl-cdn.alpinelinux.org/alpine/v3.19/main/x86_64/lz4-libs-1.9.4-r5.apk' \
 	"$(archives_of "$tmp/BUCK_dict")"
 
+# A dict pin with size_bytes emits it as the fourth field; rewrite_size
+# updates the dict form and still fails loudly on a missing old value.
+cat >"$tmp/BUCK_dict_size" <<'EOF'
+    {"sha256": "3333", "size_bytes": 424242, "url": "https://dl-cdn.alpinelinux.org/alpine/v3.19/main/x86_64/zlib-1.3.1-r0.apk"},
+EOF
+expect "archives_of emits a dict pin's size_bytes" \
+	$'zlib\t3333\thttps://dl-cdn.alpinelinux.org/alpine/v3.19/main/x86_64/zlib-1.3.1-r0.apk\t424242' \
+	"$(archives_of "$tmp/BUCK_dict_size")"
+rewrite_size "$tmp/BUCK_dict_size" "424242" "515151"
+expect "rewrite_size updates the dict form" '"size_bytes": 515151,' \
+	"$(grep -o '"size_bytes": [0-9]*,' "$tmp/BUCK_dict_size")"
+rc=0
+rewrite_size "$tmp/BUCK_dict_size" "424242" "616161" 2>/dev/null || rc=$?
+expect "rewrite_size fails when the old dict size is absent" "1" "$rc"
+
 # main recomputes a dict pin's sha when its URL changes vs base.
 cat >"$tmp/base4" <<'EOF'
     {"sha256": "MMMM", "url": "https://dl-cdn.alpinelinux.org/alpine/v3.19/main/x86_64/musl-1.2.4_git20230717-r6.apk"},
@@ -214,6 +229,18 @@ want_musl="$(printf '%s' 'https://dl-cdn.alpinelinux.org/alpine/v3.19/main/x86_6
 PATH="$stub:$PATH" main "$tmp/work4" "$tmp/base4"
 expect "main recomputes a changed dict pin" "\"sha256\": \"${want_musl}\"" \
 	"$(sed -n 's/.*\("sha256": "[0-9a-f]*"\).*/\1/p' "$tmp/work4")"
+
+# main recomputes a dict pin's size_bytes alongside its sha.
+cat >"$tmp/base5" <<'EOF'
+    {"sha256": "ZZZZ", "size_bytes": 1, "url": "https://dl-cdn.alpinelinux.org/alpine/v3.19/main/x86_64/zlib-1.3.1-r0.apk"},
+EOF
+cat >"$tmp/work5" <<'EOF'
+    {"sha256": "ZZZZ", "size_bytes": 1, "url": "https://dl-cdn.alpinelinux.org/alpine/v3.19/main/x86_64/zlib-1.3.1-r1.apk"},
+EOF
+zurl="https://dl-cdn.alpinelinux.org/alpine/v3.19/main/x86_64/zlib-1.3.1-r1.apk"
+PATH="$stub:$PATH" main "$tmp/work5" "$tmp/base5"
+expect "main recomputes a changed dict pin's size" "\"size_bytes\": ${#zurl}," \
+	"$(grep -o '"size_bytes": [0-9]*,' "$tmp/work5")"
 
 echo ""
 echo "$PASS passed, $FAIL failed"

@@ -19,7 +19,12 @@ def _musl_runtime_impl(ctx: AnalysisContext) -> list[Provider]:
     pkgs = []
     for i, pkg in enumerate(ctx.attrs.packages):
         downloaded = ctx.actions.declare_output("pkg_{}.apk".format(i))
-        ctx.actions.download_file(downloaded.as_output(), pkg["url"], sha256 = pkg["sha256"])
+        ctx.actions.download_file(
+            downloaded.as_output(),
+            pkg["url"],
+            sha256 = pkg["sha256"],
+            size_bytes = pkg["size_bytes"],
+        )
         pkgs.append(downloaded)
 
     files = " ".join(ctx.attrs.files)
@@ -61,6 +66,6 @@ musl_runtime = rule(
     attrs = {
         "bins": attrs.list(attrs.string(), doc = "Package-relative paths to stage into the runtime's bin/."),
         "files": attrs.list(attrs.string(), doc = "Package-relative paths to stage flat into the runtime."),
-        "packages": attrs.list(attrs.dict(attrs.string(), attrs.string()), doc = "[{url, sha256}] apks to stage from."),
+        "packages": attrs.list(attrs.dict(attrs.string(), attrs.one_of(attrs.string(), attrs.int())), doc = "[{url, sha256, size_bytes}] apks to stage from."),
     },
 )

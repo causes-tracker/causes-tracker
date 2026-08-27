@@ -8,6 +8,9 @@
 # ICU consumers also set ICU_DATA to the runtime directory, where the icu-data
 # .dat is staged flat.
 
+# runtime: directory holding the loader, the shared libraries, and bin/.
+MuslRuntimeInfo = provider(fields = {"runtime": provider_field(Artifact)})
+
 def _musl_runtime_impl(ctx: AnalysisContext) -> list[Provider]:
     out = ctx.actions.declare_output("musl_runtime", dir = True)
     pkgs = [pkg[DefaultInfo].default_outputs[0] for pkg in ctx.attrs.packages]
@@ -16,7 +19,7 @@ def _musl_runtime_impl(ctx: AnalysisContext) -> list[Provider]:
         category = "musl_runtime",
         allow_cache_upload = True,
     )
-    return [DefaultInfo(default_output = out)]
+    return [DefaultInfo(default_output = out), MuslRuntimeInfo(runtime = out)]
 
 musl_runtime = rule(
     impl = _musl_runtime_impl,

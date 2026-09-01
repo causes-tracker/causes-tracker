@@ -16,7 +16,7 @@
       filesystem: {
         content_path: "${HOME}/.cache/causes-nativelink/data/content_path-cas",
         temp_path: "${HOME}/.cache/causes-nativelink/data/tmp_path-cas",
-        eviction_policy: { max_bytes: 2000000000 },
+        eviction_policy: { max_bytes: 20000000000 },
       },
     },
     {
@@ -24,7 +24,7 @@
       filesystem: {
         content_path: "${HOME}/.cache/causes-nativelink/data/content_path-ac",
         temp_path: "${HOME}/.cache/causes-nativelink/data/tmp_path-ac",
-        eviction_policy: { max_bytes: 200000000 },
+        eviction_policy: { max_bytes: 1000000000 },
       },
     },
     {
@@ -35,7 +35,7 @@
           filesystem: {
             content_path: "${HOME}/.cache/causes-nativelink/data/content_path-worker",
             temp_path: "${HOME}/.cache/causes-nativelink/data/tmp_path-worker",
-            eviction_policy: { max_bytes: 2000000000 },
+            eviction_policy: { max_bytes: 20000000000 },
           },
         },
         slow: { ref_store: { name: "CAS_MAIN_STORE" } },

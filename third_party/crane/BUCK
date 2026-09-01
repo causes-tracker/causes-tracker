@@ -2,8 +2,8 @@ load("//tools:defs.bzl", "cached_http_archive")
 
 cached_http_archive(
     name = "crane",
-    sha256 = "5c16d8ddb971cb1d5e6ed8b1e743da8224414eeba2c2762d8f1a61b2f095699e",
-    size_bytes = 16532182,
+    sha256 = "edb74d53fad9a596860f59d1c5d04a43dfb5f441dc71f57060dd0bf39483c833",
+    size_bytes = 16075919,
     # //tools/nativelink feeds the worker-image subgraph, so its unpack
     # action routes there too.
     exec_compatible_with = ["//platforms:image_build_enabled"],

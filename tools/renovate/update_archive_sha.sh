@@ -12,7 +12,7 @@ set -euo pipefail
 # Emit "name<TAB>sha256<TAB>url[<TAB>size_bytes]" for each archive in file $1 — a
 # rule block that carries both a `sha256 = "..."` and a single-element
 # `urls = ["..."]` (BUCK cached_http_archive) or a singular `url = "..."`
-# (MODULE.bazel http_archive/http_file).
+# (MODULE.bazel http_archive/http_file, BUCK pinned_file).
 # The trailing size_bytes field is emitted only when the block declares one.
 archives_of() {
 	[[ -f "$1" ]] || return 0

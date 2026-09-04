@@ -58,6 +58,21 @@ downloaded_tool = rule(
     },
 )
 
+# A single sha256-pinned file.
+def _pinned_file_impl(ctx: AnalysisContext) -> list[Provider]:
+    out = ctx.actions.declare_output(ctx.attrs.name)
+    ctx.actions.download_file(out.as_output(), ctx.attrs.url, sha256 = ctx.attrs.sha256, size_bytes = ctx.attrs.size_bytes)
+    return [DefaultInfo(default_output = out)]
+
+pinned_file = rule(
+    impl = _pinned_file_impl,
+    attrs = {
+        "sha256": attrs.string(),
+        "size_bytes": attrs.int(),
+        "url": attrs.string(),
+    },
+)
+
 # http_archive whose unpacked tree is remotely cached.
 # The prelude's http_archive never sets `allow_cache_upload` on its unpack
 # action, so its output can be read from the cache but never repopulates it.

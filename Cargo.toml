@@ -80,7 +80,7 @@ rustls-acme = { version = "0.15", default-features = false, features = [
 futures = "0.3"
 tokio-stream = "0.1"
 tower = { version = "0.5", features = ["util"] }
-rmcp = { version = "2", features = ["server", "transport-io", "macros"] }
+rmcp = { version = "3", features = ["server", "transport-io", "macros"] }
 schemars = "1"
 mockall = "0.15"
 tempfile = "3"

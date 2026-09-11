@@ -188,6 +188,19 @@ PATH="$stub:$PATH" main "$tmp/work3" "$tmp/base3"
 expect "main recomputes size_bytes for the changed archive" "size_bytes = ${#new_url}," \
 	"$(sed -n 's/.*\(size_bytes = [0-9]*,\).*/\1/p' "$tmp/work3")"
 
+# A pinned_file block: singular url, sha256, and size_bytes in one BUCK rule.
+cat >"$tmp/BUCK_apk" <<'EOF'
+pinned_file(
+    name = "libstdc++",
+    sha256 = "9999",
+    size_bytes = 917068,
+    url = "https://dl-cdn.alpinelinux.org/alpine/v3.19/main/x86_64/libstdc++-13.2.1_git20231014-r0.apk",
+)
+EOF
+expect "archives_of reads a pinned_file block" \
+	$'libstdc++\t9999\thttps://dl-cdn.alpinelinux.org/alpine/v3.19/main/x86_64/libstdc++-13.2.1_git20231014-r0.apk\t917068' \
+	"$(archives_of "$tmp/BUCK_apk")"
+
 echo ""
 echo "$PASS passed, $FAIL failed"
 [[ "$FAIL" -eq 0 ]]

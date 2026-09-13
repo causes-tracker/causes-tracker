@@ -1,0 +1,11 @@
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+sh_test(
+    name = "buck2_bazel_guard_test",
+    size = "small",
+    srcs = ["buck2_bazel_guard_test.sh"],
+    data = [
+        "buck2.sh",
+        "@bazel_tools//tools/bash/runfiles",
+    ],
+)

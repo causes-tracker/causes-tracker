@@ -111,9 +111,9 @@ filegroup(
 http_archive(
     name = "uv_linux_amd64",
     build_file_content = """exports_files(["uv"])""",
-    sha256 = "4ae93e0f148a18434cc094072547cec88912fc4a72b984183c7d0d0e9586cb5e",
+    sha256 = "ab9b309d4586403f024e100abaceb396616e178a553e2500c36087d180f09509",
     strip_prefix = "uv-x86_64-unknown-linux-gnu",
-    url = "https://github.com/astral-sh/uv/releases/download/0.12.11/uv-x86_64-unknown-linux-gnu.tar.gz",
+    url = "https://github.com/astral-sh/uv/releases/download/0.12.12/uv-x86_64-unknown-linux-gnu.tar.gz",
 )
 
 # OpenTofu 1.11.5 Linux amd64 binary, used by //infra:tofu.

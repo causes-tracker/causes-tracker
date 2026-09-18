@@ -44,7 +44,8 @@ export PATH="$bindir:$PATH"
 # ---- fixture repo: the real renovate.json, backdated pins ----
 repo="$work/repo"
 mkdir -p "$repo/tools/nativelink" "$repo/tools/crun" \
-	"$repo/third_party/crane" "$repo/third_party/python" "$repo/.devcontainer"
+	"$repo/third_party/crane" "$repo/third_party/python" \
+	"$repo/third_party/musl" "$repo/.devcontainer"
 cp "$renovate_json" "$repo/renovate.json"
 sed 's/^NATIVELINK_VERSION=.*/NATIVELINK_VERSION=1.5.0/' \
 	"$nativelink_install" >"$repo/tools/nativelink/install.sh"
@@ -57,6 +58,23 @@ sed -E \
 	"$nativelink_buck" >"$repo/tools/nativelink/BUCK"
 sed 's|download/v[0-9.]*/|download/v0.19.0/|' \
 	"$crane_buck" >"$repo/third_party/crane/BUCK"
+# Apk pins whose names need the widened depName class (+ and _); backdated so
+# the apk manager must both extract and propose an update for them.
+cat >"$repo/third_party/musl/BUCK" <<'EOF'
+pinned_file(
+    name = "libstdc++",
+    sha256 = "0000000000000000000000000000000000000000000000000000000000000000",
+    size_bytes = 1,
+    url = "https://dl-cdn.alpinelinux.org/alpine/v3.19/main/x86_64/libstdc++-12.2.1_git20220924-r10.apk",
+)
+
+pinned_file(
+    name = "libcom_err",
+    sha256 = "0000000000000000000000000000000000000000000000000000000000000000",
+    size_bytes = 1,
+    url = "https://dl-cdn.alpinelinux.org/alpine/v3.19/main/x86_64/libcom_err-1.46.6-r0.apk",
+)
+EOF
 # The multi-axis pin: cpython version and python-build-standalone date share
 # one URL; the grouped update must move both axes together.
 cat >"$repo/third_party/python/BUCK" <<'EOF'
@@ -174,7 +192,7 @@ update_proposed() {
 
 # Every backdated pin must yield an update decision, not just extract.
 for dep in TraceMachina/nativelink containers/crun astral-sh/uv \
-	google/go-containerregistry busybox tzdata opentofu/opentofu \
+	google/go-containerregistry busybox tzdata libstdc++ libcom_err opentofu/opentofu \
 	python/cpython astral-sh/python-build-standalone \
 	ghcr.io/devcontainers/features/docker-outside-of-docker \
 	ghcr.io/devcontainers/features/github-cli \

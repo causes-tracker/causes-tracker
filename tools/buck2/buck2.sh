@@ -16,6 +16,19 @@ while [[ ! -e "$root/.buckroot" && "$root" != / ]]; do
 	root="$(dirname "$root")"
 done
 
+# Bazel convenience symlinks poison the file watcher: buck2 follows them at
+# watch registration, inotify dedups the watch by inode, and events then
+# surface under the alias path, so edits stop invalidating (buck2#465).
+if [[ -e "$root/.buckroot" ]]; then
+	for link in "$root"/bazel-*; do
+		[[ -L "$link" ]] || continue
+		echo "error: $link: Bazel has run in this checkout; the buck2 file" >&2
+		echo "watcher follows it and silently stops seeing edits (buck2#465)." >&2
+		echo "Remove the bazel-* symlinks, then run: buck2 kill" >&2
+		exit 1
+	done
+fi
+
 # A live daemon means this repo is already bootstrapped for this session.
 no_daemon() {
 	# Match on the output, not the pipe exit (pipefail would let a failed

@@ -41,7 +41,7 @@ bash_bundle(
     name = "bash",
     crane = "//third_party/crane:crane[crane]",
     exec_compatible_with = ["//platforms:image_build_enabled"],
-    image = "bash:5.3@sha256:a19c811ee9e97fa8a080001d82b8e0ded303f0795cffdb1cbd162731bc8ce208",
+    image = "bash:5.3@sha256:61962062d969cb46dfc2bad061d36342406fa485f64f246aa7e95693ca07df1f",
 )
 
 cached_http_archive(

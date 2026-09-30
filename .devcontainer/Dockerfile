@@ -19,7 +19,7 @@ RUN curl -fsSL \
     && chmod +x /usr/local/bin/bazel
 
 # Install Buildifier — formatter and linter for Bazel BUILD files.
-ARG BUILDIFIER_VERSION=10.0.1
+ARG BUILDIFIER_VERSION=10.1.0
 RUN curl -fsSL \
       "https://github.com/bazelbuild/buildtools/releases/download/v${BUILDIFIER_VERSION}/buildifier-linux-amd64" \
       -o /usr/local/bin/buildifier \

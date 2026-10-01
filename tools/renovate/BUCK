@@ -11,7 +11,7 @@ renovate_functional_check(
     crun_install = "//tools/crun:install_sh",
     nativelink_buck = "//tools/nativelink:buck_file",
     nativelink_install = "//tools/nativelink:install_sh",
-    renovate_image = "renovate/renovate:44.45.2@sha256:0a9329629b51e6467c8de396ad5d62195d75a8c33c31528792e8a279a9cc5baa",
+    renovate_image = "renovate/renovate:44.113.0@sha256:4441837d6dd87fcce600b2bc881305288d62f3acfde0598e77c1111f833d2679",
     renovate_json = "//:renovate_json",
     exec_compatible_with = ["//platforms:local_only_enabled"],
 )

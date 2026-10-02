@@ -3,8 +3,8 @@
 set -euo pipefail
 . "$(dirname "$0")/../install_release.shlib"
 
-NATIVELINK_VERSION=1.7.1
-NATIVELINK_SHA256=a3d7abc2598e976d022fcdabe88a2f8fae46a3ae64f1868698002ca968dd88e9
+NATIVELINK_VERSION=1.7.2
+NATIVELINK_SHA256=7570cb86fc1fdc6f7baf7224d5759242b7d5685ac745d2756cd655144dd245c8
 install_release TraceMachina/nativelink "$NATIVELINK_SHA256" \
 	"v$NATIVELINK_VERSION" "nativelink-$NATIVELINK_VERSION-x86_64-unknown-linux-musl.tar.gz" \
 	tgz nativelink "${1:-/usr/local/bin}"

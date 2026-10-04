@@ -19,14 +19,14 @@ All git interaction goes through `jj git fetch` and `jj git push`.
 
 ## Pre-push checklist (mandatory after any rebase/reorder)
 
-Before every `jj git push --all` after graph changes:
+Before every `jj git push --tracked` after graph changes:
 
 1. `jj log` — are bookmarks where you expect them?
 2. Any open PR whose **base branch is moving** in this push?
    → `gh pr edit <N> --base master` to temp-base it first.
    (The risk: if a PR's head becomes reachable from its base after the push,
    GitHub falsely marks it "merged" — code never reaches master.)
-3. `jj git push --all`
+3. `jj git push --tracked`
 4. Fix PR bases back: `gh pr edit <N> --base <correct-branch>`
 5. Verify bijection: `gh pr list --json number,headRefName,baseRefName`
 
@@ -51,14 +51,17 @@ Skip this checklist only for routine pushes with no rebase/reorder.
    After finishing a change, run `jj new` to create a fresh empty changeset.
    This protects the completed work from accidental edits.
 
-4. **Always push with `--all`.** Editing any commit in a stack changes the
-   hashes of all descendants — their bookmarks must be updated on the remote
-   too, or PRs will show stale content.
-   To create a new bookmark and push the whole stack:
-   `jj bookmark set <name> -r @` then `jj git push --all`.
-   (`--all` and `--named` cannot be combined.)
-   For subsequent pushes: `jj git push --all`.
-   Never use `--named` alone — it only pushes the one bookmark.
+4. **Push with `--tracked`, never `--all`.** Editing any commit in a stack
+   changes the hashes of all descendants — their bookmarks must be updated on
+   the remote too, or PRs will show stale content.
+   `--tracked` pushes every bookmark that tracks a remote; `--all` would also
+   publish stray untracked local bookmarks.
+   A new bookmark is untracked until its first push:
+   `jj git push --named <name>=@` (it tracks from then on).
+   Never use `--named` alone for stack updates — it only pushes the one
+   bookmark.
+   A bulk rebase can move tracked leftovers from earlier work, and they then
+   push too; `jj git push --tracked --dry-run` previews what would move.
 
 5. **`gh` needs explicit flags.** `gh` cannot infer branches from jj.
    Always pass `--base` and `--head` to `gh pr create` and `gh pr edit`.
@@ -150,7 +153,7 @@ To fix a wrong base: `gh pr edit <n> --base <correct-bookmark>` (never rebase).
 ```sh
 jj git fetch
 jj rebase -r 'mutable()' -d master
-jj git push --all
+jj git push --tracked
 ```
 
 ### After PRs merge
@@ -248,7 +251,7 @@ After this, `jj resolve --all` auto-regenerates `Cargo.lock` and
 | `git stash`               | `jj new` (start a new change)               |
 | `git checkout <branch>`   | `jj edit <rev>`                             |
 | `git branch -d`           | `jj abandon` (rebases descendants)          |
-| `git push`                | `jj git push --all`                         |
+| `git push`                | `jj git push --tracked`                     |
 | `git fetch`               | `jj git fetch`                              |
 | `git rebase`              | `jj rebase` (see reference for flag details)|
 | `git reflog` + reset      | `jj undo`                                   |

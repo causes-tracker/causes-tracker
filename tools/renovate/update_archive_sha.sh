@@ -17,7 +17,7 @@ set -euo pipefail
 archives_of() {
 	[[ -f "$1" ]] || return 0
 	local line name="" sha="" url="" size="" quotes in_string=0
-	while IFS= read -r line; do
+	while IFS= read -r line || [[ -n "$line" ]]; do
 		# Lines inside (or delimiting) a triple-quoted string are literal
 		# content, not fields or block ends.
 		quotes="${line//[^\"]/}"
@@ -49,16 +49,31 @@ archives_of() {
 	done <"$1"
 }
 
-# In pin file $1, replace the (unique) sha256 value $2 with $3; fail if $3 is absent.
-rewrite_sha() {
-	sed -i "s/${2}/${3}/" "$1"
-	grep -q "$3" "$1"
-}
-
-# In pin file $1, replace size_bytes value $2 with $3; fail if $3 is absent.
-rewrite_size() {
-	sed -i "s/size_bytes = ${2},/size_bytes = ${3},/" "$1"
-	grep -q "size_bytes = ${3}," "$1"
+# In pin file $1, inside the archive block named $2, replace the first
+# occurrence of $3 on each line of the block containing $3 with $4.
+# Fails if no line changed.
+# Skips triple-quoted string content the same way archives_of does.
+rewrite_in_block() {
+	local file="$1" block="$2" old="$3" new="$4"
+	local line quotes in_string=0 name="" changed=0 out
+	out="$(mktemp)"
+	while IFS= read -r line || [[ -n "$line" ]]; do
+		quotes="${line//[^\"]/}"
+		if [[ "$line" == *'"""'* ]]; then
+			[[ "$quotes" == '"""' ]] && in_string=$((1 - in_string))
+		elif [[ "$in_string" == 0 ]]; then
+			[[ "$line" == *'name = "'* ]] && name="$(sed -n 's/.*name = "\([^"]*\)".*/\1/p' <<<"$line")"
+			if [[ "$name" == "$block" && "$line" == *"$old"* ]]; then
+				line="${line/"$old"/"$new"}"
+				changed=1
+			fi
+			[[ "$line" =~ \)[[:space:]]*$ ]] && name=""
+		fi
+		printf '%s\n' "$line" >>"$out"
+	done <"$file"
+	cat "$out" >"$file"
+	rm -f "$out"
+	[[ "$changed" == 1 ]]
 }
 
 main() {
@@ -73,9 +88,9 @@ main() {
 		newsha="$(sha256sum "$tmp" | awk '{print $1}')"
 		newsize="$(stat -c%s "$tmp")"
 		rm -f "$tmp"
-		rewrite_sha "$pinfile" "$sha" "$newsha"
+		rewrite_in_block "$pinfile" "$name" "sha256 = \"${sha}\"" "sha256 = \"${newsha}\""
 		if [[ -n "$size" ]]; then
-			rewrite_size "$pinfile" "$size" "$newsize"
+			rewrite_in_block "$pinfile" "$name" "size_bytes = ${size}," "size_bytes = ${newsize},"
 		fi
 	done < <(archives_of "$pinfile")
 }

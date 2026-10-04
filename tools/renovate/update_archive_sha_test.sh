@@ -2,7 +2,7 @@
 # Test driver for update_archive_sha.sh.
 # Sources the script (with _UPDATE_ARCHIVE_SHA_SOURCED=1 to skip main) and
 # checks archives_of (which archives, and their pins, are seen — the parse that
-# decides which shas get recomputed) and rewrite_sha/rewrite_size (the mutations).
+# decides which shas get recomputed) and rewrite_in_block (the mutation).
 set -uo pipefail
 
 if [[ -f "${RUNFILES_DIR:-/dev/null}/bazel_tools/tools/bash/runfiles/runfiles.bash" ]]; then
@@ -104,18 +104,23 @@ expect "archives_of survives multiline build_file_content" \
 	$'jre\tdddd\thttps://example/jre/v3/jre.tar.gz' \
 	"$(archives_of "$tmp/MODULE2.bazel")"
 
-# rewrite_sha replaces one archive's pin by value, leaving the other alone.
+# rewrite_in_block replaces the named archive's pin, leaving the other alone.
 new="deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
-rewrite_sha "$tmp/BUCK" "aaaa" "$new"
+rewrite_in_block "$tmp/BUCK" "cpython" 'sha256 = "aaaa"' "sha256 = \"${new}\""
 trim() { sed 's/^[[:space:]]*//'; }
 expect "rewrite updates the target pin" "sha256 = \"${new}\"," "$(grep -m1 'sha256' "$tmp/BUCK" | trim)"
 expect "rewrite leaves the other pin" 'sha256 = "bbbb",' "$(grep 'sha256' "$tmp/BUCK" | tail -1 | trim)"
 
-# rewrite_sha fails loudly when the old value is absent and the new one isn't
-# already there — the mutation did not take.
-printf 'sha256 = "cccc",\n' >"$tmp/fresh"
+# rewrite_in_block fails loudly when the old value is absent from the named
+# block — the mutation did not take.
+cat >"$tmp/fresh" <<'EOF'
+pinned_file(
+    name = "fresh",
+    sha256 = "cccc",
+)
+EOF
 rc=0
-rewrite_sha "$tmp/fresh" "notpresent" "ffff" 2>/dev/null || rc=$?
+rewrite_in_block "$tmp/fresh" "fresh" 'sha256 = "notpresent"' 'sha256 = "ffff"' 2>/dev/null || rc=$?
 expect "rewrite fails when the old sha is absent" "1" "$rc"
 
 # main re-fetches (and rewrites) only archives whose URL changed vs base.
@@ -169,11 +174,11 @@ expect "archives_of emits size_bytes as a fourth field, omits it when absent" \
 	$'sized\teeee\thttps://example/s/v1/s.tar.gz\t12345\nunsized\tffff\thttps://example/u/v1/u.tar.gz' \
 	"$(archives_of "$tmp/BUCK_size")"
 
-rewrite_size "$tmp/BUCK_size" "12345" "67890"
-expect "rewrite_size updates the size" 'size_bytes = 67890,' "$(grep -m1 'size_bytes' "$tmp/BUCK_size" | trim)"
+rewrite_in_block "$tmp/BUCK_size" "sized" 'size_bytes = 12345,' 'size_bytes = 67890,'
+expect "rewrite_in_block updates the size" 'size_bytes = 67890,' "$(grep -m1 'size_bytes' "$tmp/BUCK_size" | trim)"
 rc=0
-rewrite_size "$tmp/BUCK_size" "11111" "22222" 2>/dev/null || rc=$?
-expect "rewrite_size fails when the old size is absent" "1" "$rc"
+rewrite_in_block "$tmp/BUCK_size" "sized" 'size_bytes = 11111,' 'size_bytes = 22222,' 2>/dev/null || rc=$?
+expect "rewrite_in_block fails when the old size is absent" "1" "$rc"
 
 # main recomputes size_bytes alongside sha256 when the URL changed. The stub
 # curl writes the URL as content, so the new size is the URL's byte length.
@@ -187,6 +192,88 @@ new_url="https://ex/s/v2"
 PATH="$stub:$PATH" main "$tmp/work3" "$tmp/base3"
 expect "main recomputes size_bytes for the changed archive" "size_bytes = ${#new_url}," \
 	"$(sed -n 's/.*\(size_bytes = [0-9]*,\).*/\1/p' "$tmp/work3")"
+
+# Two blocks sharing the same size_bytes, the bumped one second: a rewrite
+# keyed on the value alone would hit the first block instead.
+cat >"$tmp/base4" <<'EOF'
+pinned_file(
+    name = "one",
+    sha256 = "1111",
+    size_bytes = 500,
+    url = "https://ex/one/v1",
+)
+pinned_file(
+    name = "two",
+    sha256 = "2222",
+    size_bytes = 500,
+    url = "https://ex/two/v1",
+)
+EOF
+sed 's|https://ex/two/v1|https://ex/two/v2|' "$tmp/base4" >"$tmp/work4"
+url_two="https://ex/two/v2"
+PATH="$stub:$PATH" main "$tmp/work4" "$tmp/base4"
+expect "main updates the bumped second block's size" "size_bytes = ${#url_two}," \
+	"$(sed -n '/name = "two"/,/^)/p' "$tmp/work4" | grep 'size_bytes' | trim)"
+expect "main leaves the first block's equal size untouched" 'size_bytes = 500,' \
+	"$(sed -n '/name = "one"/,/^)/p' "$tmp/work4" | grep 'size_bytes' | trim)"
+
+# Two blocks sharing the same sha256, the bumped one second.
+cat >"$tmp/base5" <<'EOF'
+pinned_file(
+    name = "p",
+    sha256 = "9999",
+    url = "https://ex/p/v1",
+)
+pinned_file(
+    name = "q",
+    sha256 = "9999",
+    url = "https://ex/q/v1",
+)
+EOF
+sed 's|https://ex/q/v1|https://ex/q/v2|' "$tmp/base5" >"$tmp/work5"
+want_q="$(printf '%s' 'https://ex/q/v2' | sha256sum | awk '{print $1}')"
+PATH="$stub:$PATH" main "$tmp/work5" "$tmp/base5"
+expect "main updates the bumped second block's sha" "sha256 = \"${want_q}\"," \
+	"$(sed -n '/name = "q"/,/^)/p' "$tmp/work5" | grep 'sha256' | trim)"
+expect "main leaves the first block's equal sha untouched" 'sha256 = "9999",' \
+	"$(sed -n '/name = "p"/,/^)/p' "$tmp/work5" | grep 'sha256' | trim)"
+
+# rewrite_in_block skips triple-quoted string content: the bare ")" inside
+# build_file_content must not end the block before the sha line.
+cat >"$tmp/MODULE3.bazel" <<'EOF'
+http_archive(
+    name = "jdk",
+    build_file_content = """
+filegroup(
+    name = "files",
+    srcs = glob(["**"]),
+)
+""",
+    sha256 = "abcd",
+    url = "https://example/jdk/v4/jdk.tar.gz",
+)
+EOF
+rewrite_in_block "$tmp/MODULE3.bazel" "jdk" 'sha256 = "abcd"' 'sha256 = "ef01"'
+expect "rewrite_in_block survives multiline build_file_content" 'sha256 = "ef01",' \
+	"$(grep -m1 'sha256' "$tmp/MODULE3.bazel" | trim)"
+
+# A block whose closing ")" line lacks a trailing newline is still parsed.
+printf 'pinned_file(\n    name = "tail",\n    sha256 = "0a0a",\n    url = "https://ex/tail/v1",\n)' >"$tmp/noeol_parse"
+expect "archives_of emits a block with an unterminated closing line" \
+	$'tail\t0a0a\thttps://ex/tail/v1' \
+	"$(archives_of "$tmp/noeol_parse")"
+
+# A file whose final line lacks a trailing newline keeps that line; the
+# output is normalized to end with a newline.
+# The sentinel x preserves the trailing newline through command substitution.
+printf 'pinned_file(\n    name = "bare",\n    sha256 = "0808",\n)' >"$tmp/noeol"
+rewrite_in_block "$tmp/noeol" "bare" 'sha256 = "0808"' 'sha256 = "0909"'
+expect "rewrite_in_block keeps an unterminated final line" \
+	$'pinned_file(\n    name = "bare",\n    sha256 = "0909",\n)\nx' \
+	"$(
+		cat "$tmp/noeol"
+		printf x
+	)"
 
 echo ""
 echo "$PASS passed, $FAIL failed"

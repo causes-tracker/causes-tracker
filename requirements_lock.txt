@@ -128,7 +128,9 @@ markupsafe==3.0.3 \
 pathspec==1.1.1 \
     --hash=sha256:17db5ecd524104a120e173814c90367a96a98d07c45b2e10c2f3919fff91bf5a \
     --hash=sha256:a00ce642f577bf7f473932318056212bc4f8bfdf53128c78bbd5af0b9b20b189
-    # via yamllint
+    # via
+    #   yamllint
+    #   zensical
 py-walk==0.3.3 \
     --hash=sha256:238fc018165138021ce0bfd9c351cdc473d3120ccc5534df35611b92608c94d5 \
     --hash=sha256:a1b28d6079f27203fa3098b69a98572675b3ff5bd02286c43e6dacd66615f879

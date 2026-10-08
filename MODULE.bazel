@@ -121,7 +121,7 @@ http_archive(
 http_archive(
     name = "opentofu_linux_amd64",
     build_file_content = """exports_files(["tofu"])""",
-    sha256 = "ad494034a03aaa66d93fc1c2c164d01bedf21b44cfb8b616182cb69424a67672",
+    sha256 = "8ccbc6f8ee21d2827715f3c6e08a9b3e0209b1e62057c05067ef117e047c1a80",
     url = "https://github.com/opentofu/opentofu/releases/download/v1.13.1/tofu_1.13.1_linux_amd64.zip",
 )
 

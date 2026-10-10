@@ -34,7 +34,7 @@ markdown==3.11 \
     # via
     #   pymdown-extensions
     #   zensical
-MarkupSafe==3.0.4 \
+markupsafe==3.0.4 \
     --hash=sha256:007e1ffd9bf65bb6ee96df7b258fc632a4868dd5566037986c64781f35a36e98 \
     --hash=sha256:02fa4acbc6a3fc5c693c34d4dd8c1130b7fe99cc915181b0ddd6f72aeb296002 \
     --hash=sha256:03470d1a8268e692ecf79ecd565593e59d44219377a7ead61f1f1b94c1f7ff6b \

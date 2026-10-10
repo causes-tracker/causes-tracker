@@ -1,0 +1,26 @@
+load("//tools:defs.bzl", "cached_http_archive")
+load(":pg_rules.bzl", "pg_shimmed_dist", "pg_smoke_test")
+
+# theseus-rs/postgresql-binaries publishes a musl target; the from-scratch
+# busybox worker needs the musl build (the Bazel side pins the glibc one in
+# MODULE.bazel).
+cached_http_archive(
+    name = "postgres_extracted",
+    sha256 = "c864af924c32dadfeaca61585fc7092679c8b6374162e62e96e33d9ece0d55c2",
+    size_bytes = 26108430,
+    strip_components = 1,
+    urls = ["https://github.com/theseus-rs/postgresql-binaries/releases/download/18.6.0/postgresql-18.6.0-x86_64-unknown-linux-musl.tar.gz"],
+)
+
+pg_shimmed_dist(
+    name = "postgres_shimmed",
+    dist = ":postgres_extracted",
+)
+
+pg_smoke_test(
+    name = "pg_smoke_test",
+    fixture = "pg_fixture.sh",
+    musl_runtime = "//third_party/musl:musl_runtime",
+    pg_dist = ":postgres_shimmed",
+    script = "pg_smoke_test.sh",
+)

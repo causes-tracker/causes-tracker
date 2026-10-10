@@ -5,6 +5,8 @@ mod pending_login;
 mod project;
 mod role;
 mod session;
+#[cfg(test)]
+mod test_support;
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};

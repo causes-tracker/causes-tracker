@@ -1,3 +1,9 @@
+load("@root//tools:defs.bzl", "shellcheck_check")
 load(":defs.bzl", "undeclared_read")
 
 undeclared_read(name = "undeclared_read")
+
+shellcheck_check(
+    name = "shellcheck_finding",
+    srcs = ["shellcheck_finding.sh"],
+)

@@ -1,3 +1,5 @@
+load("//tools:defs.bzl", "shellcheck_package")
+
 # Fixture text for tools/renovate:functional_check to regex-scan, never
 # executed — the crun binary itself is used off PATH, not built from this.
 export_file(
@@ -5,3 +7,5 @@ export_file(
     src = "install.sh",
     visibility = ["//tools/renovate:"],
 )
+
+shellcheck_package(sourced = ["//tools:install_release.shlib"])

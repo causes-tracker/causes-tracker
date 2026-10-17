@@ -1,3 +1,4 @@
+load("//tools:defs.bzl", "shellcheck_package")
 load(":functional_check.bzl", "renovate_functional_check")
 
 # Tracked by the docker-digest custom manager in renovate.json, so Renovate
@@ -15,3 +16,5 @@ renovate_functional_check(
     renovate_json = "//:renovate_json",
     exec_compatible_with = ["//platforms:local_only_enabled"],
 )
+
+shellcheck_package()

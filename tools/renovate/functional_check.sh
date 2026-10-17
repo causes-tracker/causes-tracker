@@ -27,8 +27,8 @@ out="$8"
 
 token="${GH_TOKEN:-}"
 if [[ -z "$token" ]]; then
-	echo "ERROR: GH_TOKEN is not set. Configure it in .buckconfig.local:" \
-		"[renovate]\\n  gh_token = <token>" >&2
+	printf '%s\n' "ERROR: GH_TOKEN is not set. Configure it in .buckconfig.local:" \
+		"[renovate]" "  gh_token = <token>" >&2
 	exit 1
 fi
 

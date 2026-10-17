@@ -1,4 +1,4 @@
-load("//tools:defs.bzl", "cached_check", "pinned_file")
+load("//tools:defs.bzl", "cached_check", "pinned_file", "shellcheck_package")
 load(":defs.bzl", "musl_runtime")
 
 pinned_file(
@@ -161,3 +161,5 @@ cached_check(
         ":musl_runtime",
     ],
 )
+
+shellcheck_package()

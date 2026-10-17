@@ -52,15 +52,22 @@
     },
     {
       name: "AC_MAIN_STORE",
-      fast_slow: {
-        fast: {
-          filesystem: {
-            content_path: "${HOME}/.cache/causes-nativelink/data/content_path-ac",
-            temp_path: "${HOME}/.cache/causes-nativelink/data/tmp_path-ac",
-            eviction_policy: { max_bytes: 500000000 },
+      // An action result is served only while every output it references is
+      // still in the CAS; otherwise the hit cannot be materialized.
+      completeness_checking: {
+        backend: {
+          fast_slow: {
+            fast: {
+              filesystem: {
+                content_path: "${HOME}/.cache/causes-nativelink/data/content_path-ac",
+                temp_path: "${HOME}/.cache/causes-nativelink/data/tmp_path-ac",
+                eviction_policy: { max_bytes: 500000000 },
+              },
+            },
+            slow: { ref_store: { name: "BB_AC" } },
           },
         },
-        slow: { ref_store: { name: "BB_AC" } },
+        cas_store: { ref_store: { name: "CAS_MAIN_STORE" } },
       },
     },
     {

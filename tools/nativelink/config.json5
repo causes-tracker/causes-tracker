@@ -21,10 +21,17 @@
     },
     {
       name: "AC_MAIN_STORE",
-      filesystem: {
-        content_path: "${HOME}/.cache/causes-nativelink/data/content_path-ac",
-        temp_path: "${HOME}/.cache/causes-nativelink/data/tmp_path-ac",
-        eviction_policy: { max_bytes: 1000000000 },
+      // An action result is served only while every output it references is
+      // still in the CAS; otherwise the hit cannot be materialized.
+      completeness_checking: {
+        backend: {
+          filesystem: {
+            content_path: "${HOME}/.cache/causes-nativelink/data/content_path-ac",
+            temp_path: "${HOME}/.cache/causes-nativelink/data/tmp_path-ac",
+            eviction_policy: { max_bytes: 1000000000 },
+          },
+        },
+        cas_store: { ref_store: { name: "CAS_MAIN_STORE" } },
       },
     },
     {

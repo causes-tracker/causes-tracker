@@ -15,7 +15,6 @@ package(default_visibility = ["//visibility:public"])
 exports_files([
     ".clippy.toml",
     ".pymarkdown.json",
-    ".shellcheckrc",
     ".yamlfmt",
     ".yamllint",
     "Cargo.toml",

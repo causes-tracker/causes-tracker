@@ -252,6 +252,22 @@ jobs:
             printf '%s\n' "$out" >&2
             exit 1
           }
+      # A shellcheck_check over a script with a known finding must fail;
+      # a green sweep alone cannot distinguish "linted clean" from "lint
+      # never ran".
+      - name: Verify shellcheck_check fails on a finding
+        run: |
+          rc=0
+          out="$(buck2 build probes//:shellcheck_finding 2>&1)" || rc=$?
+          if [ "$rc" -eq 0 ]; then
+            echo "shellcheck probe unexpectedly succeeded" >&2
+            exit 1
+          fi
+          grep -qF "SC2086" <<<"$out" || {
+            echo "build failed ($rc), but not on the shellcheck finding:" >&2
+            printf '%s\n' "$out" >&2
+            exit 1
+          }
       - name: Show NativeLink log on failure
         if: failure()
         run: cat ~/.cache/causes-nativelink/nativelink.log || true

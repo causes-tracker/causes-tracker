@@ -1,11 +1,10 @@
 "Linter aspects for the Causes monorepo."
 
-# Shellcheck and clippy run automatically on all matching targets via .bazelrc:
+# Clippy runs automatically on all matching targets via .bazelrc:
 #
-#   build --aspects=//tools/lint:linters.bzl%shellcheck
 #   build --aspects=//tools/lint:linters.bzl%clippy
 #
-# No per-package wiring is needed for those two linters.
+# No per-package wiring is needed for it.
 #
 # YAML and Markdown still use explicit targets — add them to packages that have them:
 #   yamllint_lint_test(name = "yamllint", srcs = [":some_yaml_filegroup"])
@@ -14,7 +13,6 @@
 load("@aspect_rules_lint//lint:buf.bzl", "lint_buf_aspect")
 load("@aspect_rules_lint//lint:clippy.bzl", "lint_clippy_aspect")
 load("@aspect_rules_lint//lint:lint_test.bzl", "lint_test")
-load("@aspect_rules_lint//lint:shellcheck.bzl", "lint_shellcheck_aspect")
 load("@aspect_rules_lint//lint:yamllint.bzl", "lint_yamllint_aspect")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
@@ -25,16 +23,6 @@ buf = lint_buf_aspect(
 )
 
 buf_lint_test = lint_test(aspect = buf)
-
-# ── shellcheck (Shell scripts) ────────────────────────────────────────────────
-# Applies to sh_binary, sh_library, sh_test targets.
-# Binary: hermetic shellcheck provided by aspect_rules_lint via multitool.
-# Config: //.shellcheckrc
-
-shellcheck = lint_shellcheck_aspect(
-    binary = Label("@aspect_rules_lint//lint:shellcheck_bin"),
-    config = Label("//:.shellcheckrc"),
-)
 
 # ── yamllint (YAML files) ─────────────────────────────────────────────────────
 # Applies to filegroup targets tagged "lint-with-yamllint".

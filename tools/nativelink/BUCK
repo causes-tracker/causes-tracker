@@ -1,4 +1,4 @@
-load("//tools:defs.bzl", "cached_check", "cached_http_archive")
+load("//tools:defs.bzl", "cached_check", "cached_http_archive", "shellcheck_package")
 load("//tools/nativelink:bash.bzl", "bash_bundle")
 load("//tools/nativelink:busybox.bzl", "busybox")
 load("//tools/nativelink:layer.bzl", "worker_layer")
@@ -123,3 +123,5 @@ cached_check(
         "make_layer.py",
     ],
 )
+
+shellcheck_package(sourced = ["//tools:install_release.shlib"])

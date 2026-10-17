@@ -22,6 +22,50 @@ cached_check = rule(
     },
 )
 
+# Shellchecks srcs on the worker; the empty stamp is the cached result.
+def _shellcheck_check_impl(ctx: AnalysisContext) -> list[Provider]:
+    out = ctx.actions.declare_output("out.txt")
+    ctx.actions.run(
+        cmd_args(
+            "/bin/sh",
+            ctx.attrs.driver,
+            ctx.attrs.shellcheck[RunInfo],
+            out.as_output(),
+            ctx.attrs.srcs,
+            hidden = [ctx.attrs.rcfile] + ctx.attrs.sourced,
+        ),
+        category = "shellcheck",
+        allow_cache_upload = True,
+    )
+    return [DefaultInfo(default_output = out)]
+
+shellcheck_check = rule(
+    impl = _shellcheck_check_impl,
+    attrs = {
+        "driver": attrs.source(default = "//tools:shellcheck_check.sh"),
+        # shellcheck finds .shellcheckrc by walking up from each script's
+        # directory, so it only needs to be staged at the root.
+        "rcfile": attrs.source(default = "//:shellcheckrc"),
+        "shellcheck": attrs.exec_dep(providers = [RunInfo], default = "//tools:shellcheck"),
+        # Staged so shellcheck can follow `source` into them; linted by their
+        # own package.
+        "sourced": attrs.list(attrs.source(), default = []),
+        "srcs": attrs.list(attrs.source()),
+    },
+)
+
+# `**` skips dot-directories, so a second pattern reaches scripts under them.
+_SHELL_SRCS = [".*/**/*.bash", ".*/**/*.sh", ".*/**/*.shlib", "**/*.bash", "**/*.sh", "**/*.shlib"]
+
+# One shellcheck_test per package: every shell script under it that no
+# subpackage owns.
+def shellcheck_package(sourced = []):
+    shellcheck_check(
+        name = "shellcheck_test",
+        sourced = sourced,
+        srcs = glob(_SHELL_SRCS),
+    )
+
 # Tool at a path inside a directory artifact.
 # Projecting a path declares only that subtree as an action input, so a
 # tool that reads sibling files at runtime (python3 finds its stdlib

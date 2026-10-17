@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # install_release.shlib — download and install a pinned github-release binary.
 # Sourced by each tool's install.sh, not executed.
 # tar formats hold the binary at <member> inside the archive (default: <name>

@@ -16,8 +16,8 @@ bazel_dep(name = "rules_proto", version = "7.1.0")
 bazel_dep(name = "protobuf", version = "34.1")
 
 # Linting and formatting.
-# aspect_rules_lint provides: buf (proto), shellcheck (shell), yamllint (yaml),
-# shfmt (shell format), yamlfmt (yaml format), and the format_multirun macro.
+# aspect_rules_lint provides: buf (proto), yamllint (yaml), shfmt (shell
+# format), yamlfmt (yaml format), and the format_multirun macro.
 bazel_dep(name = "aspect_rules_lint", version = "2.3.0")
 
 # Buildifier for Starlark/BUILD linting and formatting.

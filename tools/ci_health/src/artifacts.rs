@@ -181,7 +181,7 @@ fn extract_metrics_from_zip(bytes: &[u8]) -> Result<RunMetrics> {
         zip::ZipArchive::new(std::io::Cursor::new(bytes)).context("parse artifact zip")?;
     for i in 0..archive.len() {
         let mut entry = archive.by_index(i).context("read zip entry")?;
-        let name = entry.name().to_string();
+        let name = entry.name().context("read zip entry name")?.to_string();
         if !name.ends_with(".json") {
             continue;
         }

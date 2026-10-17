@@ -62,7 +62,7 @@ Never run `jj bookmark set` after a rewrite — it is unnecessary.
 ### 5. Using `--named` for existing bookmarks
 
 `jj git push --named <name>=<rev>` creates a brand-new bookmark.
-For existing bookmarks, use `jj git push --all`.
+For existing bookmarks, use `jj git push --tracked`.
 Using `--named` on an existing bookmark creates a conflict.
 
 ### 6. Looking for `jj commit`
@@ -201,7 +201,7 @@ trunk()..@                          # your work since branching from trunk
 ## Bookmark lifecycle
 
 1. **Create + first push:** `jj git push --named <name>=@`
-2. **Subsequent pushes:** `jj git push --all`
+2. **Subsequent pushes:** `jj git push --tracked`
 3. **Auto-follows rewrites:** squash, rebase, describe — bookmark moves automatically
 4. **Delete:** `jj bookmark delete <name>`, then push to propagate
 5. **Forget (local only):** `jj bookmark forget <name>` — does not mark as deleted on remote

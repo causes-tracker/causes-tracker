@@ -26,8 +26,14 @@ if [[ ! -f "$CHECK_SH" ]]; then
 	exit 1
 fi
 
-# shellcheck source=/dev/null
+# shellcheck source=check.sh
 _CHECK_SH_SOURCED=1 source "$CHECK_SH"
+
+SUPPRESSION_GATE_FILES=(
+	"gate/a"
+	"gate/b.yml"
+	"tools/gate.sh"
+)
 
 PASS=0
 FAIL=0
@@ -149,52 +155,36 @@ case_fail "+ # type: ignore[...]" 'diff --git a/x.py b/x.py
 
 # ── gate-config edits / creations ─────────────────────────────────────────
 
-case_fail ".bazelignore created" 'diff --git a/.bazelignore b/.bazelignore
+case_fail "gate file created" 'diff --git a/gate/a b/gate/a
 new file mode 100644
 --- /dev/null
-+++ b/.bazelignore
++++ b/gate/a
 @@ -0,0 +1 @@
 +some/skipped/path
 '
 
-case_fail "tools/check.sh edited" 'diff --git a/tools/check.sh b/tools/check.sh
---- a/tools/check.sh
-+++ b/tools/check.sh
+case_fail "gate file edited" 'diff --git a/tools/gate.sh b/tools/gate.sh
+--- a/tools/gate.sh
++++ b/tools/gate.sh
 @@ -1 +1 @@
 -MIN_PCT=25
 +MIN_PCT=10
 '
 
-case_fail ".clippy.toml edited" 'diff --git a/.clippy.toml b/.clippy.toml
---- a/.clippy.toml
-+++ b/.clippy.toml
+case_fail "gate file in a subdirectory edited" 'diff --git a/gate/b.yml b/gate/b.yml
+--- a/gate/b.yml
++++ b/gate/b.yml
 @@ -1 +1 @@
--doc-valid-idents = ["X"]
-+doc-valid-idents = ["X","Y"]
+-on: push
++on: workflow_dispatch
 '
 
-case_fail "rustfmt.toml edited" 'diff --git a/rustfmt.toml b/rustfmt.toml
---- a/rustfmt.toml
-+++ b/rustfmt.toml
+case_pass "file sharing a gate basename passes" 'diff --git a/other/gate.sh b/other/gate.sh
+--- a/other/gate.sh
++++ b/other/gate.sh
 @@ -1 +1 @@
--max_width = 100
-+max_width = 200
-'
-
-case_fail ".shellcheckrc edited" 'diff --git a/.shellcheckrc b/.shellcheckrc
---- a/.shellcheckrc
-+++ b/.shellcheckrc
-@@ -1 +1,2 @@
- enable=all
-+disable=SC2086
-'
-
-case_fail ".yamlfmt edited" 'diff --git a/.yamlfmt b/.yamlfmt
---- a/.yamlfmt
-+++ b/.yamlfmt
-@@ -1 +1 @@
--indent: 2
-+indent: 4
+-a=1
++a=2
 '
 
 # ── false-positive guards ─────────────────────────────────────────────────
@@ -238,6 +228,23 @@ case_pass "tools/foo.sh (sibling of gate path) passes" 'diff --git a/tools/foo.s
 @@ -1 +1 @@
 -old
 +new
+'
+
+# An authorised gate file (the user minted a token for it this hour) passes.
+AUTHORISED_GATE_FILES=$'tools/gate.sh\n' case_pass "authorised gate file passes" 'diff --git a/tools/gate.sh b/tools/gate.sh
+--- a/tools/gate.sh
++++ b/tools/gate.sh
+@@ -1 +1 @@
+-MIN_PCT=25
++MIN_PCT=10
+'
+
+AUTHORISED_GATE_FILES=$'tools/gate.sh\n' case_fail "authorisation covers only its own file" 'diff --git a/gate/a b/gate/a
+--- a/gate/a
++++ b/gate/a
+@@ -1 +1 @@
+-a = 1
++a = 2
 '
 
 # ── multi-violation: every violation listed, not just the first ───────────

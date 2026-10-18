@@ -142,11 +142,15 @@ sh_test(
 
 # PreToolUse action guard, wired into .claude/settings.json.  Denies forbidden
 # agent actions at the moment of action: native tooling instead of the Bazel
-# wrappers, lockfile destruction, and mod.rs creation.  Decision logic lives in
-# decide() so it is unit-testable without spawning a subprocess.
+# wrappers, lockfile destruction, mod.rs creation, and unauthorised edits to
+# quality-gate files.  Decision logic lives in decide() so it is unit-testable
+# without spawning a subprocess.
 py_library(
     name = "agent_action_guard",
-    srcs = ["agent_action_guard.py"],
+    srcs = [
+        "agent_action_guard.py",
+        "authorise.py",
+    ],
     imports = ["."],
 )
 

@@ -1,3 +1,4 @@
+load("//third_party/musl:defs.bzl", "musl_tool")
 load(":defs.bzl", "cached_check", "cached_http_archive", "shellcheck_package", "tree_tool")
 
 export_file(
@@ -34,6 +35,19 @@ tree_tool(
     path = "shellcheck",
     tree = ":shellcheck_archive",
     visibility = ["PUBLIC"],
+)
+
+musl_tool(
+    name = "bash",
+    path = "bin/bash",
+    runtime = "//third_party/musl:musl_runtime",
+    visibility = ["PUBLIC"],
+)
+
+cached_check(
+    name = "bash_tool_test",
+    exe = ":bash",
+    srcs = ["bash_tool_test.sh"],
 )
 
 export_file(

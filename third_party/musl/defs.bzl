@@ -2,11 +2,16 @@
 # libraries and ICU data the pinned apks ship, flattened into a single
 # directory with the requested bins, so the staged set tracks the pins and a
 # package bump edits nothing but the pin.
-# A consumer runs a binary as `loader --library-path <runtime> <binary>`, so
-# the artifact carries its own runtime and runs on any host regardless of the
+# The artifact carries its own runtime and runs on any host regardless of the
 # host libc.
 # ICU consumers also set ICU_DATA to the runtime directory, where the icu-data
 # .dat is staged flat.
+
+# loader: run a runtime binary as `loader --library-path runtime <binary>`.
+MuslRuntimeInfo = provider(fields = {
+    "loader": provider_field(Artifact),
+    "runtime": provider_field(Artifact),
+})
 
 def _musl_runtime_impl(ctx: AnalysisContext) -> list[Provider]:
     out = ctx.actions.declare_output("musl_runtime", dir = True)
@@ -16,7 +21,10 @@ def _musl_runtime_impl(ctx: AnalysisContext) -> list[Provider]:
         category = "musl_runtime",
         allow_cache_upload = True,
     )
-    return [DefaultInfo(default_output = out)]
+    return [
+        DefaultInfo(default_output = out),
+        MuslRuntimeInfo(loader = out.project("ld-musl-x86_64.so.1"), runtime = out),
+    ]
 
 musl_runtime = rule(
     impl = _musl_runtime_impl,
@@ -24,5 +32,26 @@ musl_runtime = rule(
         "bins": attrs.list(attrs.string(), doc = "Package-relative paths to stage into the runtime's bin/."),
         "packages": attrs.list(attrs.dep(providers = [DefaultInfo]), doc = "pinned_file targets to stage from."),
         "script": attrs.source(),
+    },
+)
+
+# A runtime binary as a RunInfo tool.
+def _musl_tool_impl(ctx: AnalysisContext) -> list[Provider]:
+    info = ctx.attrs.runtime[MuslRuntimeInfo]
+    return [
+        DefaultInfo(),
+        RunInfo(args = cmd_args(
+            info.loader,
+            "--library-path",
+            info.runtime,
+            info.runtime.project(ctx.attrs.path),
+        )),
+    ]
+
+musl_tool = rule(
+    impl = _musl_tool_impl,
+    attrs = {
+        "path": attrs.string(doc = "Runtime-relative path of the binary."),
+        "runtime": attrs.dep(providers = [MuslRuntimeInfo]),
     },
 )

@@ -17,7 +17,7 @@
           {
             "type": "command",
             "if": "Bash(jj git push:*)",
-            "command": "bash tools/check.sh agent //... || printf '{\"continue\":false,\"stopReason\":\"Pre-push gate failed — fix the issue before pushing.\"}'",
+            "command": "bash tools/check.sh agent push || printf '{\"continue\":false,\"stopReason\":\"Pre-push gate failed — fix the issue before pushing.\"}'",
             "timeout": 300,
             "statusMessage": "Running pre-push gates (agent mode)..."
           }
@@ -29,7 +29,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash tools/check.sh agent //... || printf '{\"decision\":\"block\",\"reason\":\"End-of-turn gate failed — fix the issue before finishing.\"}'",
+            "command": "bash tools/check.sh agent stop",
             "timeout": 300,
             "statusMessage": "Running end-of-turn gates (agent mode)..."
           }
@@ -60,7 +60,8 @@
       "Bash(bazel query:*)",
       "Bash(bazel mod:*)",
       "Bash(bazel help:*)",
-      "Bash(bash tools/check.sh agent //...)",
+      "Bash(bash tools/check.sh agent push)",
+      "Bash(bash tools/check.sh agent stop)",
       "Bash(bash tools/check.sh stack //...)",
       "Bash(bash tools/check.sh ci //...)"
     ],

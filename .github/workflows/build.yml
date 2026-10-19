@@ -41,7 +41,8 @@ jobs:
         with:
           bazelisk-cache: true
           disk-cache: ${{ github.workflow }}-v2
-          repository-cache: true
+          repository-cache: MODULE.bazel.lock
+          bazelrc: common --repo_contents_cache=
       - name: Run quality gates (lint, format, test, coverage)
         env:
           CHECK_TIMING_JSONL: ${{ github.workspace }}/check-timings.jsonl
@@ -311,7 +312,8 @@ jobs:
         with:
           bazelisk-cache: true
           disk-cache: ${{ github.workflow }}-ci-metrics
-          repository-cache: true
+          repository-cache: MODULE.bazel.lock
+          bazelrc: common --repo_contents_cache=
       # Absent when the build failed before producing it; Record runs without
       # it, so tolerate only this missing-artifact case.
       - name: Download per-gate timings
@@ -378,7 +380,8 @@ jobs:
         with:
           bazelisk-cache: true
           disk-cache: ${{ github.workflow }}-v2
-          repository-cache: true
+          repository-cache: MODULE.bazel.lock
+          bazelrc: common --repo_contents_cache=
       - name: Deploy to GitHub Pages
         run: bazel run $BB_FLAGS //docs:deploy_docs
         env:

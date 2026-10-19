@@ -47,7 +47,8 @@ jobs:
         with:
           bazelisk-cache: true
           disk-cache: ${{ github.workflow }}
-          repository-cache: true
+          repository-cache: MODULE.bazel.lock
+          bazelrc: common --repo_contents_cache=
       - name: Sync use_repo declarations + MODULE.bazel.lock
         # rules_js and similar extensions encode version strings in their
         # generated repo names (e.g. npm__at_devcontainers_cli__0.86.1).

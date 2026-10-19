@@ -10,10 +10,19 @@
 #               that re-running on an unchanged stack entry is instant.
 #               Called by humans working a stack of jj changes.
 #
-#   agent     — `stack` plus a pre-flight scan: fails if the diff between
-#               master and @ introduces any quality-check suppression that
-#               a human hasn't reviewed.  Called from the Claude Code Stop
-#               hook (.claude/settings.json) for AI end-turn validation.
+#   agent     — the Claude Code hooks, `agent stop` and `agent push`: the
+#               default gates plus a pre-flight scan that fails if the diff
+#               between master and @ introduces a quality-check suppression
+#               a human hasn't reviewed.  Takes no bazel arguments.
+#   agent stop — the Claude Code Stop hook.  Always exits 0, because the
+#               harness reads a non-zero exit as a broken hook rather than a
+#               verdict; the verdict is the hook's JSON on stdout: a failure
+#               the agent can fix blocks the turn end
+#               (the agent is re-prompted); a failure only the user can clear
+#               — an unauthorised quality-gate edit — or a repeat of the last
+#               block on an unchanged tree ends the turn with a message to
+#               the user, so the agent cannot loop on it.
+#   agent push — the pre-push hook: the agent scan and gates, plain exit code.
 #
 # The gates, in order:
 #   1. No BUILD.bazel file may load @rules_rs directly — use //build:rust.bzl.
@@ -26,7 +35,8 @@
 # Usage:
 #   tools/check.sh ci    [bazel-flags...] [target...]
 #   tools/check.sh       [bazel-flags...] [target...]
-#   tools/check.sh agent [bazel-flags...] [target...]
+#   tools/check.sh agent stop
+#   tools/check.sh agent push
 #
 # Anything starting with `-` is treated as a bazel flag (forwarded to
 # format.check and coverage); the rest is treated as bazel targets
@@ -107,7 +117,11 @@ SUPPRESSION_BUILDBAZEL_PATTERNS=(
 # found, and key on that. If we hit a merge (multiple parents) or run out
 # of ancestors with the diff still empty, error — there is no unambiguous
 # patch to verify.
+# Returns 0 with CACHE_KEY set (empty when there is nothing to key on),
+# 2 when the key is ambiguous and 3 when there is nothing to verify; for 2
+# and 3 the text to show is in CACHE_KEY_MESSAGE.
 CACHE_KEY=""
+CACHE_KEY_MESSAGE=""
 compute_cache_key() {
 	local mode="$1"
 	shift
@@ -120,7 +134,10 @@ compute_cache_key() {
 	fi
 	target="@"
 	while [[ -z "$(jj diff -r "$target" --summary 2>/dev/null)" ]]; do
-		parent_ids="$(jj log -r "$target-" --no-graph -T 'commit_id ++ "\n"' 2>/dev/null)"
+		if ! parent_ids="$(jj log -r "$target-" --no-graph -T 'commit_id ++ "\n"' 2>/dev/null)"; then
+			CACHE_KEY_MESSAGE="error: could not list the parents of $target"
+			return 2
+		fi
 		parent_count="$(printf '%s\n' "$parent_ids" | awk 'NF{n++} END{print n+0}')"
 		if [[ "$parent_count" -ne 1 ]]; then
 			# Walked up empty diffs and hit either a merge (2+ parents) or
@@ -136,24 +153,30 @@ compute_cache_key() {
 			# - In mutable history (e.g. a user-constructed merge-of-all-
 			#   work). The user can rebase or resolve; surface as error.
 			if jj log -r "$target & immutable()" --no-graph -T commit_id 2>/dev/null | grep -q .; then
-				echo "check skipped${CHANGE_ID:+ ($CHANGE_ID)}: nothing to verify — $target is in immutable history with empty diff and $parent_count parent(s)"
-				exit 0
+				CACHE_KEY_MESSAGE="check skipped${CHANGE_ID:+ ($CHANGE_ID)}: nothing to verify — $target is in immutable history with empty diff and $parent_count parent(s)"
+				return 3
 			fi
-			echo "error: $target has empty diff and $parent_count parent(s); cannot determine what to verify" >&2
-			exit 1
+			CACHE_KEY_MESSAGE="error: $target has empty diff and $parent_count parent(s); cannot determine what to verify"
+			return 2
 		fi
 		target="${target}-"
 	done
-	diff_hash="$(jj diff --git -r "$target" 2>/dev/null |
+	if ! diff_hash="$(jj diff --git -r "$target" 2>/dev/null |
 		sed -E -e '/^index [0-9a-f]+\.\.[0-9a-f]+/d' \
 			-e 's/^@@ -[0-9,]+ \+[0-9,]+ @@/@@/' |
-		sha256sum | awk '{print $1}')"
+		sha256sum | awk '{print $1}')"; then
+		CACHE_KEY_MESSAGE="error: could not hash the diff of $target"
+		return 2
+	fi
 	# Lockfile state is folded into the key so that a stack rewrite which
 	# leaves a commit's patch unchanged but shifts the lockfile content
 	# (e.g. bumping a workspace dep in an ancestor) invalidates the cached
 	# verdict.
-	lockfile_hash="$(sha256sum MODULE.bazel.lock Cargo.lock requirements_lock.txt 2>/dev/null |
-		sha256sum | awk '{print $1}')"
+	if ! lockfile_hash="$(sha256sum MODULE.bazel.lock Cargo.lock requirements_lock.txt 2>/dev/null |
+		sha256sum | awk '{print $1}')"; then
+		CACHE_KEY_MESSAGE="error: could not hash the lockfiles"
+		return 2
+	fi
 	CACHE_KEY="$(printf '%s\t%s\t%s\t%s' "$diff_hash" "$lockfile_hash" "$mode" "$*" |
 		sha256sum | awk '{print $1}')"
 }
@@ -161,8 +184,9 @@ compute_cache_key() {
 # ── agent-mode suppression scan ───────────────────────────────────────────
 #
 # Reads a git-format diff from stdin and prints a violation list to stderr.
-# Exits 0 if clean, 1 if any suppression is introduced.  Pulled out as a
-# function so the sh_test can drive it with synthetic diffs.
+# Exits 0 if clean, 1 if any suppression is introduced, 3 when every
+# violation is an unauthorised gate edit.  Pulled out as a function so the
+# sh_test can drive it with synthetic diffs.
 scan_diff_for_suppressions() {
 	awk \
 		-v line_patterns="$(printf '%s\n' "${SUPPRESSION_LINE_PATTERNS[@]}")" \
@@ -198,6 +222,7 @@ BEGIN {
 	# shlib: sourced shell libraries; shell is already an in-tree language.
 	master_ext_set["shlib"] = 1
 	n_violations = 0
+	n_unauthorised = 0
 	file = ""
 	is_bazelrc = 0
 	is_buildbazel = 0
@@ -210,6 +235,7 @@ BEGIN {
 		hint = authorise_hint
 		sub(/\{path\}/, file, hint)
 		violations[n_violations++] = file ": edits a quality-gate file; the user authorises it with `" hint "`"
+		n_unauthorised++
 	}
 	base = file
 	sub(/.*\//, "", base)
@@ -259,6 +285,9 @@ END {
 	print "Quality-check suppressions detected in diff:" > "/dev/stderr"
 	for (i = 0; i < n_violations; i++) print "  " violations[i] > "/dev/stderr"
 	print "" > "/dev/stderr"
+	# 3: every violation is an unauthorised gate edit, which only the user
+	# can clear; 1: at least one the author must fix.
+	if (n_unauthorised == n_violations) exit 3
 	print "Fix the underlying issue." > "/dev/stderr"
 	exit 1
 }
@@ -269,7 +298,7 @@ run_agent_scan() {
 	local diff
 	if ! diff="$(jj diff -r 'master..@' --git 2>/dev/null)"; then
 		echo "agent mode requires jj (could not compute diff master..@)" >&2
-		exit 1
+		return 1
 	fi
 	[[ -z "$diff" ]] && return 0
 	# Comma-separated set of extensions present in master, used by the
@@ -278,7 +307,7 @@ run_agent_scan() {
 	local master_exts master_files
 	if ! master_files="$(jj file list --ignore-working-copy -r master)"; then
 		echo "agent mode requires jj (could not list master files)" >&2
-		exit 1
+		return 1
 	fi
 	master_exts="$(printf '%s\n' "$master_files" |
 		awk -F/ '{print $NF}' |
@@ -293,7 +322,10 @@ run_agent_scan() {
 			fi
 		fi
 	done < <(printf '%s\n' "$diff" | sed -n 's|^diff --git a/\(.*\) b/.*$|\1|p')
-	hint="$(python3 tools/authorise.py --hint)"
+	if ! hint="$(python3 tools/authorise.py --hint)"; then
+		echo "agent mode requires tools/authorise.py (could not get the authorise hint)" >&2
+		return 1
+	fi
 	mapfile -t SUPPRESSION_GATE_FILES < <(printf '%s' "$gate_files")
 	AUTHORISED_GATE_FILES="$authorised" AUTHORISE_HINT="$hint" MASTER_FILE_EXTENSIONS="$master_exts" \
 		scan_diff_for_suppressions <<<"$diff"
@@ -325,7 +357,7 @@ check_rules_rs_macros() {
 	1) ;;
 	*)
 		echo "check_rules_rs_macros: grep errored ($rc)" >&2
-		exit 1
+		return 1
 		;;
 	esac
 }
@@ -444,6 +476,8 @@ enforce_per_file_coverage() {
 # when CHECK_TIMING_JSONL is set, appended as one JSON object per gate
 # to that path.
 TIMINGS=()
+# Names of the gates that returned nonzero, populated by run_gate.
+FAILED_GATES=()
 
 run_gate() {
 	local name="$1"
@@ -454,6 +488,7 @@ run_gate() {
 	end="$EPOCHREALTIME"
 	elapsed=$(awk "BEGIN {printf \"%.3f\", $end - $start}")
 	TIMINGS+=("$name"$'\t'"$rc"$'\t'"$elapsed")
+	[[ "$rc" == 0 ]] || FAILED_GATES+=("$name")
 	if [[ -n "${CHECK_TIMING_JSONL:-}" ]]; then
 		jq -nc \
 			--arg gate "$name" \
@@ -478,15 +513,95 @@ emit_timing_summary() {
 }
 trap emit_timing_summary EXIT
 
+# How the Stop hook answers scan/gate results $1/$2; $3 is 1 when the same
+# tree was already blocked once.  Prints one of clean, user (only the user
+# can clear it), repeat, block.
+stop_class() {
+	local scan_rc="$1" gates_rc="$2" repeated="$3"
+	if [[ "$scan_rc" == 0 && "$gates_rc" == 0 ]]; then
+		echo clean
+	elif [[ "$scan_rc" == 3 && "$gates_rc" == 0 ]]; then
+		echo user
+	elif [[ "$repeated" == 1 ]]; then
+		echo repeat
+	else
+		echo block
+	fi
+}
+
+# The JSON string literal for $1, so the hook's envelope needs only bash.
+json_string() {
+	local s="$1"
+	s="${s//\\/\\\\}"
+	s="${s//\"/\\\"}"
+	s="${s//$'\n'/\\n}"
+	s="${s//$'\r'/\\r}"
+	s="${s//$'\t'/\\t}"
+	printf '"%s"' "$s"
+}
+
+# The Stop hook's JSON for stop_class's arguments; $4 is the detail text.
+# Only a `decision: block` re-prompts the agent.
+stop_envelope() {
+	local detail="$4"
+	case "$(stop_class "$1" "$2" "$3")" in
+	clean) ;;
+	user)
+		printf '{"systemMessage":%s}\n' "$(json_string "$detail")"
+		;;
+	repeat)
+		printf '{"systemMessage":%s}\n' \
+			"$(json_string "End-of-turn gate still failing on an unchanged tree; stopping:"$'\n'"$detail")"
+		;;
+	block)
+		printf '{"decision":"block","reason":%s}\n' \
+			"$(json_string "End-of-turn gate failed — fix the issue before finishing:"$'\n'"$detail")"
+		;;
+	esac
+}
+
+# stop_key <cache_key> <scan_out> <failed_gates…>
+# The loop breaker's key for the tree: the cache key, or when there is none
+# (conflicted @, or jj unavailable) a hash of what failed.
+stop_key() {
+	local cache_key="$1" scan_out="$2"
+	shift 2
+	if [[ -n "$cache_key" ]]; then
+		echo "$cache_key"
+	else
+		printf '%s\n%s' "$scan_out" "$*" | sha256sum | cut -c1-64
+	fi
+}
+
+# stop_decide <key> <state_file> <scan_rc> <gates_rc> <detail>
+# Emits the Stop hook's JSON and keeps the loop breaker's state: the state
+# file holds the key of the last block, so a second failure with the same
+# key means the agent ended a turn without changing anything and the turn
+# ends.  Every outcome that ends the turn clears the state file.
+stop_decide() {
+	local key="$1" state_file="$2" scan_rc="$3" gates_rc="$4" detail="$5"
+	local repeated=0
+	if [[ -f "$state_file" && "$(cat "$state_file")" == "$key" ]]; then
+		repeated=1
+	fi
+	stop_envelope "$scan_rc" "$gates_rc" "$repeated" "$detail"
+	if [[ "$(stop_class "$scan_rc" "$gates_rc" "$repeated")" == block ]]; then
+		mkdir -p "$(dirname "$state_file")"
+		printf '%s' "$key" >"$state_file"
+	else
+		rm -f "$state_file"
+	fi
+}
+
 run_all_gates() {
 	if [[ -n "${CHECK_TIMING_JSONL:-}" ]]; then
 		: >"$CHECK_TIMING_JSONL"
 	fi
-	run_gate rules_rs_macros check_rules_rs_macros
-	run_gate package_readmes check_package_readmes
-	run_gate bazel_quiet check_bazel_quiet
-	run_gate format_check run_format_check
-	run_gate bazel_coverage run_bazel_coverage
+	run_gate rules_rs_macros check_rules_rs_macros || return $?
+	run_gate package_readmes check_package_readmes || return $?
+	run_gate bazel_quiet check_bazel_quiet || return $?
+	run_gate format_check run_format_check || return $?
+	run_gate bazel_coverage run_bazel_coverage || return $?
 	run_gate per_file_coverage enforce_per_file_coverage
 }
 
@@ -508,6 +623,29 @@ else
 		exit 2
 		;;
 	esac
+fi
+
+HOOK=""
+if [[ "$MODE" == "agent" ]]; then
+	case "${1:-}" in
+	stop | push) HOOK="$1" ;;
+	*)
+		echo "tools/check.sh: agent takes exactly one of: stop, push" >&2
+		exit 2
+		;;
+	esac
+	shift
+	if [[ $# -gt 0 ]]; then
+		echo "tools/check.sh: agent $HOOK takes no arguments" >&2
+		exit 2
+	fi
+fi
+
+# A hook's stdout is its JSON envelope, so everything else goes to stderr.
+if [[ -n "$HOOK" ]]; then
+	exec 3>&2
+else
+	exec 3>&1
 fi
 
 BAZEL_FLAGS=()
@@ -533,15 +671,53 @@ ci)
 	run_all_gates
 	;;
 stack | agent)
-	compute_cache_key "$MODE" "${BAZEL_FLAGS[@]}" "${BAZEL_TARGETS[@]}"
+	STOP_STATE="$GREEN_CACHE_DIR/last-block"
+	cache_rc=0
+	compute_cache_key "$MODE" "${BAZEL_FLAGS[@]}" "${BAZEL_TARGETS[@]}" || cache_rc=$?
+	case "$cache_rc" in
+	0) ;;
+	3)
+		echo "$CACHE_KEY_MESSAGE" >&3
+		rm -f "$STOP_STATE"
+		exit 0
+		;;
+	*)
+		if [[ "$HOOK" == "stop" ]]; then
+			printf '{"systemMessage":%s}\n' "$(json_string "$CACHE_KEY_MESSAGE")"
+			rm -f "$STOP_STATE"
+			exit 0
+		fi
+		echo "$CACHE_KEY_MESSAGE" >&2
+		exit 1
+		;;
+	esac
 	if [[ -n "$CACHE_KEY" && -f "$GREEN_CACHE_DIR/$CACHE_KEY" ]]; then
-		echo "check ok${CHANGE_ID:+ ($CHANGE_ID)}: unchanged since last green ($GREEN_CACHE_DIR/$CACHE_KEY)"
+		echo "check ok${CHANGE_ID:+ ($CHANGE_ID)}: unchanged since last green ($GREEN_CACHE_DIR/$CACHE_KEY)" >&3
+		rm -f "$STOP_STATE"
 		exit 0
 	fi
+	scan_rc=0
+	scan_out=""
 	if [[ "$MODE" == "agent" ]]; then
-		run_agent_scan
+		scan_out="$(run_agent_scan 2>&1)" || scan_rc=$?
+		if [[ -n "$scan_out" ]]; then
+			printf '%s\n' "$scan_out" >&2
+		fi
 	fi
-	run_all_gates
+	gates_rc=0
+	run_all_gates >&3 || gates_rc=$?
+	if [[ "$HOOK" == "stop" ]]; then
+		detail="$scan_out"
+		if ((${#FAILED_GATES[@]} > 0)); then
+			detail+="${detail:+$'\n'}failed gates: ${FAILED_GATES[*]}"
+		fi
+		key="$(stop_key "$CACHE_KEY" "$scan_out" "${FAILED_GATES[@]}")"
+		stop_decide "$key" "$STOP_STATE" "$scan_rc" "$gates_rc" "$detail"
+	fi
+	if [[ "$scan_rc" != 0 || "$gates_rc" != 0 ]]; then
+		[[ "$HOOK" == "stop" ]] && exit 0
+		exit 1
+	fi
 	if [[ -n "$CACHE_KEY" ]]; then
 		# Migrate the earlier single-file cache layout if present.
 		[[ -f "$GREEN_CACHE_DIR" ]] && rm -f "$GREEN_CACHE_DIR"

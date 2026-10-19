@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """PreToolUse guardrail: deny actions this repo forbids, at the moment of action.
 
-Wired into `.claude/settings.json` as a PreToolUse hook over Bash/Write/Edit.
+Wired into `.claude/settings.json` as a PreToolUse hook over Bash and the
+file-editing tools (Write, Edit, MultiEdit, NotebookEdit).
 Reads the hook payload as JSON on stdin; on a denied action it prints the
 PreToolUse deny envelope and exits 0, otherwise it stays silent (allow).
 
@@ -11,7 +12,12 @@ What it denies:
   proto, go, js, formatters, linters) instead of the hermetic Bazel wrappers;
 - destroying a lockfile (rm/truncate of MODULE.bazel.lock, Cargo.lock,
   requirements_lock.txt);
-- creating a `mod.rs` instead of the `<dir>.rs` module layout.
+- creating a `mod.rs` instead of the `<dir>.rs` module layout;
+- editing a quality-gate file (the controlled patterns in tools/authorise.py)
+  without a token the user minted for it this hour;
+- naming the authorisation mechanism — tools/authorise.py, //tools:authorise,
+  or the directory holding the store — in a command or in an unauthorised
+  edit; it is the user's, not the agent's.
 
 Bash is scanned *recursively* so indirection can't launder a forbidden call:
 the checks apply to the leading word of each `;`/`&&`/`||`/`|`/`&` segment and
@@ -41,6 +47,8 @@ import json
 import re
 import shlex
 import sys
+
+import authorise
 
 # Native binaries that have a hermetic equivalent in this repo's Bazel
 # definitions and so must go through it instead.  Maps the binary name to the
@@ -599,6 +607,19 @@ def _check_command(command, depth, interactive=True):
     )
 
 
+def _authorisation_reason(*texts: str) -> str | None:
+    """The authorisation mechanism is the user's; naming its store or script is denied."""
+    markers = {
+        "causes-development/authorisations": "the authorisation store",
+        "authorise.py": "tools/authorise.py",
+        "tools:authorise": "//tools:authorise",
+    }
+    for marker, what in markers.items():
+        if any(marker in text for text in texts):
+            return f"Refusing: {what} is not the agent's to invoke or edit."
+    return None
+
+
 def _looks_like_shell(file_path, content):
     """Whether written content should be scanned as a shell script."""
     if _basename(file_path).endswith(_SHELL_EXTS):
@@ -622,16 +643,48 @@ def _check_write(file_path, content):
     return None
 
 
+def _check_edit(file_path: str, content: str) -> str | None:
+    """Deny an unauthorised edit of a quality-gate file, or any mention of the mechanism.
+
+    An authorised edit of a controlled file may be the script itself or name
+    the mechanism in its content: the deny rules in .claude/settings.json
+    spell the store path.
+    """
+    rel = authorise.controlled_path(file_path)
+    if rel is None:
+        return _authorisation_reason(file_path, content)
+    if authorise.verify(rel):
+        return None
+    hint = authorise.hint(rel)
+    return (
+        f"{rel} is a quality-gate file; "
+        f"the user authorises an edit for the current hour with `{hint}`."
+    )
+
+
 def decide(payload):
     """Return a denial reason for a forbidden action, or None to allow."""
     tool = payload.get("tool_name", "")
     tool_input = payload.get("tool_input") or {}
     if tool == "Bash":
-        return _check_command(tool_input.get("command") or "", 0)
-    if tool in ("Write", "Edit"):
-        content = tool_input.get("content") or tool_input.get("new_string") or ""
-        return _check_write(tool_input.get("file_path") or "", content)
+        command = tool_input.get("command") or ""
+        return _authorisation_reason(command) or _check_command(command, 0)
+    if tool in _EDIT_TOOLS:
+        file_path = tool_input.get("file_path") or tool_input.get("notebook_path") or ""
+        content = _written_content(tool_input)
+        return _check_edit(file_path, content) or _check_write(file_path, content)
     return None
+
+
+_EDIT_TOOLS = ("Write", "Edit", "MultiEdit", "NotebookEdit")
+
+
+def _written_content(tool_input: dict) -> str:
+    """The text an edit tool would put in the file, across the tools' input shapes."""
+    edits = tool_input.get("edits") or []
+    parts = [tool_input.get(k) or "" for k in ("content", "new_string", "new_source")]
+    parts += [e.get("new_string") or "" for e in edits if isinstance(e, dict)]
+    return "\n".join(p for p in parts if p)
 
 
 def evaluate(raw_stdin):

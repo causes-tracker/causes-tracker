@@ -3,8 +3,10 @@
 import os
 import shlex
 import unittest
+from unittest import mock
 
 from agent_action_guard import decide, evaluate
+import authorise
 
 
 def bash(command):
@@ -215,8 +217,84 @@ class ModRsTest(unittest.TestCase):
 
     def test_other_writes_allowed(self):
         self.assertIsNone(decide(write("services/causes_api/src/foo.rs")))
-        self.assertIsNone(decide(write(".claude/settings.json")))
         self.assertIsNone(decide(write("README.md")))
+
+
+class AuthorisationTest(unittest.TestCase):
+    """`verify` is patched to find no token, whatever the real store holds."""
+
+    def setUp(self):
+        patcher = mock.patch.object(authorise, "verify", return_value=False)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_controlled_edit_without_token_is_denied_with_hint(self):
+        for path, rel in (
+            ("tools/check.sh", "tools/check.sh"),
+            (".claude/settings.json", ".claude/settings.json"),
+            ("/tmp/other/tools/check.sh", "tools/check.sh"),
+        ):
+            reason = decide(edit(path, "x"))
+            self.assertIsNotNone(reason, path)
+            self.assertIn(f"buck2 run //tools:authorise -- {rel}", reason)
+
+    def test_uncontrolled_edit_is_allowed(self):
+        self.assertIsNone(decide(edit("tools/foo.sh", "x")))
+
+    def test_every_edit_tool_is_gated(self):
+        multi = {
+            "tool_name": "MultiEdit",
+            "tool_input": {
+                "file_path": "tools/check.sh",
+                "edits": [{"old_string": "a", "new_string": "b"}],
+            },
+        }
+        notebook = {
+            "tool_name": "NotebookEdit",
+            "tool_input": {"notebook_path": ".github/workflows/x.ipynb", "new_source": "x"},
+        }
+        for payload in (multi, notebook):
+            self.assertIn(
+                "buck2 run //tools:authorise", decide(payload) or "", payload["tool_name"]
+            )
+        store = {
+            "tool_name": "MultiEdit",
+            "tool_input": {
+                "file_path": "/tmp/x",
+                "edits": [{"new_string": "causes-development/authorisations"}],
+            },
+        }
+        self.assertIsNotNone(decide(store))
+
+    def test_naming_the_store_is_denied(self):
+        self.assertIsNotNone(decide(bash("ls ~/.cache/causes-development/authorisations")))
+        self.assertIsNotNone(
+            decide(write("notes.py", "p = '~/.cache/causes-development/authorisations'"))
+        )
+
+    def test_authorised_edit_may_name_the_store(self):
+        # The deny rules in .claude/settings.json spell the store path.
+        rule = '"Edit(**/causes-development/authorisations/**)"'
+        with mock.patch.object(authorise, "verify", return_value=True):
+            self.assertIsNone(decide(edit(".claude/settings.json", rule)))
+        self.assertIsNotNone(decide(edit(".claude/settings.json", rule)))
+
+    def test_any_mention_of_the_mechanism_is_denied(self):
+        for cmd in (
+            "python3 tools/authorise.py --init",
+            "buck2 run //tools:authorise -- x",
+            "sed -i s/a/b/ tools/authorise.py",
+            "cat tools/authorise.py",
+            "./tools/buck2/buck2.sh build //tools:authorise_test",
+        ):
+            self.assertIsNotNone(decide(bash(cmd)), cmd)
+        self.assertIsNotNone(decide(write("/tmp/x.sh", "#!/bin/sh\npython3 tools/authorise.py\n")))
+        self.assertIsNotNone(decide(edit("tools/authorise.py", "x")))
+
+    def test_authorised_edit_of_the_script_is_allowed(self):
+        with mock.patch.object(authorise, "verify", return_value=True):
+            self.assertIsNone(decide(edit("tools/authorise.py", "x")))
+            self.assertIsNone(decide(edit("tools/agent_action_guard.py", "x")))
 
 
 class EvaluateFailsClosedTest(unittest.TestCase):

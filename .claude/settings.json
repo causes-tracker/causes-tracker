@@ -2,7 +2,7 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Bash|Write|Edit",
+        "matcher": "Bash|Write|Edit|MultiEdit|NotebookEdit",
         "hooks": [
           {
             "type": "command",
@@ -39,6 +39,7 @@
   },
   "permissions": {
     "allow": [
+      "Read(tools/authorise.py)",
       "Bash(gh run:*)",
       "Bash(gh pr:*)",
       "Bash(gh api:*)",
@@ -65,6 +66,10 @@
     ],
     "deny": [
       "Read(~/.aws/credentials)",
+      "Read(~/**/causes-development/authorisations/**)",
+      "Read(**/causes-development/authorisations/**)",
+      "Edit(~/**/causes-development/authorisations/**)",
+      "Edit(**/causes-development/authorisations/**)",
       "Bash(git:*)"
     ]
   }

@@ -70,18 +70,6 @@ SUPPRESSION_LINE_PATTERNS=(
 	'# *type: *ignore'              # python (mypy)
 )
 
-# Files whose modification (or creation) the agent scanner flags outright,
-# regardless of content.  These either DEFINE the rule the AI might want to
-# bypass, or ARE a suppression mechanism by their very existence.
-SUPPRESSION_GATE_FILES=(
-	".bazelignore"
-	".clippy.toml"
-	"rustfmt.toml"
-	".shellcheckrc"
-	".yamlfmt"
-	"tools/check.sh"
-)
-
 # Patterns matched on `+` lines whose file is `.bazelrc` or `.bazelrc.user`.
 # Targeted at lint-allow flags (rustc/clippy `-A`); we do NOT flag the file
 # itself, since legitimate cache/network/toolchain config lives here too.
@@ -179,6 +167,8 @@ scan_diff_for_suppressions() {
 	awk \
 		-v line_patterns="$(printf '%s\n' "${SUPPRESSION_LINE_PATTERNS[@]}")" \
 		-v gate_files="$(printf '%s\n' "${SUPPRESSION_GATE_FILES[@]}")" \
+		-v authorised="${AUTHORISED_GATE_FILES:-}" \
+		-v authorise_hint="${AUTHORISE_HINT:-}" \
 		-v bazelrc_patterns="$(printf '%s\n' "${SUPPRESSION_BAZELRC_PATTERNS[@]}")" \
 		-v buildbazel_patterns="$(printf '%s\n' "${SUPPRESSION_BUILDBAZEL_PATTERNS[@]}")" \
 		-v master_exts="${MASTER_FILE_EXTENSIONS:-}" '
@@ -186,6 +176,8 @@ BEGIN {
 	n_line = split(line_patterns, line_pat, "\n")
 	n_gate = split(gate_files, gate_arr, "\n")
 	for (i = 1; i <= n_gate; i++) gate_set[gate_arr[i]] = 1
+	n_auth = split(authorised, auth_arr, "\n")
+	for (i = 1; i <= n_auth; i++) auth_set[auth_arr[i]] = 1
 	n_bazelrc = split(bazelrc_patterns, bazelrc_pat, "\n")
 	n_buildbazel = split(buildbazel_patterns, buildbazel_pat, "\n")
 	n_master_ext = split(master_exts, ext_arr, ",")
@@ -214,8 +206,10 @@ BEGIN {
 	file = $0
 	sub(/^diff --git a\//, "", file)
 	sub(/ b\/.*$/, "", file)
-	if (file in gate_set) {
-		violations[n_violations++] = file ": edits to a quality-gate config file"
+	if ((file in gate_set) && !(file in auth_set)) {
+		hint = authorise_hint
+		sub(/\{path\}/, file, hint)
+		violations[n_violations++] = file ": edits a quality-gate file; the user authorises it with `" hint "`"
 	}
 	base = file
 	sub(/.*\//, "", base)
@@ -290,7 +284,18 @@ run_agent_scan() {
 		awk -F/ '{print $NF}' |
 		awk -F. 'NF > 1 { print $NF }' |
 		sort -u | tr '\n' ',')"
-	MASTER_FILE_EXTENSIONS="$master_exts" \
+	local gate_files="" authorised="" path hint
+	while IFS= read -r path; do
+		if python3 tools/authorise.py --match "$path"; then
+			gate_files+="$path"$'\n'
+			if python3 tools/authorise.py --verify "$path"; then
+				authorised+="$path"$'\n'
+			fi
+		fi
+	done < <(printf '%s\n' "$diff" | sed -n 's|^diff --git a/\(.*\) b/.*$|\1|p')
+	hint="$(python3 tools/authorise.py --hint)"
+	mapfile -t SUPPRESSION_GATE_FILES < <(printf '%s' "$gate_files")
+	AUTHORISED_GATE_FILES="$authorised" AUTHORISE_HINT="$hint" MASTER_FILE_EXTENSIONS="$master_exts" \
 		scan_diff_for_suppressions <<<"$diff"
 }
 

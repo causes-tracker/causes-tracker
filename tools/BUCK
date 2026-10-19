@@ -51,6 +51,26 @@ cached_check(
 )
 
 export_file(
+    name = "authorise_src",
+    src = "authorise.py",
+)
+
+command_alias(
+    name = "authorise",
+    exe = "//third_party/python:py",
+    args = ["$(location :authorise_src)"],
+)
+
+cached_check(
+    name = "authorise_test",
+    exe = "//third_party/python:py",
+    srcs = [
+        "authorise_test.py",
+        "authorise.py",
+    ],
+)
+
+export_file(
     name = "shellcheck_check.sh",
     visibility = ["PUBLIC"],
 )

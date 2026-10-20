@@ -29,6 +29,7 @@ jobs:
           disk-cache: ${{ github.workflow }}
           repository-cache: MODULE.bazel.lock
           bazelrc: common --repo_contents_cache=
+          cache-version: 2
       - name: Run trend analyzer
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -17,7 +17,7 @@
           {
             "type": "command",
             "if": "Bash(jj git push:*)",
-            "command": "bash tools/check.sh agent push || printf '{\"continue\":false,\"stopReason\":\"Pre-push gate failed — fix the issue before pushing.\"}'",
+            "command": "bash tools/check.sh agent push",
             "timeout": 300,
             "statusMessage": "Running pre-push gates (agent mode)..."
           }

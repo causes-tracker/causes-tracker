@@ -218,7 +218,7 @@ No redirect to the BFF or instance is needed, so this works whether or not eithe
 Device flow is the default for both browser sessions (via BFF) and CLI.
 Redirect-based OIDC social login is an optional enhancement for deployments with a public URL, not a baseline requirement.
 
-When device flow completes the IdP returns an ID token to the *instance* (not to the user's client).
+When device flow completes the IdP returns an ID token to the _instance_ (not to the user's client).
 The instance extracts the stable `(iss, sub)` pair from the ID token — not the email address, which can change and must not be used as a primary identifier.
 The instance maps `(iss, sub)` to a local user record, creating one on first login for open instances (admin-approval mode is available for closed instances).
 The instance then issues its own opaque session token to the client; the IdP token is held internally and never transmitted to the client.

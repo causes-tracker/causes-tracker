@@ -223,6 +223,8 @@ BEGIN {
 	master_ext_set["json5"] = 1
 	# shlib: sourced shell libraries; shell is already an in-tree language.
 	master_ext_set["shlib"] = 1
+	# bxl: buck2 query scripts, Starlark like BUCK and .bzl.
+	master_ext_set["bxl"] = 1
 	n_violations = 0
 	n_unauthorised = 0
 	file = ""

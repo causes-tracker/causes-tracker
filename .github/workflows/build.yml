@@ -209,6 +209,8 @@ jobs:
       # NativeLink and warms the shared cache; nothing here executes local.
       - name: Build buck2 targets
         run: buck2 build --remote-only $REMOTE_ONLY_TARGETS
+      - name: Run the graph-level checks
+        run: buck2 bxl //tools/checks.bxl:check
       # A rootfs pin bump reshapes the worker image; diff the built tar's
       # manifest against the base golden so review sees the member-level
       # change without depending on the author regenerating rootfs.manifest.

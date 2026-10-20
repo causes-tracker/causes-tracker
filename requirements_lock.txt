@@ -385,9 +385,9 @@ pyjson5==2.0.1 \
     --hash=sha256:fd9f1cd76042d4157cfb4e6aa1bcfa4a20fdc1e5b29c3148e846c4c679ca65a8 \
     --hash=sha256:fe6516ff9ab94368c18ff8ac0ebdb53fac9e047da093d43e67d5e7cd98cdd0bf
     # via application-properties
-pymarkdownlnt==0.9.39 \
-    --hash=sha256:3e6f32517c7cc088dc466830b43ca7a04326bd4fc62d7f5379925ae7ee2f5ad9 \
-    --hash=sha256:5f422d593244942e4b545b54b512f6b7e509f907752d707695c051bfe8584948
+pymarkdownlnt==0.9.41 \
+    --hash=sha256:677985658f0d452c9d0a639d2aca11060a99874c127b3d7513d7f33dc5462973 \
+    --hash=sha256:d6a477498feacf004ba1eea1847e70cbb083c7175ee62bde7a8f11bf2ce943cb
     # via -r requirements.in
 pymdown-extensions==12.2 \
     --hash=sha256:02da896c362b548d85123e7a377a40024ea6ea938b4e45ca064e408afd994b64 \

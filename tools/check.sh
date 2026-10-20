@@ -14,15 +14,17 @@
 #               default gates plus a pre-flight scan that fails if the diff
 #               between master and @ introduces a quality-check suppression
 #               a human hasn't reviewed.  Takes no bazel arguments.
-#   agent stop — the Claude Code Stop hook.  Always exits 0, because the
-#               harness reads a non-zero exit as a broken hook rather than a
-#               verdict; the verdict is the hook's JSON on stdout: a failure
-#               the agent can fix blocks the turn end
-#               (the agent is re-prompted); a failure only the user can clear
-#               — an unauthorised quality-gate edit — or a repeat of the last
-#               block on an unchanged tree ends the turn with a message to
-#               the user, so the agent cannot loop on it.
-#   agent push — the pre-push hook: the agent scan and gates, plain exit code.
+#   agent stop — the Claude Code Stop hook.  A failure the agent can fix
+#               blocks the turn end (the agent is re-prompted); a failure
+#               only the user can clear — an unauthorised quality-gate edit
+#               — or a repeat of the last block on an unchanged tree ends the
+#               turn with a message to the user, so the agent cannot loop on
+#               it.
+#   agent push — the PreToolUse hook on every Bash call.  Exits at once
+#               unless the call's payload (stdin) is a `jj git push`; for a
+#               push, a failure denies the call and ends the turn.
+#   Both hooks always exit 0, because the harness reads a non-zero exit as a
+#   broken hook rather than a verdict; the verdict is the JSON on stdout.
 #
 # The gates, in order:
 #   1. No BUILD.bazel file may load @rules_rs directly — use //build:rust.bzl.
@@ -560,6 +562,23 @@ stop_envelope() {
 	esac
 }
 
+# Whether the PreToolUse payload on stdin is a `jj git push`.
+# A match on the raw JSON is enough: a false positive costs one gate run.
+push_requested() {
+	local payload
+	payload="$(cat)"
+	[[ "$payload" =~ jj.*git.*push ]]
+}
+
+# The push hook's JSON for a failed run; $1 is the detail text.
+# The deny stops the push; `continue: false` ends the turn.
+push_envelope() {
+	local reason
+	reason="$(json_string "Pre-push gate failed — fix the issue before pushing:"$'\n'"$1")"
+	printf '{"continue":false,"stopReason":%s,"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny"}}\n' \
+		"$reason"
+}
+
 # stop_key <cache_key> <scan_out> <failed_gates…>
 # The loop breaker's key for the tree: the cache key, or when there is none
 # (conflicted @, or jj unavailable) a hash of what failed.
@@ -639,6 +658,9 @@ if [[ "$MODE" == "agent" ]]; then
 		echo "tools/check.sh: agent $HOOK takes no arguments" >&2
 		exit 2
 	fi
+	if [[ "$HOOK" == "push" ]] && ! push_requested; then
+		exit 0
+	fi
 fi
 
 # A hook's stdout is its JSON envelope, so everything else goes to stderr.
@@ -687,6 +709,10 @@ stack | agent)
 			rm -f "$STOP_STATE"
 			exit 0
 		fi
+		if [[ "$HOOK" == "push" ]]; then
+			push_envelope "$CACHE_KEY_MESSAGE"
+			exit 0
+		fi
 		echo "$CACHE_KEY_MESSAGE" >&2
 		exit 1
 		;;
@@ -706,16 +732,20 @@ stack | agent)
 	fi
 	gates_rc=0
 	run_all_gates >&3 || gates_rc=$?
+	detail="$scan_out"
+	if ((${#FAILED_GATES[@]} > 0)); then
+		detail+="${detail:+$'\n'}failed gates: ${FAILED_GATES[*]}"
+	fi
 	if [[ "$HOOK" == "stop" ]]; then
-		detail="$scan_out"
-		if ((${#FAILED_GATES[@]} > 0)); then
-			detail+="${detail:+$'\n'}failed gates: ${FAILED_GATES[*]}"
-		fi
 		key="$(stop_key "$CACHE_KEY" "$scan_out" "${FAILED_GATES[@]}")"
 		stop_decide "$key" "$STOP_STATE" "$scan_rc" "$gates_rc" "$detail"
 	fi
 	if [[ "$scan_rc" != 0 || "$gates_rc" != 0 ]]; then
 		[[ "$HOOK" == "stop" ]] && exit 0
+		if [[ "$HOOK" == "push" ]]; then
+			push_envelope "$detail"
+			exit 0
+		fi
 		exit 1
 	fi
 	if [[ -n "$CACHE_KEY" ]]; then

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Test driver for tools/check.sh's sourceable pieces: the suppression scanner
 # (synthetic git-format diffs on stdin; exit 0 = clean, 1 = suppression, 3 =
-# only unauthorised gate edits), the Stop-hook envelope and loop breaker, and
-# run_all_gates' fail-fast sequencing.  Sources check.sh with
+# only unauthorised gate edits), the hook envelopes and the Stop-hook loop
+# breaker, and run_all_gates' fail-fast sequencing.  Sources check.sh with
 # _CHECK_SH_SOURCED=1 to skip the dispatch flow.
 set -uo pipefail
 
@@ -394,7 +394,7 @@ new file mode 100644
 +package main
 '
 
-# ── Stop-hook envelope ────────────────────────────────────────────────────
+# ── hook envelopes ────────────────────────────────────────────────────────
 
 # The hook runs on machines where only bash is guaranteed.
 jq() {
@@ -402,9 +402,9 @@ jq() {
 	return 127
 }
 
-# Classifies hook output $2 as silent, block, message or malformed; block
-# and message require the detail text $1 to appear, JSON-escaped, in the
-# envelope's single string.
+# Classifies hook output $2 as silent, block, message, deny or malformed;
+# block, message and deny require the detail text $1 to appear, JSON-escaped,
+# in the envelope's string.
 envelope_class() {
 	local detail="$1" out="$2" esc
 	esc="$(json_string "$detail")"
@@ -415,6 +415,8 @@ envelope_class() {
 		echo block
 	elif [[ "$out" == '{"systemMessage":"'*"$esc"*'"}' ]]; then
 		echo message
+	elif [[ "$out" == '{"continue":false,"stopReason":"'*"$esc"*'","hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny"}}' ]]; then
+		echo deny
 	else
 		echo malformed
 	fi
@@ -520,6 +522,41 @@ dispatch_case() {
 dispatch_case "agent without a hook is rejected" 2 agent
 dispatch_case "agent with a target is rejected" 2 agent //...
 dispatch_case "agent stop with a target is rejected" 2 agent stop //...
+
+# ── push hook: only a `jj git push` runs the gates ────────────────────────
+
+push_requested_case() {
+	local name="$1" want="$2" command="$3" rc=0
+	printf '{"tool_name":"Bash","tool_input":{"command":%s}}' "$(json_string "$command")" |
+		push_requested || rc=$?
+	report "$name" "$want" "$rc"
+}
+push_requested_case "a plain push is a push" 0 "jj git push --tracked"
+push_requested_case "a push inside a compound command is a push" 0 "cd /x && jj git push -b main"
+push_requested_case "an ordinary command is not a push" 1 "echo hi"
+push_requested_case "jj without push is not a push" 1 "jj git fetch"
+
+report "push failure denies the call and ends the turn" deny \
+	"$(envelope_class "detail" "$(push_envelope "detail")")"
+report "push detail with quotes and newlines stays one JSON string" deny \
+	"$(envelope_class 'say "no"'$'\n'"twice" "$(push_envelope 'say "no"'$'\n'"twice")")"
+
+push_rc=0
+push_out="$(printf '{"tool_input":{"command":"echo hi"}}' | bash "$CHECK_SH" agent push 2>/dev/null)" || push_rc=$?
+report "agent push on a non-push command is silent" "0:" "$push_rc:$push_out"
+
+# A push payload runs the scan, which needs jj; with a jj that fails, the
+# dispatch reaches the deny envelope with the scan's message as its detail.
+PUSH_TMP="$(mktemp -d)"
+printf '#!/bin/sh\nexit 1\n' >"$PUSH_TMP/jj"
+chmod +x "$PUSH_TMP/jj"
+push_rc=0
+push_out="$(printf '{"tool_input":{"command":"jj git push --tracked"}}' |
+	PATH="$PUSH_TMP:$PATH" bash "$CHECK_SH" agent push 2>/dev/null)" || push_rc=$?
+report "agent push on a failing push run exits 0" 0 "$push_rc"
+report "agent push on a failing push run denies the call" deny \
+	"$(envelope_class "agent mode requires jj (could not compute diff master..@)" "$push_out")"
+rm -rf "$PUSH_TMP"
 
 # ── summary ───────────────────────────────────────────────────────────────
 

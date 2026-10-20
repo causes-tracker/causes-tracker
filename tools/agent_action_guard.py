@@ -563,6 +563,102 @@ def _command_substitutions(command):
     return subs
 
 
+def _ansi_c_end(command, i):
+    """Index just past the $'…' opening at `i`, or None if it never closes."""
+    j = i + 2
+    n = len(command)
+    while j < n:
+        if command[j] == "\\" and j + 1 < n:
+            j += 2
+            continue
+        if command[j] == "'":
+            return j + 1
+        j += 1
+    return None
+
+
+_ANSI_C_SIMPLE = {
+    "a": "\a",
+    "b": "\b",
+    "e": "\x1b",
+    "E": "\x1b",
+    "f": "\f",
+    "n": "\n",
+    "r": "\r",
+    "t": "\t",
+    "v": "\v",
+    "\\": "\\",
+    "'": "'",
+    '"': '"',
+    "?": "?",
+}
+_ANSI_C_OCTAL = re.compile(r"[0-7]{1,3}")
+_ANSI_C_HEX = {
+    "x": re.compile(r"[0-9a-fA-F]{1,2}"),
+    "u": re.compile(r"[0-9a-fA-F]{1,4}"),
+    "U": re.compile(r"[0-9a-fA-F]{1,8}"),
+}
+
+
+def _ansi_c_decode(body):
+    """The word a $'…' body denotes, by bash's escape grammar; an unknown escape stays as is."""
+    out = []
+    i = 0
+    n = len(body)
+    while i < n:
+        if body[i] != "\\" or i + 1 == n:
+            out.append(body[i])
+            i += 1
+            continue
+        e = body[i + 1]
+        if e in _ANSI_C_SIMPLE:
+            out.append(_ANSI_C_SIMPLE[e])
+            i += 2
+        elif e == "c" and i + 2 < n:
+            out.append(chr(ord(body[i + 2].upper()) ^ 0x40))
+            i += 3
+        elif m := _ANSI_C_OCTAL.match(body, i + 1):
+            out.append(chr(int(m.group(0), 8)))
+            i = m.end()
+        elif e in _ANSI_C_HEX and (m := _ANSI_C_HEX[e].match(body, i + 2)):
+            out.append(chr(int(m.group(0), 16)))
+            i = m.end()
+        else:
+            out.append("\\" + e)
+            i += 2
+    return "".join(out)
+
+
+def _plain_quotes(command):
+    """Rewrite each unquoted $'…' into the single-quoted word it denotes, escapes decoded.
+
+    Runs before splitting and tokenizing, which know only plain quotes.
+    An unclosed $'…' is left as is, so the tokenizer fails on it.
+    """
+    out = []
+    quote = None
+    i = 0
+    n = len(command)
+    while i < n:
+        if quote is None and command[i : i + 2] == "$'":
+            end = _ansi_c_end(command, i)
+            if end is None:
+                out.append(command[i:])
+                break
+            out.append(shlex.quote(_ansi_c_decode(command[i + 2 : end - 1])))
+            i = end
+            continue
+        consumed = _consume_quote_or_escape(command, i, quote)
+        if consumed is not None:
+            length, quote = consumed
+            out.append(command[i : i + length])
+            i += length
+            continue
+        out.append(command[i])
+        i += 1
+    return "".join(out)
+
+
 def _tokenize_segment(segment, interactive):
     """Tokenize a segment; on tokenizer failure raise (interactive) or return None (content)."""
     try:
@@ -598,7 +694,7 @@ def _check_command(command, depth, interactive=True):
     """Check a whole command string: redirects, $() bodies, then each segment."""
     if depth > _MAX_DEPTH:
         return _TOO_DEEP_REASON
-    command = _strip_comments(command)
+    command = _strip_comments(_plain_quotes(command))
     match = _TRUNCATE_REDIRECT.search(command)
     if match:
         return _lockfile_reason(match.group(1), deleting=False)

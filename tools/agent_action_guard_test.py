@@ -297,6 +297,32 @@ class AuthorisationTest(unittest.TestCase):
             self.assertIsNone(decide(edit("tools/agent_action_guard.py", "x")))
 
 
+class AnsiCQuotingTest(unittest.TestCase):
+    def test_quoted_words_are_read(self):
+        for cmd in (
+            "printf $'a\\nb'",
+            "jj describe -m $'line one\\nline two'",
+            "echo $'it\\'s'",
+            "echo $'it\\'s; ls'",
+            "printf $'\\x6'",
+            "echo $'\\e[0m'",
+            "echo $'\\q'",
+            "echo $'\\c'",
+        ):
+            self.assertIsNone(decide(bash(cmd)), cmd)
+
+    def test_quoting_hides_nothing(self):
+        for cmd in (
+            "bash -c $'cargo build'",
+            "echo $'a\\'' ; cargo build",
+            "$'\\x63argo' build",
+            "$'\\143argo' build",
+            "$'\\u0063argo' build",
+            "$'\\U00000063argo' build",
+        ):
+            self.assertIsNotNone(decide(bash(cmd)), cmd)
+
+
 class EvaluateFailsClosedTest(unittest.TestCase):
     def test_unparseable_payload_is_denied(self):
         self.assertIsNotNone(evaluate("this is not json"))
@@ -306,6 +332,9 @@ class EvaluateFailsClosedTest(unittest.TestCase):
         # Unbalanced quote → shlex raises → fail closed.
         self.assertIsNotNone(
             evaluate('{"tool_name": "Bash", "tool_input": {"command": "bash -c \\"oops"}}')
+        )
+        self.assertIsNotNone(
+            evaluate('{"tool_name": "Bash", "tool_input": {"command": "echo $\'open"}}')
         )
 
     def test_parseable_allowed_action_is_silent(self):

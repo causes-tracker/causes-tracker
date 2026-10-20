@@ -1,0 +1,43 @@
+# Shell files in the tree that are in the srcs of no shellcheck_check target.
+# A package with a BUCK file hides its files from the root package's glob, so a
+# package that adds shell files without calling shellcheck_package leaves them
+# unchecked.
+# Run through //tools/checks.bxl.
+
+def _shell_files(ctx, dir, found):
+    for node in ctx.fs.list(dir):
+        path = ctx.fs.project_rel_path(node)
+        if ctx.fs.is_dir(node):
+            _shell_files(ctx, node, found)
+        elif path.endswith((".sh", ".bash", ".shlib")):
+            found.append(path)
+
+def shellcheck_complete(ctx):
+    """The problems found, one line each; empty when every shell file is checked."""
+    checked = {}
+    found = []
+    cells = ctx.audit().cell()
+    project_root = cells["root"]
+    # A directory listing omits nested cells and ignored paths, so each cell
+    # is walked from its own root.  The `none` cell has no directory; prelude
+    # is bundled and not linted.
+    for cell, path in cells.items():
+        rel = path[len(project_root) + 1:]
+        if cell == "prelude" or (rel != "" and not ctx.fs.exists(rel)):
+            continue
+        # Only srcs are linted; the driver, rcfile and sourced files are
+        # inputs the check reads without checking.
+        for node in ctx.uquery().kind("shellcheck_check", cell + "//..."):
+            for src in node.get_attr("srcs"):
+                checked[ctx.fs.project_rel_path(src)] = True
+        _shell_files(ctx, rel, found)
+
+    # A shell file in a nested cell; the walk must reach it or the check is vacuous.
+    canary = "probes/shellcheck_finding.sh"
+    if canary not in found:
+        return ["shellcheck_complete: the walk did not reach " + canary]
+    missing = [path for path in sorted(found) if path not in checked]
+    if missing:
+        return ["shell file in no shellcheck_check: " + path for path in missing]
+    ctx.output.print("shellcheck complete: all {} shell files in the tree are checked".format(len(found)))
+    return []

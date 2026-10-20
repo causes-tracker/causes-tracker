@@ -1,0 +1,16 @@
+# The graph-level checks, run in one buck2 invocation.
+# A check takes the bxl context and returns its problems, one line each.
+#
+# Usage: buck2 bxl //tools/checks.bxl:check
+
+load("//tools/shellcheck_complete.bxl", "shellcheck_complete")
+
+def _impl(ctx):
+    problems = shellcheck_complete(ctx)
+    if problems:
+        fail("\n".join(problems))
+
+check = bxl_main(
+    impl = _impl,
+    cli_args = {},
+)

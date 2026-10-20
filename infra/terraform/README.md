@@ -14,7 +14,7 @@ All commands below use the hermetic OpenTofu wrapper:
 
 ### 1. Ensure IAM permissions
 
-See [IAM permissions](#iam-permissions) below.
+See [IAM permissions](#iam-permissions-for-the-opentofu-operator) below.
 
 ### 2. Generate an SSH key
 

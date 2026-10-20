@@ -18,7 +18,7 @@ bazel_dep(name = "protobuf", version = "34.1")
 # Linting and formatting.
 # aspect_rules_lint provides: buf (proto), yamllint (yaml), shfmt (shell
 # format), yamlfmt (yaml format), and the format_multirun macro.
-bazel_dep(name = "aspect_rules_lint", version = "2.3.0")
+bazel_dep(name = "aspect_rules_lint", version = "2.5.0")
 
 # Buildifier for Starlark/BUILD linting and formatting.
 bazel_dep(name = "buildifier_prebuilt", version = "8.5.1")
@@ -26,7 +26,8 @@ bazel_dep(name = "buildifier_prebuilt", version = "8.5.1")
 # rules_multirun is needed by format_multirun.
 bazel_dep(name = "rules_multirun", version = "0.10.0")
 
-# aspect_rules_lint transitively pulls in rules_android, which registers an Android SDK
+# protobuf (via rules_kotlin and rules_jvm_external) transitively pulls in
+# rules_android, which registers an Android SDK
 # toolchain. rules_android <=0.6.4 references @local_config_platform (removed in Bazel 9);
 # 0.7.1 fixes this by loading from @platforms//host instead.
 bazel_dep(name = "rules_android", version = "0.7.1")

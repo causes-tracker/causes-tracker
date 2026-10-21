@@ -19,8 +19,8 @@ cached_http_archive(
     # C extension statically linked in — lib-dynload is empty); the sibling
     # python/build is unrelated build-artifact output that paths excludes.
     paths = ["python/install"],
-    sha256 = "4cf0c84dc62e08f03e9d58150bbc0be356d8e445de8722d5c6fd75397297cf46",
-    size_bytes = 42628585,
+    sha256 = "49397e1e4950f8e75cb84d57f1ecb48bb3525cfd1f813d2b38d2e38b6bd3a6fa",
+    size_bytes = 40198207,
     exec_compatible_with = ["//platforms:image_build_enabled"],
     strip_components = 2,
     urls = ["https://github.com/astral-sh/python-build-standalone/releases/download/20261013/cpython-3.15.0+20261013-x86_64-unknown-linux-musl-noopt+static-full.tar.zst"],

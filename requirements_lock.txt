@@ -389,9 +389,9 @@ pymarkdownlnt==0.9.41 \
     --hash=sha256:677985658f0d452c9d0a639d2aca11060a99874c127b3d7513d7f33dc5462973 \
     --hash=sha256:d6a477498feacf004ba1eea1847e70cbb083c7175ee62bde7a8f11bf2ce943cb
     # via -r requirements.in
-pymdown-extensions==12.2 \
-    --hash=sha256:02da896c362b548d85123e7a377a40024ea6ea938b4e45ca064e408afd994b64 \
-    --hash=sha256:caea66e916b4cfe987b5dabb0a78558e3506988f6353812b0b0288be8f976c16
+pymdown-extensions==12.3 \
+    --hash=sha256:345493a8e3497e24382902903a1c43a28e34a52f2b7571a1c9641429b820ca74 \
+    --hash=sha256:a7f2a4e0bc60c6e6babfa7922cfb3b01cd640eb00fb208f3c582e12bae00ea67
     # via zensical
 python-dateutil==2.9.0.post0 \
     --hash=sha256:37dd54208da7e1cd875388217d5e00ebd4179249f90fb72437e91a35459a0ad3 \

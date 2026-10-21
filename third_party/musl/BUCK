@@ -151,7 +151,7 @@ musl_runtime(
         ":zstd-libs",
     ],
     script = "stage_runtime.sh",
-    visibility = ["//tools:"],
+    visibility = ["//infra/postgres:", "//tools:"],
 )
 
 cached_check(

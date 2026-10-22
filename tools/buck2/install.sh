@@ -6,7 +6,7 @@ set -euo pipefail
 
 BINDIR="${1:-/usr/local/bin}"
 BUCK2_VERSION=2026-10-15
-BUCK2_SHA256=11b92ca53712ee36d95cf48b85d3c8c7c804556abc4d2cb25e0c5b9a37d59f11
+BUCK2_SHA256=dc39a4702492333b46dcfa17129481b41f4820bb415e4efd437f70ef33ba451d
 install_release facebook/buck2 "$BUCK2_SHA256" \
 	"$BUCK2_VERSION" "buck2-x86_64-unknown-linux-musl.zst" \
 	zst buck2-bin "$BINDIR"

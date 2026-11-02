@@ -7,7 +7,7 @@
 # ICU consumers also set ICU_DATA to the runtime directory, where the icu-data
 # .dat is staged flat.
 
-# loader: run a runtime binary as `loader --library-path runtime <binary>`.
+# loader: the dynamic loader; see _musl_invocation for how it runs a binary.
 MuslRuntimeInfo = provider(fields = {
     "loader": provider_field(Artifact),
     "runtime": provider_field(Artifact),
@@ -35,23 +35,76 @@ musl_runtime = rule(
     },
 )
 
+# The one place that spells how a runtime binary is run; musl_tool renders it
+# as a RunInfo, musl_shims as scripts.
+# `path_format` wraps each path element as it is rendered.
+# `argv0`, when given, is what the binary sees as its own name; the loader
+# otherwise passes the binary's path.
+def _musl_invocation(info: MuslRuntimeInfo, library_dirs: list[Artifact], binary: Artifact, path_format: str = "{}", argv0: str | None = None) -> cmd_args:
+    return cmd_args(
+        cmd_args(info.loader, format = path_format),
+        "--library-path",
+        cmd_args([info.runtime] + library_dirs, format = path_format, delimiter = ":"),
+        ["--argv0", argv0] if argv0 != None else [],
+        cmd_args(binary, format = path_format),
+    )
+
 # A runtime binary as a RunInfo tool.
 def _musl_tool_impl(ctx: AnalysisContext) -> list[Provider]:
     info = ctx.attrs.runtime[MuslRuntimeInfo]
     return [
         DefaultInfo(),
-        RunInfo(args = cmd_args(
-            info.loader,
-            "--library-path",
-            info.runtime,
-            info.runtime.project(ctx.attrs.path),
-        )),
+        RunInfo(args = _musl_invocation(info, [], info.runtime.project(ctx.attrs.path))),
     ]
 
 musl_tool = rule(
     impl = _musl_tool_impl,
     attrs = {
         "path": attrs.string(doc = "Runtime-relative path of the binary."),
+        "runtime": attrs.dep(providers = [MuslRuntimeInfo]),
+    },
+)
+
+# A bin/ of loader scripts, one per named binary of `dist`, each running it
+# through the loader with the runtime and the dist's lib/ on the library path
+# and the script's own path as argv[0], so a program that locates itself or a
+# sibling from argv[0] (pg_ctl -> postgres) finds the scripts.
+# Each of `dirs` links to the dist's beside bin/, for programs that locate
+# their data relative to the directory holding argv[0]: PostgreSQL relocates
+# lib/ and share/ that way, only when that directory is named bin.
+# The output is the whole tree as one directory: separate outputs of a target
+# are not siblings under content-based output paths.
+# Every path in a script is relative to the script's own directory, so it
+# works from any cwd.
+def _musl_shims_impl(ctx: AnalysisContext) -> list[Provider]:
+    info = ctx.attrs.runtime[MuslRuntimeInfo]
+    dist = ctx.attrs.dist[DefaultInfo].default_outputs[0]
+    root = ctx.actions.declare_output("root", dir = True)
+    bin = root.project("bin")
+
+    contents = {}
+    for name in ctx.attrs.bins:
+        inv = _musl_invocation(info, [dist.project("lib")], dist.project("bin/" + name), path_format = '"$here/{}"', argv0 = '"$0"')
+        body = cmd_args(
+            "#!/bin/sh",
+            'here="$(dirname "$0")"',
+            cmd_args("exec", inv, '"$@"', delimiter = " "),
+            delimiter = "\n",
+            relative_to = bin,
+        )
+        shim = ctx.actions.write("shim/" + name, body, is_executable = True, allow_args = True)[0]
+        contents["bin/" + name] = assembled_dir.copy(shim)
+    for d in ctx.attrs.dirs:
+        contents[d] = assembled_dir.symlink(dist.project(d))
+    ctx.actions.assembled_dir(root, contents = contents)
+    return [DefaultInfo(default_output = root.with_associated_artifacts([info.runtime, dist]))]
+
+musl_shims = rule(
+    impl = _musl_shims_impl,
+    attrs = {
+        "bins": attrs.list(attrs.string(), doc = "Names under the dist's bin/ to shim."),
+        "dirs": attrs.list(attrs.string(), default = [], doc = "Dist directories linked beside bin/."),
+        "dist": attrs.dep(providers = [DefaultInfo], doc = "Directory artifact holding bin/ and the dirs to link."),
         "runtime": attrs.dep(providers = [MuslRuntimeInfo]),
     },
 )

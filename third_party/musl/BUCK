@@ -107,6 +107,13 @@ pinned_file(
 )
 
 pinned_file(
+    name = "xz",
+    sha256 = "ae0b3000414bc42951e7ed90188c9628834e1db651ec9eb9b3b95146fab54827",
+    size_bytes = 54224,
+    url = "https://dl-cdn.alpinelinux.org/alpine/v3.19/main/x86_64/xz-5.4.5-r1.apk",
+)
+
+pinned_file(
     name = "xz-libs",
     sha256 = "a199e1170664ed97d8dd80231d187c3d8a42a6cd44b9fad9e49187d5fc61c8a2",
     size_bytes = 114573,
@@ -129,7 +136,10 @@ pinned_file(
 
 musl_runtime(
     name = "musl_runtime",
-    bins = ["bin/bash"],
+    bins = [
+        "bin/bash",
+        "usr/bin/xz",
+    ],
     packages = [
         ":bash",
         ":icu-data-en",
@@ -146,12 +156,18 @@ musl_runtime(
         ":lz4-libs",
         ":musl",
         ":readline",
+        ":xz",
         ":xz-libs",
         ":zlib",
         ":zstd-libs",
     ],
     script = "stage_runtime.sh",
-    visibility = ["//infra/postgres:", "//tools:"],
+    visibility = [
+        "//infra/postgres:",
+        "//third_party/xz:",
+        "//tools:",
+        "@toolchains//rust:",
+    ],
 )
 
 cached_check(

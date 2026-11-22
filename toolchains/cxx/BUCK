@@ -1,0 +1,18 @@
+load("@root//tools:defs.bzl", "cached_check", "shellcheck_package")
+
+export_file(
+    name = "zig_flatten",
+    src = "zig_flatten.sh",
+    visibility = ["//:"],
+)
+
+cached_check(
+    name = "zig_flatten_test",
+    exe = "@root//tools:bash",
+    srcs = [
+        "zig_flatten_test.sh",
+        ":zig_flatten",
+    ],
+)
+
+shellcheck_package()

@@ -1,0 +1,9 @@
+load("//third_party/musl:defs.bzl", "musl_tool")
+
+# The runtime's xz, as a decompressor for cached_http_archive.
+musl_tool(
+    name = "xz",
+    path = "bin/xz",
+    runtime = "//third_party/musl:musl_runtime",
+    visibility = ["@toolchains//rust:"],
+)

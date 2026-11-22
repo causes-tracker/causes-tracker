@@ -1,3 +1,28 @@
-load("@prelude//toolchains:demo.bzl", "system_demo_toolchains")
+load("@prelude//toolchains:python.bzl", "python_bootstrap_toolchain")
+load("//cxx:defs.bzl", "zig_cxx_toolchain")
+load("//rust:defs.bzl", "musl_rust_toolchain")
 
-system_demo_toolchains()
+zig_cxx_toolchain(
+    name = "cxx",
+    llvm_tools = "//rust:rust_tools",
+    target = "x86_64-linux-musl",
+    visibility = ["//rust/check:"],
+    zig = "@root//third_party/zig:zig",
+)
+
+musl_rust_toolchain(
+    name = "rust",
+    bash_shims = "//rust:bash_shims",
+    default_edition = "2024",
+    rust_tools = "//rust:rust_tools",
+    sysroot = "//rust:sysroot",
+    visibility = ["//rust/check:"],
+)
+
+# The interpreter for the prelude's python_bootstrap_binary tools, which the
+# cxx and rust rules' internal tools depend on.
+python_bootstrap_toolchain(
+    name = "python_bootstrap",
+    interpreter = "@root//third_party/python:py",
+    visibility = ["@prelude//..."],
+)

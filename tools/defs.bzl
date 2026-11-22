@@ -131,13 +131,16 @@ def _cached_http_archive_impl(ctx: AnalysisContext) -> list[Provider]:
         size_bytes = ctx.attrs.size_bytes,
     )
     out = ctx.actions.declare_output("out", dir = True)
-    if ctx.attrs.zstd:
-        # tar has no zstd support on the platforms this runs on; decompress
-        # through the pinned zstd tool first, to a temp file (its own
-        # statement) so set -e catches a zstd failure.
-        extract = '"$zstd" -dc "$archive" >"$zstd_tmp"; tar -x -f "$zstd_tmp" -C "{dest}"'
-        tool_args = [ctx.attrs.zstd[RunInfo]]
-        arg_prefix = 'set -eu; zstd="$1"; archive="$2"; out="$3"; shift 3; zstd_tmp="$(mktemp)"'
+    if ctx.attrs.decompressor:
+        # The worker's tar has no zstd support and its xz decoder caps the
+        # dictionary at 64 MiB; such archives decompress through the pinned
+        # tool first, to a temp file (its own statement) so set -e catches a
+        # decompression failure.
+        # The tool may be several words (a loader and its arguments), so it
+        # arrives shell-quoted in one argument and is run through eval.
+        extract = 'eval "$decompress" -dc \'"$archive"\' >"$plain"; tar -x -f "$plain" -C "{dest}"'
+        tool_args = [cmd_args(ctx.attrs.decompressor[RunInfo], quote = "shell", delimiter = " ")]
+        arg_prefix = 'set -eu; decompress="$1"; archive="$2"; out="$3"; shift 3; plain="$(mktemp)"'
     else:
         extract = 'tar -x -f "$archive" -C "{dest}"'
         tool_args = []
@@ -178,6 +181,8 @@ def _cached_http_archive_impl(ctx: AnalysisContext) -> list[Provider]:
 cached_http_archive = rule(
     impl = _cached_http_archive_impl,
     attrs = {
+        # Set when tar cannot decompress the archive itself.
+        "decompressor": attrs.option(attrs.exec_dep(providers = [RunInfo]), default = None),
         # Top-level archive paths to extract; empty extracts everything.
         "paths": attrs.list(attrs.string(), default = []),
         "sha256": attrs.string(),
@@ -187,7 +192,5 @@ cached_http_archive = rule(
         "strip_components": attrs.int(default = 0),
         "sub_targets": attrs.list(attrs.string(), default = []),
         "urls": attrs.list(attrs.string()),
-        # Set when the archive needs zstd decompression tar can't do itself.
-        "zstd": attrs.option(attrs.exec_dep(providers = [RunInfo]), default = None),
     },
 )

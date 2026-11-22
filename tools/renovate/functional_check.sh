@@ -45,7 +45,8 @@ export PATH="$bindir:$PATH"
 repo="$work/repo"
 mkdir -p "$repo/tools/nativelink" "$repo/tools/crun" \
 	"$repo/third_party/crane" "$repo/third_party/python" \
-	"$repo/third_party/musl" "$repo/.devcontainer"
+	"$repo/third_party/musl" "$repo/third_party/zig" "$repo/toolchains/rust" \
+	"$repo/.devcontainer"
 cp "$renovate_json" "$repo/renovate.json"
 sed 's/^NATIVELINK_VERSION=.*/NATIVELINK_VERSION=1.5.0/' \
 	"$nativelink_install" >"$repo/tools/nativelink/install.sh"
@@ -84,6 +85,26 @@ cached_http_archive(
     strip_components = 1,
     urls = ["https://github.com/astral-sh/python-build-standalone/releases/download/20240814/cpython-3.12.0+20240814-x86_64-unknown-linux-gnu-install_only.tar.gz"],
     visibility = ["PUBLIC"],
+)
+EOF
+# A ziglang.org pin; the version repeats in the asset filename.
+cat >"$repo/third_party/zig/BUCK" <<'EOF'
+cached_http_archive(
+    name = "zig_archive",
+    sha256 = "0000000000000000000000000000000000000000000000000000000000000000",
+    size_bytes = 1,
+    strip_components = 1,
+    urls = ["https://ziglang.org/download/0.13.0/zig-linux-x86_64-0.13.0.tar.xz"],
+)
+EOF
+# A static.rust-lang.org pin; the component name precedes the version.
+cat >"$repo/toolchains/rust/BUCK" <<'EOF'
+cached_http_archive(
+    name = "rustc",
+    sha256 = "0000000000000000000000000000000000000000000000000000000000000000",
+    size_bytes = 1,
+    strip_components = 2,
+    urls = ["https://static.rust-lang.org/dist/rustc-1.93.0-x86_64-unknown-linux-musl.tar.xz"],
 )
 EOF
 # A MODULE.bazel pin absent from every BUCK file, so the MODULE.bazel
@@ -193,7 +214,7 @@ update_proposed() {
 # Every backdated pin must yield an update decision, not just extract.
 for dep in TraceMachina/nativelink containers/crun astral-sh/uv \
 	google/go-containerregistry busybox tzdata libstdc++ libcom_err opentofu/opentofu \
-	python/cpython astral-sh/python-build-standalone \
+	python/cpython astral-sh/python-build-standalone ziglang/zig rust-lang/rust \
 	ghcr.io/devcontainers/features/docker-outside-of-docker \
 	ghcr.io/devcontainers/features/github-cli \
 	ghcr.io/devcontainers/features/node; do

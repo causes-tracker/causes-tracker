@@ -15,6 +15,7 @@ tree_tool(
 
 cached_http_archive(
     name = "cpython",
+    decompressor = "//third_party/zstd:zstd",
     # python/install is the full interpreter tree (stdlib, headers, every
     # C extension statically linked in — lib-dynload is empty); the sibling
     # python/build is unrelated build-artifact output that paths excludes.
@@ -25,7 +26,6 @@ cached_http_archive(
     strip_components = 2,
     urls = ["https://github.com/astral-sh/python-build-standalone/releases/download/20261013/cpython-3.15.0+20261013-x86_64-unknown-linux-musl-noopt+static-full.tar.zst"],
     visibility = ["PUBLIC"],
-    zstd = "//third_party/zstd:zstd",
 )
 
 cached_check(

@@ -28,7 +28,7 @@ defaults:
     shell: bash --noprofile --norc -euo pipefail {0}
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
       # The base image ships the deprecated gold linker, which causes warnings
@@ -63,7 +63,7 @@ jobs:
   # bazel-* convenience symlinks into the output tree and hangs, so buck2 builds
   # cannot share a checkout with Bazel.
   buck2:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
         with:
@@ -296,7 +296,7 @@ jobs:
   # metrics steps are not best-effort: a failure to record, upload, or
   # comment is a real failure and reddens this job.
   ci-metrics:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [build, buck2]
     if: always()
     # A job-level block replaces the workflow's contents: write, so re-grant
@@ -367,7 +367,7 @@ jobs:
         if: always()
         run: bazel shutdown
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: build
     if: github.event_name == 'push'
     steps:

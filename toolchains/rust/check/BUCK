@@ -1,0 +1,25 @@
+load("@root//tools:defs.bzl", "cached_check", "shellcheck_package")
+
+# The toolchains' proof: a library compiled by rustc, linked into a binary
+# through zig c++, run on the worker.
+rust_library(
+    name = "greet",
+    srcs = ["greet.rs"],
+)
+
+rust_binary(
+    name = "hello",
+    srcs = ["hello.rs"],
+    deps = [":greet"],
+)
+
+cached_check(
+    name = "hello_test",
+    exe = "@root//tools:bash",
+    srcs = [
+        "hello_test.sh",
+        ":hello",
+    ],
+)
+
+shellcheck_package()

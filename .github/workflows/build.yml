@@ -200,7 +200,7 @@ jobs:
       # README.md); every sweep below excludes it.
       - name: Compute --remote-only target set
         run: |
-          targets="$(buck2 uquery '//... - //tools/renovate:functional_check' | tr '\n' ' ')"
+          targets="$(buck2 uquery '//... + toolchains//... - //tools/renovate:functional_check' | tr '\n' ' ')"
           # an empty result exits 0, so pipefail can't catch it; reject it here.
           [ -n "${targets// /}" ] || { echo "empty --remote-only target set" >&2; exit 1; }
           echo "REMOTE_ONLY_TARGETS=$targets" >> "$GITHUB_ENV"

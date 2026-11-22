@@ -32,10 +32,12 @@ for e in entries:
     with open(os.path.join(root, e), "rb") as fh:
         assert fh.read(4) == b"\x7fELF", e
 
-assert set(os.listdir(os.path.join(root, "bin"))) == {"bash"}
+assert set(os.listdir(os.path.join(root, "bin"))) == {"bash", "xz"}
 
 bash = os.path.join(root, "bin", "bash")
 assert os.access(bash, os.X_OK), bash
+xz = os.path.join(root, "bin", "xz")
+assert os.access(xz, os.X_OK), xz
 
 # The documented invocation, resolving bash's libraries (libc.musl, readline,
 # ncursesw) with the runtime first on the library path; a non-executable
@@ -47,5 +49,13 @@ proc = subprocess.run(
 )
 assert proc.returncode == 0, proc.stderr
 assert proc.stdout == b"ok\n", proc.stdout
+
+# xz resolves liblzma from the runtime the same way.
+proc = subprocess.run(
+    [os.path.join(root, "ld-musl-x86_64.so.1"), "--library-path", root, xz, "--version"],
+    capture_output=True,
+)
+assert proc.returncode == 0, proc.stderr
+assert proc.stdout.startswith(b"xz (XZ Utils)"), proc.stdout
 
 open(sys.argv[2], "w", encoding="utf-8").write("ok")

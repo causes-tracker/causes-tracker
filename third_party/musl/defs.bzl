@@ -66,7 +66,7 @@ musl_tool = rule(
 )
 
 # A bin/ of loader scripts, one per named binary of `dist`, each running it
-# through the loader with the runtime and the dist's lib/ on the library path
+# through the loader with the runtime and `library_dirs` on the library path
 # and the script's own path as argv[0], so a program that locates itself or a
 # sibling from argv[0] (pg_ctl -> postgres) finds the scripts.
 # Each of `dirs` links to the dist's beside bin/, for programs that locate
@@ -82,9 +82,10 @@ def _musl_shims_impl(ctx: AnalysisContext) -> list[Provider]:
     root = ctx.actions.declare_output("root", dir = True)
     bin = root.project("bin")
 
+    library_dirs = [dist.project(d) for d in ctx.attrs.library_dirs]
     contents = {}
     for name in ctx.attrs.bins:
-        inv = _musl_invocation(info, [dist.project("lib")], dist.project("bin/" + name), path_format = '"$here/{}"', argv0 = '"$0"')
+        inv = _musl_invocation(info, library_dirs, dist.project("bin/" + name), path_format = '"$here/{}"', argv0 = '"$0"')
         body = cmd_args(
             "#!/bin/sh",
             'here="$(dirname "$0")"',
@@ -105,6 +106,7 @@ musl_shims = rule(
         "bins": attrs.list(attrs.string(), doc = "Names under the dist's bin/ to shim."),
         "dirs": attrs.list(attrs.string(), default = [], doc = "Dist directories linked beside bin/."),
         "dist": attrs.dep(providers = [DefaultInfo], doc = "Directory artifact holding bin/ and the dirs to link."),
+        "library_dirs": attrs.list(attrs.string(), default = ["lib"], doc = "Dist directories added to the library path."),
         "runtime": attrs.dep(providers = [MuslRuntimeInfo]),
     },
 )

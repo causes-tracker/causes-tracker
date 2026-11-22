@@ -156,6 +156,30 @@
       "datasourceTemplate": "github-releases"
     },
     {
+      "description": "A zig release pinned by ziglang.org URL in a BUCK file. The renovate-sha workflow recomputes the sha256 and size_bytes on the bump PR (renovatebot/renovate#22183). The match runs to the closing quote so autoReplaceGlobalMatch rewrites the version in the asset filename too.",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/(^|/)BUCK$/"
+      ],
+      "matchStrings": [
+        "https://ziglang\\.org/download/(?<currentValue>[^/\"]+)/zig-[^\"]*"
+      ],
+      "depNameTemplate": "ziglang/zig",
+      "datasourceTemplate": "github-releases"
+    },
+    {
+      "description": "A Rust component dist pinned by static.rust-lang.org URL in a BUCK file; rust-lang/rust release tags are the bare version. The renovate-sha workflow recomputes the sha256 and size_bytes on the bump PR (renovatebot/renovate#22183).",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/(^|/)BUCK$/"
+      ],
+      "matchStrings": [
+        "https://static\\.rust-lang\\.org/dist/[a-z-]+-(?<currentValue>[0-9][^-\"]*)-x86_64-unknown-linux-musl\\.tar\\.xz"
+      ],
+      "depNameTemplate": "rust-lang/rust",
+      "datasourceTemplate": "github-releases"
+    },
+    {
       "description": "An Alpine apk pinned by URL in a BUCK file; repology tracks the upstream version. The -r package revision and sha256 are recomputed by the renovate-sha workflow on the bump PR (renovatebot/renovate#22183).",
       "customType": "regex",
       "managerFilePatterns": [

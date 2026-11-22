@@ -1,0 +1,92 @@
+load("@root//third_party/musl:defs.bzl", "musl_shims")
+load("@root//tools:defs.bzl", "cached_check", "cached_http_archive", "shellcheck_package")
+load(":defs.bzl", "rust_sysroot")
+
+# The musl dists; strip_components drops the dist's top directory and the
+# component's own, leaving the component's tree.
+cached_http_archive(
+    name = "rustc",
+    decompressor = "@root//third_party/xz:xz",
+    sha256 = "9eb8e88598190dc97162b775349080ae00b222e0b2718da4011ff10f0db4ba07",
+    size_bytes = 103250544,
+    strip_components = 2,
+    urls = ["https://static.rust-lang.org/dist/rustc-1.94.1-x86_64-unknown-linux-musl.tar.xz"],
+)
+
+cached_http_archive(
+    name = "clippy",
+    decompressor = "@root//third_party/xz:xz",
+    sha256 = "9259acb94d0dc0ab9e16ced7fa06f00b2da50197756c4bef112c0798757e5ed2",
+    size_bytes = 3709540,
+    strip_components = 2,
+    urls = ["https://static.rust-lang.org/dist/clippy-1.94.1-x86_64-unknown-linux-musl.tar.xz"],
+)
+
+cached_http_archive(
+    name = "llvm_tools",
+    decompressor = "@root//third_party/xz:xz",
+    sha256 = "5ca4e92222420eb57443b40eb4c210726e7981b98a4c91130742fb7f628147fa",
+    size_bytes = 85223416,
+    strip_components = 2,
+    urls = ["https://static.rust-lang.org/dist/llvm-tools-1.94.1-x86_64-unknown-linux-musl.tar.xz"],
+)
+
+cached_http_archive(
+    name = "rust_std",
+    decompressor = "@root//third_party/xz:xz",
+    sha256 = "5a233ab503d58a3fb65bf7ecaa1b82f821f799dfd94a2613215317097ad43547",
+    size_bytes = 38801752,
+    strip_components = 2,
+    urls = ["https://static.rust-lang.org/dist/rust-std-1.94.1-x86_64-unknown-linux-musl.tar.xz"],
+)
+
+rust_sysroot(
+    name = "sysroot",
+    clippy = ":clippy",
+    llvm_tools = ":llvm_tools",
+    rustc = ":rustc",
+    std = ":rust_std",
+    target = "x86_64-unknown-linux-musl",
+    visibility = ["//:"],
+)
+
+musl_shims(
+    name = "rust_tools",
+    bins = [
+        "clippy-driver",
+        "llvm-objcopy",
+        "llvm-strip",
+        "rustc",
+        "rustdoc",
+    ],
+    dist = ":sysroot",
+    runtime = "@root//third_party/musl:musl_runtime",
+    visibility = ["//:"],
+)
+
+# The runtime stages bin/bash itself, so it is also the dist here.
+musl_shims(
+    name = "bash_shims",
+    bins = ["bash"],
+    dist = "@root//third_party/musl:musl_runtime",
+    library_dirs = [],
+    runtime = "@root//third_party/musl:musl_runtime",
+    visibility = ["//:"],
+)
+
+export_file(
+    name = "rustc_wrapper",
+    src = "rustc_wrapper.sh",
+    visibility = ["//:"],
+)
+
+cached_check(
+    name = "rustc_wrapper_test",
+    exe = "@root//tools:bash",
+    srcs = [
+        "rustc_wrapper_test.sh",
+        ":rustc_wrapper",
+    ],
+)
+
+shellcheck_package()

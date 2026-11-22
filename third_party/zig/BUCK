@@ -1,0 +1,18 @@
+load("//tools:defs.bzl", "cached_http_archive", "tree_tool")
+
+# zig finds its lib/ (libc headers and sources) beside the binary, so the
+# whole distribution rides along with the tool.
+tree_tool(
+    name = "zig",
+    path = "zig",
+    tree = ":zig_archive",
+    visibility = ["@toolchains//:"],
+)
+
+cached_http_archive(
+    name = "zig_archive",
+    sha256 = "473ec26806133cf4d1918caf1a410f8403a13d979726a9045b421b685031a982",
+    size_bytes = 49091960,
+    strip_components = 1,
+    urls = ["https://ziglang.org/download/0.14.0/zig-linux-x86_64-0.14.0.tar.xz"],
+)

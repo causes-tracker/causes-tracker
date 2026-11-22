@@ -207,8 +207,10 @@ jobs:
       # --remote-only: CI is the trusted executor environment, so every
       # action — including the hybrid image-build platform's — runs on
       # NativeLink and warms the shared cache; nothing here executes local.
+      # --materializations=none: no later step reads these outputs, and
+      # downloading every cached tree is the sweep's wall time.
       - name: Build buck2 targets
-        run: buck2 build --remote-only $REMOTE_ONLY_TARGETS
+        run: buck2 build --remote-only --materializations=none $REMOTE_ONLY_TARGETS
       - name: Run the graph-level checks
         run: buck2 bxl //tools/checks.bxl:check
       # A rootfs pin bump reshapes the worker image; diff the built tar's
@@ -236,7 +238,7 @@ jobs:
         run: |
           buck2 clean
           buck2 kill
-          buck2 build --remote-only $REMOTE_ONLY_TARGETS 2>&1 | tee rebuild.log
+          buck2 build --remote-only --materializations=none $REMOTE_ONLY_TARGETS 2>&1 | tee rebuild.log
           grep -q 'Cache hits: 100%' rebuild.log
       # An action reading an undeclared repo file must fail under input
       # staging. Validates that the reference configuration exercised in

@@ -1,0 +1,12 @@
+load(":defs.bzl", "burst")
+
+# Warm inputs:
+#   buck2 build --remote-only --materializations=none -c burst.action_salt=<new> probes//burst:burst
+# Cold inputs: the same with -c burst.input_salt=<new> as well.
+burst(
+    name = "burst",
+    action_salt = read_config("burst", "action_salt", "0"),
+    actions = 1500,
+    input_salt = read_config("burst", "input_salt", "0"),
+    inputs = 200,
+)

@@ -13,10 +13,18 @@
   stores: [
     {
       name: "CAS_MAIN_STORE",
-      filesystem: {
-        content_path: "${HOME}/.cache/causes-nativelink/data/content_path-cas",
-        temp_path: "${HOME}/.cache/causes-nativelink/data/tmp_path-cas",
-        eviction_policy: { max_bytes: 20000000000 },
+      // buck2 uploads each ready action's inputs separately, so N actions
+      // sharing a cold input send it N times at once; the wrapper drains an
+      // upload of a digest the store already holds instead of writing it.
+      // The store's removals clear the wrapper's entries.
+      existence_cache: {
+        backend: {
+          filesystem: {
+            content_path: "${HOME}/.cache/causes-nativelink/data/content_path-cas",
+            temp_path: "${HOME}/.cache/causes-nativelink/data/tmp_path-cas",
+            eviction_policy: { max_bytes: 20000000000 },
+          },
+        },
       },
     },
     {

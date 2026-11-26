@@ -46,6 +46,7 @@ repo="$work/repo"
 mkdir -p "$repo/tools/nativelink" "$repo/tools/crun" \
 	"$repo/third_party/crane" "$repo/third_party/python" \
 	"$repo/third_party/musl" "$repo/third_party/zig" "$repo/toolchains/rust" \
+	"$repo/tools/reindeer" \
 	"$repo/.devcontainer"
 cp "$renovate_json" "$repo/renovate.json"
 sed 's/^NATIVELINK_VERSION=.*/NATIVELINK_VERSION=1.5.0/' \
@@ -105,6 +106,16 @@ cached_http_archive(
     size_bytes = 1,
     strip_components = 2,
     urls = ["https://static.rust-lang.org/dist/rustc-1.93.0-x86_64-unknown-linux-musl.tar.xz"],
+)
+EOF
+# A v-prefixed date tag whose asset filename carries no version.
+cat >"$repo/tools/reindeer/BUCK" <<'EOF'
+downloaded_tool(
+    name = "reindeer",
+    out = "reindeer",
+    sha256 = "0000000000000000000000000000000000000000000000000000000000000000",
+    size_bytes = 1,
+    url = "https://github.com/facebookincubator/reindeer/releases/download/v2024.04.01.00/reindeer-x86_64-unknown-linux-musl.zst",
 )
 EOF
 # A MODULE.bazel pin absent from every BUCK file, so the MODULE.bazel
@@ -215,6 +226,7 @@ update_proposed() {
 for dep in TraceMachina/nativelink containers/crun astral-sh/uv \
 	google/go-containerregistry busybox tzdata libstdc++ libcom_err opentofu/opentofu \
 	python/cpython astral-sh/python-build-standalone ziglang/zig rust-lang/rust \
+	facebookincubator/reindeer \
 	ghcr.io/devcontainers/features/docker-outside-of-docker \
 	ghcr.io/devcontainers/features/github-cli \
 	ghcr.io/devcontainers/features/node; do

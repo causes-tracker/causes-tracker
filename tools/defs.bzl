@@ -87,12 +87,23 @@ tree_tool = rule(
 # A single sha256-pinned executable, runnable as an exec_dep.
 def _downloaded_tool_impl(ctx: AnalysisContext) -> list[Provider]:
     out = ctx.actions.declare_output(ctx.attrs.out)
-    ctx.actions.download_file(out.as_output(), ctx.attrs.url, sha256 = ctx.attrs.sha256, size_bytes = ctx.attrs.size_bytes, is_executable = True)
+    if ctx.attrs.decompressor:
+        compressed = ctx.actions.declare_output("compressed")
+        ctx.actions.download_file(compressed.as_output(), ctx.attrs.url, sha256 = ctx.attrs.sha256, size_bytes = ctx.attrs.size_bytes)
+        ctx.actions.run(
+            cmd_args("/bin/sh", "-c", 'set -eu; in="$1"; out="$2"; shift 2; "$@" -dc "$in" >"$out"; chmod +x "$out"', "decompress", compressed, out.as_output(), ctx.attrs.decompressor[RunInfo]),
+            category = "downloaded_tool",
+            allow_cache_upload = True,
+        )
+    else:
+        ctx.actions.download_file(out.as_output(), ctx.attrs.url, sha256 = ctx.attrs.sha256, size_bytes = ctx.attrs.size_bytes, is_executable = True)
     return [DefaultInfo(default_output = out), RunInfo(args = cmd_args(out))]
 
 downloaded_tool = rule(
     impl = _downloaded_tool_impl,
     attrs = {
+        # Set when the release asset is the executable compressed.
+        "decompressor": attrs.option(attrs.exec_dep(providers = [RunInfo]), default = None),
         "out": attrs.string(),
         "sha256": attrs.string(),
         # The byte size lets buck2 form the CAS digest (sha256:size) without a

@@ -103,7 +103,13 @@ if [[ -e "$root/.buckroot" ]] && no_daemon; then
 	# platforms/defs.bzl) so buck2 bakes it into every image_build action's
 	# digest, and bumping the pin invalidates NativeLink's cache for
 	# actions that ran under the old image.
-	sed -e "s|@LAYER_DIGEST@|$digest|g" "$cfg" >"$nl_cache/config.json5"
+	if ! grep -q '@CPU_COUNT@' "$cfg"; then
+		echo "error: $cfg has no @CPU_COUNT@ worker cap; regenerate it from" \
+			"tools/nativelink/config-bb.json5.template" >&2
+		exit 1
+	fi
+	sed -e "s|@LAYER_DIGEST@|$digest|g" -e "s|@CPU_COUNT@|$(nproc)|g" "$cfg" \
+		>"$nl_cache/config.json5"
 
 	rootfs="$nl_cache/rootfs-$digest"
 	if [[ ! -d "$rootfs" ]]; then

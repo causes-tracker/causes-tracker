@@ -1,4 +1,4 @@
-load("//tools:defs.bzl", "cached_check", "downloaded_tool", "shellcheck_package")
+load("//tools:defs.bzl", "cached_check", "cached_http_archive", "downloaded_tool", "shellcheck_package")
 
 downloaded_tool(
     name = "reindeer",
@@ -15,6 +15,24 @@ cached_check(
     srcs = [
         "reindeer_test.sh",
         ":reindeer",
+    ],
+)
+
+# A crates.io crate named as reindeer names one, unpacked on the worker.
+cached_http_archive(
+    name = "cfg-if-1.0.5.crate",
+    paths = ["cfg-if-1.0.5"],
+    sha256 = "4e7648175b45a9a48536d676f68d918270699102aa8dab5496df06904c914600",
+    size_bytes = 9578,
+    urls = ["https://static.crates.io/crates/cfg-if/1.0.5/download"],
+)
+
+cached_check(
+    name = "crate_archive_test",
+    exe = "//tools:bash",
+    srcs = [
+        "crate_archive_test.sh",
+        ":cfg-if-1.0.5.crate",
     ],
 )
 

@@ -1,4 +1,5 @@
 load("@root//tools:defs.bzl", "cached_check", "shellcheck_package")
+load("//rust:defs.bzl", "buildscript_run")
 
 # The toolchains' proof: a library compiled by rustc, linked into a binary
 # through zig c++, run on the worker.
@@ -19,6 +20,37 @@ cached_check(
     srcs = [
         "hello_test.sh",
         ":hello",
+    ],
+)
+
+# A crate whose build script runs rustc and the C compiler.
+rust_binary(
+    name = "scripted-build-script-build",
+    srcs = ["scripted/build.rs"],
+    crate_root = "scripted/build.rs",
+)
+
+buildscript_run(
+    name = "scripted-build-script-run",
+    buildscript_rule = ":scripted-build-script-build",
+    local_manifest_dir = "scripted",
+    package_name = "scripted",
+    version = "0.0.0",
+)
+
+rust_binary(
+    name = "scripted",
+    srcs = ["scripted/main.rs"],
+    crate_root = "scripted/main.rs",
+    env = {"OUT_DIR": "$(location :scripted-build-script-run[out_dir])"},
+)
+
+cached_check(
+    name = "scripted_test",
+    exe = "@root//tools:bash",
+    srcs = [
+        "scripted_test.sh",
+        ":scripted",
     ],
 )
 

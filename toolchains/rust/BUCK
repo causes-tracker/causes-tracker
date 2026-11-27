@@ -40,8 +40,18 @@ cached_http_archive(
     urls = ["https://static.rust-lang.org/dist/rust-std-1.94.1-x86_64-unknown-linux-musl.tar.xz"],
 )
 
+cached_http_archive(
+    name = "cargo",
+    decompressor = "@root//third_party/xz:xz",
+    sha256 = "1d729de129de82ecf00c3f5b9a3e70dedf6a37e16ab66dbdad0f86886a8b2c11",
+    size_bytes = 11821180,
+    strip_components = 2,
+    urls = ["https://static.rust-lang.org/dist/cargo-1.94.1-x86_64-unknown-linux-musl.tar.xz"],
+)
+
 rust_sysroot(
     name = "sysroot",
+    cargo = ":cargo",
     clippy = ":clippy",
     llvm_tools = ":llvm_tools",
     rustc = ":rustc",
@@ -53,6 +63,7 @@ rust_sysroot(
 musl_shims(
     name = "rust_tools",
     bins = [
+        "cargo",
         "clippy-driver",
         "llvm-objcopy",
         "llvm-strip",
@@ -62,6 +73,15 @@ musl_shims(
     dist = ":sysroot",
     runtime = "@root//third_party/musl:musl_runtime",
     visibility = ["//:"],
+)
+
+cached_check(
+    name = "cargo_test",
+    exe = "@root//tools:bash",
+    srcs = [
+        "cargo_test.sh",
+        ":rust_tools",
+    ],
 )
 
 # The runtime stages bin/bash itself, so it is also the dist here.

@@ -13,8 +13,9 @@ RustSysrootInfo = provider(fields = {
 })
 
 # The rustc component tree with the std component's lib/rustlib/<target>/lib
-# laid over it, where rustc looks for core, alloc and std, and the clippy and
-# llvm-tools binaries added to bin/, so one shim tree serves every tool.
+# laid over it, where rustc looks for core, alloc and std, and the cargo,
+# clippy and llvm-tools binaries added to bin/, so one shim tree serves every
+# tool.
 def _rust_sysroot_impl(ctx: AnalysisContext) -> list[Provider]:
     out = ctx.actions.declare_output("sysroot", dir = True)
     rustlib = "lib/rustlib/{}".format(ctx.attrs.target)
@@ -22,13 +23,14 @@ def _rust_sysroot_impl(ctx: AnalysisContext) -> list[Provider]:
         cmd_args(
             "/bin/sh",
             "-c",
-            'set -eu; cp -a "$1/." "$5/"; mkdir -p "$5/$6/lib"; cp -a "$2/$6/lib/." "$5/$6/lib/"; ' +
-            'cp -a "$3/bin/." "$5/bin/"; cp -a "$4/$6/bin/." "$5/bin/"',
+            'set -eu; cp -a "$1/." "$6/"; mkdir -p "$6/$7/lib"; cp -a "$2/$7/lib/." "$6/$7/lib/"; ' +
+            'cp -a "$3/bin/." "$6/bin/"; cp -a "$4/$7/bin/." "$6/bin/"; cp -a "$5/bin/." "$6/bin/"',
             "sysroot",
             ctx.attrs.rustc[DefaultInfo].default_outputs[0],
             ctx.attrs.std[DefaultInfo].default_outputs[0],
             ctx.attrs.clippy[DefaultInfo].default_outputs[0],
             ctx.attrs.llvm_tools[DefaultInfo].default_outputs[0],
+            ctx.attrs.cargo[DefaultInfo].default_outputs[0],
             out.as_output(),
             rustlib,
         ),
@@ -43,6 +45,7 @@ def _rust_sysroot_impl(ctx: AnalysisContext) -> list[Provider]:
 rust_sysroot = rule(
     impl = _rust_sysroot_impl,
     attrs = {
+        "cargo": attrs.dep(providers = [DefaultInfo], doc = "The unpacked cargo component."),
         "clippy": attrs.dep(providers = [DefaultInfo], doc = "The unpacked clippy component."),
         "llvm_tools": attrs.dep(providers = [DefaultInfo], doc = "The unpacked llvm-tools component."),
         "rustc": attrs.dep(providers = [DefaultInfo], doc = "The unpacked rustc component."),

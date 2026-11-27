@@ -133,15 +133,18 @@ pinned_file = rule(
 # action, so its output can be read from the cache but never repopulates it.
 # The tree is a pure function of the sha256-pinned archive, so publishing it
 # is safe, and a warm cache serves the tree without contacting the origin.
+# The tree carries the target's name, as the prelude's http_archive's does;
+# the crate_root paths reindeer writes start with it.
 def _cached_http_archive_impl(ctx: AnalysisContext) -> list[Provider]:
-    archive = ctx.actions.declare_output("archive")
+    # Named apart from the tree, so a target called `archive` unpacks.
+    archive = ctx.actions.declare_output(ctx.label.name + ".archive")
     ctx.actions.download_file(
         archive.as_output(),
         ctx.attrs.urls[0],
         sha256 = ctx.attrs.sha256,
         size_bytes = ctx.attrs.size_bytes,
     )
-    out = ctx.actions.declare_output("out", dir = True)
+    out = ctx.actions.declare_output(ctx.label.name, dir = True)
     if ctx.attrs.decompressor:
         # The worker's tar has no zstd support and its xz decoder caps the
         # dictionary at 64 MiB; such archives decompress through the pinned

@@ -284,6 +284,25 @@ else
 	fail=1
 fi
 
+# reindeer's URL carries the version once, as `download/v<version>`; a
+# newValue that kept the tag's v would rewrite it to `download/vv<version>`.
+reindeer_new_value() {
+	awk -v dep="\"depName\": \"facebookincubator/reindeer\"" '
+		/"depName": "/ { cur = (index($0, dep) > 0) }
+		cur && /"newValue"/ { print; exit }
+	' "$log" | grep -oE '"[^"]+"' | tail -1 | tr -d '"'
+}
+reindeer_nv="$(reindeer_new_value)"
+if [[ -z "$reindeer_nv" ]]; then
+	echo "FAIL: no newValue found for facebookincubator/reindeer to check"
+	fail=1
+elif [[ "$reindeer_nv" =~ ^[0-9] ]]; then
+	echo "PASS: reindeer newValue ${reindeer_nv} is the bare version"
+else
+	echo "FAIL: reindeer newValue ${reindeer_nv} keeps the tag's prefix; the URL would not resolve"
+	fail=1
+fi
+
 # The multi-axis pair moves together: one grouped branch carries both the
 # cpython version and the python-build-standalone date.
 if grep -qF '"branchName": "renovate/cpython"' "$log"; then

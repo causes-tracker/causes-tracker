@@ -14,7 +14,7 @@ one sentence per line, blank lines between paragraphs.
 This keeps diffs small and reviewable.
 List item continuation sentences are indented to align with the list marker.
 
-The same convention applies to Rust doc comments (`///`, `//!`, prose `//`) and to PR and issue descriptions, for the same rebase-conflict-reduction reason.
+The same convention applies to Rust doc comments (`///`, `//!`, prose `//`) and to issue descriptions, for the same rebase-conflict-reduction reason.
 
 ## Build system
 

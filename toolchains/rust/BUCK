@@ -91,7 +91,10 @@ musl_shims(
     dist = "@root//third_party/musl:musl_runtime",
     library_dirs = [],
     runtime = "@root//third_party/musl:musl_runtime",
-    visibility = ["//:"],
+    visibility = [
+        "//:",
+        "//rust/check:",
+    ],
 )
 
 export_file(

@@ -10,13 +10,18 @@ zig_cxx_toolchain(
     zig = "@root//third_party/zig:zig",
 )
 
+# The prelude's build script rule reads the toolchain through tools in its
+# rust/tools package.
 musl_rust_toolchain(
     name = "rust",
     bash_shims = "//rust:bash_shims",
     default_edition = "2024",
     rust_tools = "//rust:rust_tools",
     sysroot = "//rust:sysroot",
-    visibility = ["//rust/check:"],
+    visibility = [
+        "//rust/check:",
+        "@prelude//rust/tools:",
+    ],
 )
 
 # The interpreter for the prelude's python_bootstrap_binary tools, which the

@@ -5,6 +5,7 @@
 # The prelude's rust rules build a clippy wrapper for every crate and fail
 # analysis when clippy_driver is None.
 
+load("@prelude//rust:cargo_buildscript.bzl", prelude_buildscript_run = "buildscript_run")
 load("@prelude//rust:rust_toolchain.bzl", "PanicRuntime", "RustToolchainInfo")
 
 # target: the rustc target triple the sysroot holds std for.
@@ -93,3 +94,58 @@ musl_rust_toolchain = rule(
     },
     is_toolchain_rule = True,
 )
+
+# A build script behind a launcher that makes the relative entries of PATH
+# absolute.
+# The prelude renders PATH relative to the directory the build script starts
+# in, and build scripts run the compiler shims from other directories.
+def _absolute_path_buildscript_impl(ctx: AnalysisContext) -> list[Provider]:
+    launcher = ctx.actions.declare_output("launcher.sh")
+    buildscript = ctx.attrs.buildscript[RunInfo]
+    ctx.actions.write(
+        launcher,
+        [
+            "#!/bin/sh",
+            "set -eu",
+            'absolute=""',
+            "IFS=:",
+            "for dir in $PATH; do",
+            '    case "$dir" in /*) ;; *) dir="$PWD/$dir" ;; esac',
+            '    absolute="${absolute:+$absolute:}$dir"',
+            "done",
+            "unset IFS",
+            'export PATH="$absolute"',
+            cmd_args(buildscript, relative_to = (launcher, 1), format = 'exec "$(dirname "$0")/{}" "$@"'),
+        ],
+        is_executable = True,
+        allow_args = True,
+    )
+    return [
+        DefaultInfo(default_output = launcher),
+        RunInfo(args = cmd_args(launcher, hidden = buildscript)),
+    ]
+
+_absolute_path_buildscript = rule(
+    impl = _absolute_path_buildscript_impl,
+    attrs = {
+        "buildscript": attrs.dep(providers = [RunInfo]),
+    },
+)
+
+# The prelude's buildscript_run with bash on PATH: the prelude hands a build
+# script rustc and the C compiler as shims whose interpreter is
+# `/usr/bin/env bash`.
+# The staged bash is itself a shell script that needs the worker's /bin.
+def buildscript_run(name, buildscript_rule, env = {}, **kwargs):
+    launcher = name + "-absolute-path"
+    _absolute_path_buildscript(
+        name = launcher,
+        buildscript = buildscript_rule,
+        visibility = [],
+    )
+    prelude_buildscript_run(
+        name = name,
+        buildscript_rule = ":" + launcher,
+        env = env | {"PATH": "$(location toolchains//rust:bash_shims)/bin:/bin"},
+        **kwargs
+    )

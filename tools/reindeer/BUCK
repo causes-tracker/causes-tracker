@@ -1,0 +1,21 @@
+load("//tools:defs.bzl", "cached_check", "downloaded_tool", "shellcheck_package")
+
+downloaded_tool(
+    name = "reindeer",
+    decompressor = "//third_party/zstd:zstd",
+    out = "reindeer",
+    sha256 = "68fcefa3f638a07b15bd2813ec7914dd37f0e8372c518ef86fdc7b14dfad7fb5",
+    size_bytes = 14696951,
+    url = "https://github.com/facebookincubator/reindeer/releases/download/v2026.11.16.00/reindeer-x86_64-unknown-linux-musl.zst",
+)
+
+cached_check(
+    name = "reindeer_test",
+    exe = "//tools:bash",
+    srcs = [
+        "reindeer_test.sh",
+        ":reindeer",
+    ],
+)
+
+shellcheck_package()

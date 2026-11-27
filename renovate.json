@@ -45,9 +45,14 @@
       "separateMajorMinor": false
     },
     {
-      "description": "Releases tagged with 8-digit dates, not semver.",
-      "matchDepNames": ["astral-sh/python-build-standalone", "facebook/buck2"],
+      "description": "Releases tagged with dates, not semver.",
+      "matchDepNames": ["astral-sh/python-build-standalone", "facebook/buck2", "facebookincubator/reindeer"],
       "versioning": "loose"
+    },
+    {
+      "description": "Every reindeer release is flagged a prerelease on GitHub.",
+      "matchDepNames": ["facebookincubator/reindeer"],
+      "ignoreUnstable": false
     },
     {
       "description": "The renovate/renovate image pinned in tools/renovate/BUCK (the functional-check fixture) bumps at most once a month as they have very good backwards compat.",
